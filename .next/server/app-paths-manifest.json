@@ -1,19 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/assignments/[id]/page": "app/assignments/[id]/page.js",
-  "/account/page": "app/account/page.js",
-  "/assignments/new/page": "app/assignments/new/page.js",
-  "/auth/login/page": "app/auth/login/page.js",
-  "/auth/signup/page": "app/auth/signup/page.js",
-  "/assignments/page": "app/assignments/page.js",
-  "/auth/verify-email/page": "app/auth/verify-email/page.js",
-  "/calendar/page": "app/calendar/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/notes/[id]/edit/page": "app/notes/[id]/edit/page.js",
-  "/notes/[id]/page": "app/notes/[id]/page.js",
-  "/page": "app/page.js",
-  "/social/page": "app/social/page.js",
   "/notes/page": "app/notes/page.js",
-  "/notes/new/page": "app/notes/new/page.js",
-  "/study/page": "app/study/page.js"
+  "/calendar/page": "app/calendar/page.js",
+  "/social/page": "app/social/page.js",
+  "/account/page": "app/account/page.js",
+  "/dashboard/page": "app/dashboard/page.js"
 }

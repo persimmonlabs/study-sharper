@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { createProfile } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -14,23 +15,9 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [testMode, setTestMode] = useState(false)
   const router = useRouter()
 
-  // Test email whitelist - allow these for testing
-  const testEmails = [
-    'testuser123@outlook.com',
-    'testuser456@outlook.com',
-    'testuser789@outlook.com',
-    'user@localhost'
-  ]
-
   const validateEmail = (email: string) => {
-    // Check if it's a whitelisted test email
-    if (testEmails.includes(email.toLowerCase())) {
-      return true
-    }
-
     // Standard email validation for real emails
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -41,17 +28,6 @@ export default function Signup() {
            /[A-Z]/.test(password) && // At least one uppercase letter
            /[a-z]/.test(password) && // At least one lowercase letter
            /\d/.test(password) // At least one number
-  }
-
-  const fillTestCredentials = () => {
-    setFirstName('Test')
-    setLastName('User')
-    setEmail('testuser123@outlook.com')
-    setPassword('Test123!')
-    setConfirmPassword('Test123!')
-    setTestMode(true)
-    setError('')
-    setSuccess('Test credentials loaded! Click "Create account" to continue.')
   }
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -94,9 +70,7 @@ export default function Signup() {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
           },
-          emailRedirectTo: `${window.location.origin}/auth/verify-email`,
-          // Try to enable auto-confirmation for test emails
-          captchaToken: testEmails.includes(email.toLowerCase()) ? 'test-mode' : undefined,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -106,52 +80,25 @@ export default function Signup() {
         console.error('Error message:', error.message)
         setError(`Signup failed: ${error.message} (Code: ${error.status || 'unknown'})`)
       } else {
-        console.log('Signup successful, checking if auto-confirmed...')
+        console.log('Signup successful, ensuring profile exists...')
 
-        // For test emails, try to auto-confirm immediately
-        if (testEmails.includes(email.toLowerCase())) {
-          console.log('Test email detected, attempting auto-confirmation...')
+        if (data.user) {
           try {
-            // Wait a moment for the user to be created
-            await new Promise(resolve => setTimeout(resolve, 3000))
-
-            // Try to sign in immediately (this works if auto-confirmation is enabled)
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
+            await createProfile({
+              id: data.user.id,
+              email: data.user.email ?? email,
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
             })
-
-            if (signInError) {
-              console.log('Auto-login failed, user needs email confirmation')
-              // For test emails, provide a workaround message
-              if (signInError.message.includes('Email not confirmed')) {
-                setError('Account created! For testing, you can try logging in directly - the email confirmation might be processed automatically. If that doesn\'t work, please check your email.')
-                // For test emails, try to bypass confirmation by redirecting to login
-                setTimeout(() => {
-                  setError('')
-                  setSuccess('Account created! Redirecting to login page for testing...')
-                  setTimeout(() => {
-                    router.push('/auth/login')
-                  }, 1500)
-                }, 3000)
-              } else {
-                setError('Account created! Please check your email to confirm your account before logging in.')
-              }
-            } else {
-              console.log('Auto-login successful!')
-              setSuccess('Account created and confirmed! Redirecting to dashboard...')
-              setTimeout(() => {
-                router.push('/dashboard')
-              }, 1000)
-            }
-          } catch (confirmError) {
-            console.error('Auto-confirmation error:', confirmError)
-            setError('Account created! Please check your email to confirm your account.')
+          } catch (profileError) {
+            console.error('Error creating profile via server action:', profileError)
           }
-        } else {
-          // For real emails, require confirmation
-          setSuccess('Account created! Please check your email to confirm your account before logging in.')
         }
+
+        setSuccess('Account created! Please check your email to confirm your account before logging in.')
+        setTimeout(() => {
+          router.push('/auth/login')
+        }, 4000)
       }
     } catch (error) {
       setError('An unexpected error occurred')
@@ -173,25 +120,6 @@ export default function Signup() {
               sign in to existing account
             </Link>
           </p>
-        </div>
-
-        {/* Test Mode Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">Test Mode</h3>
-              <p className="text-sm text-blue-700">
-                Click below to auto-fill test credentials for immediate testing
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={fillTestCredentials}
-              className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              Load Test Data
-            </button>
-          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSignup}>

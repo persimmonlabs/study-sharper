@@ -21,3 +21,21 @@
     @apply bg-white p-6 rounded-lg shadow-sm border;
   }
 }
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+
+  .dark * {
+    @apply border-gray-700;
+  }
+}

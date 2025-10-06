@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/components/AuthProvider'
+import { NoteModal } from '@/components/NoteModal'
 
 interface DashboardStats {
   totalNotes: number
@@ -24,7 +27,7 @@ interface UserProfile {
 
 interface ActivityItem {
   id: string
-  type: 'token_earned' | 'achievement' | 'quiz_completed' | 'study_session'
+  type: 'token_earned' | 'achievement' | 'quiz_completed' | 'study_session' | 'note'
   title: string
   description: string
   tokens?: number
@@ -49,6 +52,15 @@ interface AIRecommendation {
   priority: 'high' | 'medium' | 'low'
 }
 
+interface AssignmentSummary {
+  id: string
+  title: string
+  due_date: string | null
+  priority: 'low' | 'medium' | 'high' | null
+  status: 'pending' | 'in_progress' | 'completed' | null
+  description?: string | null
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalNotes: 0,
@@ -66,186 +78,132 @@ export default function Dashboard() {
     last_name: null,
   })
   const [loading, setLoading] = useState(true)
-  const [isTestMode, setIsTestMode] = useState(false)
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
   const [topFriends, setTopFriends] = useState<Friend[]>([])
   const [aiRecommendations, setAIRecommendations] = useState<AIRecommendation[]>([])
+  const [upcomingAssignmentsList, setUpcomingAssignmentsList] = useState<AssignmentSummary[]>([])
+  const [modalNote, setModalNote] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [dailyGoalProgress, setDailyGoalProgress] = useState({ current: 0, target: 240 }) // minutes
   const [weeklyGoalProgress, setWeeklyGoalProgress] = useState({ current: 0, target: 1200 }) // minutes
   const router = useRouter()
+  const pathname = usePathname()
+  const { user, loading: authLoading, signOut } = useAuth()
+
+  const redirectToLogin = useCallback(() => {
+    if (!user && !authLoading) {
+      const nextParam = pathname && pathname !== '/dashboard' ? `?next=${encodeURIComponent(pathname)}` : ''
+      router.push(`/auth/login${nextParam}`)
+    }
+  }, [authLoading, pathname, router, user])
 
   useEffect(() => {
-    const checkUser = async () => {
-      // Check for test mode first (only on client side)
-      if (typeof window !== 'undefined') {
-        const testMode = localStorage.getItem('testMode')
-        const testUser = localStorage.getItem('testUser')
+    redirectToLogin()
+  }, [redirectToLogin])
 
-        if (testMode === 'true' && testUser) {
-          console.log('Test mode detected, using mock user data')
-          try {
-            const userData = JSON.parse(testUser)
-            setUserProfile({
-              first_name: userData.user_metadata?.first_name || 'Test',
-              last_name: userData.user_metadata?.last_name || 'User'
-            })
-            setIsTestMode(true)
-            // Set mock stats for test user
-            setStats({
-              totalNotes: 12,
-              totalAssignments: 5,
-              upcomingAssignments: 3,
-              totalStudyTime: 2840,
-              quizzesCompleted: 47,
-              streakDays: 12,
-              tokens: 2450,
-              xp: 8750,
-              level: 15,
-            })
-            
-            // Set mock activity data
-            setRecentActivity([
-              {
-                id: '1',
-                type: 'token_earned',
-                title: 'Daily Login Bonus',
-                description: 'Earned 50 tokens for logging in',
-                tokens: 50,
-                timestamp: new Date().toISOString(),
-                icon: '💰'
-              },
-              {
-                id: '2',
-                type: 'achievement',
-                title: 'Quiz Master',
-                description: 'Unlocked for scoring 90%+ on 10 quizzes',
-                timestamp: new Date(Date.now() - 3600000).toISOString(),
-                icon: '🏆'
-              },
-              {
-                id: '3',
-                type: 'study_session',
-                title: 'Math Study Session',
-                description: 'Completed 90-minute focused study session',
-                tokens: 100,
-                timestamp: new Date(Date.now() - 7200000).toISOString(),
-                icon: '📚'
-              }
-            ])
-            
-            // Set mock friends data
-            setTopFriends([
-              { id: '1', name: 'Alex Johnson', avatar: '👨‍🎓', tokens: 3200, level: 18 },
-              { id: '2', name: 'Sarah Chen', avatar: '👩‍🎓', tokens: 2890, level: 16 },
-              { id: '3', name: 'Mike Rodriguez', avatar: '👨‍💻', tokens: 2650, level: 15 }
-            ])
-            
-            // Set mock AI recommendations
-            setAIRecommendations([
-              {
-                id: '1',
-                title: 'Review Calculus Derivatives',
-                description: 'Based on your recent quiz performance, reviewing derivatives would help',
-                type: 'review',
-                subject: 'Mathematics',
-                priority: 'high'
-              },
-              {
-                id: '2',
-                title: 'Practice World War II Quiz',
-                description: 'You haven\'t practiced history in 3 days',
-                type: 'quiz',
-                subject: 'History',
-                priority: 'medium'
-              }
-            ])
-            
-            // Set mock goal progress
-            setDailyGoalProgress({ current: 150, target: 240 })
-            setWeeklyGoalProgress({ current: 720, target: 1200 })
-            
-            setLoading(false)
-            return
-          } catch (error) {
-            console.error('Error parsing test user data:', error)
-          }
-        }
-      }
-
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-
-      // Fetch user profile and dashboard stats
-      await fetchUserProfile()
-      await fetchStats()
+  useEffect(() => {
+    if (!user) {
+      return
     }
 
-    checkUser()
-  }, [router])
+    const loadDashboard = async () => {
+      try {
+        const [profileLoaded] = await Promise.all([
+          fetchUserProfile(user),
+          fetchStats(user),
+        ])
 
-  const fetchUserProfile = async () => {
+        if (!profileLoaded) {
+          await createFallbackProfile(user)
+          await fetchUserProfile(user)
+        }
+
+        await loadRecentActivity(user)
+        await loadSocialData(user)
+      } catch (loadError) {
+        console.error('Error loading dashboard data:', loadError)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [user])
+
+  const fetchUserProfile = useCallback(async (currentUser: User) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const { data: profile } = await supabase
         .from('profiles')
         .select('first_name, last_name')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single()
 
       if (profile) {
         setUserProfile(profile)
+        return true
       }
+      return false
     } catch (error) {
       console.error('Error fetching user profile:', error)
       // Set default values if profile fetch fails
       setUserProfile({ first_name: 'User', last_name: null })
+      return false
     }
-  }
+  }, [])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async (currentUser: User) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const now = new Date()
+      const nowIso = now.toISOString()
 
       // Get notes count
       const { count: notesCount } = await supabase
         .from('notes')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
 
       // Get assignments count
       const { count: assignmentsCount } = await supabase
         .from('assignments')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
 
       // Get upcoming assignments (due in next 7 days)
-      const sevenDaysFromNow = new Date()
+      const sevenDaysFromNow = new Date(now)
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
 
       const { count: upcomingCount } = await supabase
         .from('assignments')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .lt('due_date', sevenDaysFromNow.toISOString())
-        .gt('due_date', new Date().toISOString())
+        .gte('due_date', nowIso)
+
+      const { data: upcomingAssignmentsData, error: upcomingAssignmentsError } = await supabase
+        .from('assignments')
+        .select('id, title, due_date, priority, status, description')
+        .eq('user_id', currentUser.id)
+        .lt('due_date', sevenDaysFromNow.toISOString())
+        .gte('due_date', nowIso)
+        .order('due_date', { ascending: true })
+        .limit(5)
+
+      if (upcomingAssignmentsError) {
+        throw upcomingAssignmentsError
+      }
 
       // Get total study time
       const { data: studySessions } = await supabase
         .from('study_sessions')
         .select('duration_minutes')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
 
       const totalStudyTime = studySessions?.reduce(
         (total, session) => total + session.duration_minutes,
         0
       ) || 0
+
+      setUpcomingAssignmentsList(upcomingAssignmentsData ?? [])
 
       setStats({
         totalNotes: notesCount || 0,
@@ -272,8 +230,129 @@ export default function Dashboard() {
         xp: 0,
         level: 1,
       })
-    } finally {
-      setLoading(false)
+      setUpcomingAssignmentsList([])
+    }
+  }, [])
+
+  const loadRecentActivity = useCallback(async (currentUser: User) => {
+    try {
+      // Get recent notes
+      const { data: notesData } = await supabase
+        .from('notes')
+        .select('id, title, content, created_at, updated_at')
+        .eq('user_id', currentUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(3)
+
+      // Get recent study sessions
+      const { data: sessionsData } = await supabase
+        .from('study_sessions')
+        .select('id, created_at, notes')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      const activityItems: ActivityItem[] = []
+
+      // Add notes to activity
+      if (notesData) {
+        notesData.forEach((note) => {
+          activityItems.push({
+            id: note.id,
+            type: 'note',
+            title: note.title,
+            description: note.content?.substring(0, 100) + (note.content && note.content.length > 100 ? '...' : '') || 'Note created',
+            timestamp: note.updated_at,
+            icon: '📝',
+          })
+        })
+      }
+
+      // Add study sessions to activity
+      if (sessionsData) {
+        sessionsData.forEach((session) => {
+          activityItems.push({
+            id: session.id,
+            type: 'study_session',
+            title: 'Study Session Logged',
+            description: session.notes || 'Great work continuing your streak!',
+            timestamp: session.created_at,
+            icon: '📚',
+          })
+        })
+      }
+
+      // Sort by timestamp and take top 5
+      activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      setRecentActivity(activityItems.slice(0, 5))
+    } catch (error) {
+      console.error('Error loading recent activity:', error)
+      setRecentActivity([])
+    }
+  }, [])
+
+  const loadSocialData = useCallback(async (_currentUser: User) => {
+    try {
+      // Placeholder for future social data.
+      setTopFriends([])
+      setAIRecommendations([])
+    } catch (error) {
+      console.error('Error loading social data:', error)
+      setTopFriends([])
+      setAIRecommendations([])
+    }
+  }, [])
+
+  const createFallbackProfile = useCallback(async (currentUser: User) => {
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          first_name: currentUser.user_metadata?.first_name ?? null,
+          last_name: currentUser.user_metadata?.last_name ?? null,
+        })
+    } catch (error) {
+      console.error('Error creating fallback profile:', error)
+    }
+  }, [])
+
+  const handleViewNote = async (noteId: string) => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', noteId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      setModalNote(data)
+      setIsModalOpen(true)
+    } catch (error) {
+      console.error('Error fetching note:', error)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setModalNote(null)
+  }
+
+  const handleNoteDeleted = () => {
+    // Close modal
+    setIsModalOpen(false)
+    setModalNote(null)
+    
+    // Refresh dashboard data
+    if (user) {
+      loadRecentActivity(user)
     }
   }
 
@@ -286,18 +365,8 @@ export default function Dashboard() {
   }
 
   const handleLogout = async () => {
-    if (isTestMode) {
-      // Clear test session
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('testUser')
-        localStorage.removeItem('testMode')
-      }
-      router.push('/auth/login')
-    } else {
-      // Normal logout
-      await supabase.auth.signOut()
-      router.push('/auth/login')
-    }
+    await signOut()
+    router.push('/auth/login')
   }
 
   const firstName = userProfile.first_name || 'there'
@@ -312,49 +381,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Test Mode Banner */}
-      {isTestMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">Test Mode Active</h3>
-              <p className="text-sm text-blue-700 mt-1">
-                You're using a test account. Some features may be limited.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header with Level & Tokens */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Welcome back, {firstName}! 🎓
           </h1>
-          <p className="text-gray-600 mt-2">Ready to continue your learning journey?</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Ready to continue your learning journey?</p>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg">
-            <div className="text-center">
-              <div className="text-lg font-bold">Level {stats.level}</div>
-              <div className="text-xs opacity-90">{stats.xp} XP</div>
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-3 py-2 rounded-lg text-sm h-10 flex items-center">
+            <div className="text-center whitespace-nowrap">
+              <span className="text-sm font-bold">Level {stats.level}</span>
+              <span className="text-xs opacity-90 ml-1">{stats.xp} XP</span>
             </div>
           </div>
-          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-4 py-2 rounded-lg">
-            <div className="text-center">
-              <div className="text-lg font-bold">{stats.tokens}</div>
-              <div className="text-xs opacity-90">Tokens</div>
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-3 py-2 rounded-lg text-sm h-10 flex items-center">
+            <div className="text-center whitespace-nowrap">
+              <span className="text-sm font-bold">{stats.tokens}</span>
+              <span className="text-xs opacity-90 ml-1">Tokens</span>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors"
+            className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors h-10 flex items-center justify-center whitespace-nowrap"
           >
             Logout
           </button>
@@ -376,37 +426,37 @@ export default function Dashboard() {
         </div>
 
         {/* Daily Goal */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Goal</h3>
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Daily Goal</h3>
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
             <span>Study Time</span>
             <span>{dailyGoalProgress.current}m / {dailyGoalProgress.target}m</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
             <div 
               className="bg-green-500 h-3 rounded-full transition-all duration-300" 
               style={{ width: `${Math.min((dailyGoalProgress.current / dailyGoalProgress.target) * 100, 100)}%` }}
             ></div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
             {Math.round((dailyGoalProgress.current / dailyGoalProgress.target) * 100)}% complete
           </div>
         </div>
 
         {/* Weekly Goal */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Weekly Goal</h3>
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Weekly Goal</h3>
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
             <span>Study Time</span>
             <span>{Math.floor(weeklyGoalProgress.current / 60)}h {weeklyGoalProgress.current % 60}m / {Math.floor(weeklyGoalProgress.target / 60)}h</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
             <div 
               className="bg-blue-500 h-3 rounded-full transition-all duration-300" 
               style={{ width: `${Math.min((weeklyGoalProgress.current / weeklyGoalProgress.target) * 100, 100)}%` }}
             ></div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
             {Math.round((weeklyGoalProgress.current / weeklyGoalProgress.target) * 100)}% complete
           </div>
         </div>
@@ -414,40 +464,40 @@ export default function Dashboard() {
 
       {/* Enhanced Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">📚</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.totalNotes}</div>
-          <div className="text-sm text-gray-600">Notes</div>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalNotes}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Notes</div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">📝</div>
-          <div className="text-2xl font-bold text-green-600">{stats.totalAssignments}</div>
-          <div className="text-sm text-gray-600">Assignments</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.totalAssignments}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Assignments</div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">🧠</div>
-          <div className="text-2xl font-bold text-purple-600">{stats.quizzesCompleted}</div>
-          <div className="text-sm text-gray-600">Quizzes</div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.quizzesCompleted}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Quizzes</div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">⏱️</div>
-          <div className="text-2xl font-bold text-orange-600">{Math.floor(stats.totalStudyTime / 60)}h</div>
-          <div className="text-sm text-gray-600">Study Time</div>
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{Math.floor(stats.totalStudyTime / 60)}h</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Study Time</div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">⚡</div>
-          <div className="text-2xl font-bold text-yellow-600">{stats.xp}</div>
-          <div className="text-sm text-gray-600">XP</div>
+          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.xp}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">XP</div>
         </div>
         
-        <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">⏰</div>
-          <div className="text-2xl font-bold text-red-600">{stats.upcomingAssignments}</div>
-          <div className="text-sm text-gray-600">Due Soon</div>
+          <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.upcomingAssignments}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Due Soon</div>
         </div>
       </div>
 
@@ -456,46 +506,64 @@ export default function Dashboard() {
         {/* Left Column - Activity & AI Recommendations */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Activity Feed */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Activity</h3>
             <div className="space-y-4">
-              {recentActivity.map(activity => (
-                <div key={activity.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl mr-4">{activity.icon}</div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{activity.title}</h4>
-                    <p className="text-sm text-gray-600">{activity.description}</p>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                  {activity.tokens && (
-                    <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm font-medium">
-                      +{activity.tokens} tokens
-                    </div>
-                  )}
+              {recentActivity.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-sm">No recent activity</p>
+                  <Link href="/notes" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-2 inline-block">
+                    Create your first note
+                  </Link>
                 </div>
-              ))}
+              ) : (
+                recentActivity.map(activity => (
+                  <div 
+                    key={activity.id} 
+                    className={`flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg ${
+                      activity.type === 'note' ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors' : ''
+                    }`}
+                    onClick={() => activity.type === 'note' ? handleViewNote(activity.id) : undefined}
+                  >
+                    <div className="text-2xl mr-4">{activity.icon}</div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{activity.title}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    {activity.tokens && (
+                      <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded text-sm font-medium">
+                        +{activity.tokens} tokens
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* AI Recommendations */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">AI Study Recommendations</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Study Recommendations</h3>
               <div className="ml-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full">
                 AI
               </div>
             </div>
             <div className="space-y-4">
               {aiRecommendations.map(rec => (
-                <div key={rec.id} className="border rounded-lg p-4">
+                <div key={rec.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{rec.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{rec.title}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rec.description}</p>
                       <div className="flex items-center mt-2 space-x-2">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                        <span className="bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded">
                           {rec.subject}
                         </span>
                         <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(rec.priority)}`}>
@@ -516,58 +584,82 @@ export default function Dashboard() {
         {/* Right Column - Friends & Quick Actions */}
         <div className="space-y-6">
           {/* Mini Leaderboard */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Friends 🏆</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Friends 🏆</h3>
             <div className="space-y-3">
               {topFriends.map((friend, index) => (
                 <div key={friend.id} className="flex items-center">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-700 font-bold text-sm mr-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-bold text-sm mr-3">
                     {index + 1}
                   </div>
                   <div className="text-xl mr-3">{friend.avatar}</div>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900 text-sm">{friend.name}</div>
-                    <div className="text-xs text-gray-600">Level {friend.level}</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{friend.name}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Level {friend.level}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold text-yellow-600">{friend.tokens}</div>
-                    <div className="text-xs text-gray-500">tokens</div>
+                    <div className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{friend.tokens}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500">tokens</div>
                   </div>
                 </div>
               ))}
             </div>
-            <Link href="/social" className="block text-center text-primary-600 hover:text-primary-700 text-sm font-medium mt-4">
+            <Link href="/social" className="block text-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-4">
               View All Friends →
             </Link>
           </div>
 
           {/* Upcoming Deadlines */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Deadlines</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Upcoming Deadlines</h3>
             <div className="space-y-3">
-              <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                <div className="text-red-600 mr-3">📝</div>
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900 text-sm">Math Homework</div>
-                  <div className="text-xs text-red-600">Due tomorrow</div>
+              {upcomingAssignmentsList.length === 0 ? (
+                <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                  <svg className="mx-auto h-10 w-10 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-sm">No upcoming assignments scheduled</p>
+                  <Link href="/calendar/new-assignment" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-2 inline-block">
+                    Add your first assignment
+                  </Link>
                 </div>
-              </div>
-              <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
-                <div className="text-yellow-600 mr-3">📚</div>
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900 text-sm">History Essay</div>
-                  <div className="text-xs text-yellow-600">Due in 3 days</div>
-                </div>
-              </div>
+              ) : (
+                upcomingAssignmentsList.map((assignment) => {
+                  const dueDateLabel = assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'
+                  return (
+                    <div key={assignment.id} className="flex items-start justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{assignment.title}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {dueDateLabel}</p>
+                        {assignment.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{assignment.description}</p>
+                        )}
+                        <div className="flex items-center mt-2 space-x-2">
+                          {assignment.priority && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${getPriorityColor(assignment.priority)}`}>
+                              {assignment.priority} priority
+                            </span>
+                          )}
+                          {assignment.status && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 capitalize">
+                              {assignment.status.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link href="/calendar" className="ml-4 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
+                        View
+                      </Link>
+                    </div>
+                  )
+                })
+              )}
             </div>
-            <Link href="/calendar" className="block text-center text-primary-600 hover:text-primary-700 text-sm font-medium mt-4">
-              View Calendar →
-            </Link>
           </div>
 
           {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
               <Link href="/study" className="bg-primary-600 text-white p-3 rounded-lg text-center hover:bg-primary-700 transition-colors">
                 <div className="text-lg mb-1">📚</div>
@@ -589,6 +681,14 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Note Modal */}
+      <NoteModal 
+        note={modalNote}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onDeleted={handleNoteDeleted}
+      />
     </div>
   )
 }

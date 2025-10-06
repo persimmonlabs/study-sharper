@@ -194,8 +194,8 @@ export default function Social() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Social Hub</h1>
-          <p className="text-gray-600 mt-2">Connect with study buddies, join groups, and compete in challenges</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Social Hub</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Connect with study buddies, join groups, and compete in challenges</p>
         </div>
         <div className="flex space-x-4">
           <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
@@ -208,8 +208,8 @@ export default function Social() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="flex border-b">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
           {[
             { id: 'friends', label: 'Friends', icon: '👥' },
             { id: 'groups', label: 'Study Groups', icon: '📚' },
@@ -221,8 +221,8 @@ export default function Social() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400 bg-gray-50 dark:bg-gray-700'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               <span className="mr-2">{tab.icon}</span>
@@ -236,46 +236,46 @@ export default function Social() {
           {activeTab === 'friends' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Your Study Friends</h3>
-                <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Your Study Friends</h3>
+                <button className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
                   Add Friends
                 </button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {friends.map(friend => (
-                  <div key={friend.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={friend.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                     <div className="flex items-center mb-3">
                       <div className="text-3xl mr-3">{friend.avatar}</div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{friend.name}</h4>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">{friend.name}</h4>
                         <div className="flex items-center">
                           <div className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(friend.status)}`}></div>
-                          <span className="text-sm text-gray-600">{getStatusText(friend.status)}</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">{getStatusText(friend.status)}</span>
                         </div>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
-                        <div className="text-lg font-bold text-primary-600">Lv.{friend.level}</div>
-                        <div className="text-xs text-gray-500">Level</div>
+                        <div className="text-lg font-bold text-primary-600 dark:text-primary-400">Lv.{friend.level}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">Level</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-yellow-600">{friend.tokens}</div>
-                        <div className="text-xs text-gray-500">Tokens</div>
+                        <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{friend.tokens}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">Tokens</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-green-600">{friend.streak}</div>
-                        <div className="text-xs text-gray-500">Streak</div>
+                        <div className="text-lg font-bold text-green-600 dark:text-green-400">{friend.streak}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">Streak</div>
                       </div>
                     </div>
                     
                     <div className="mt-4 flex space-x-2">
-                      <button className="flex-1 bg-primary-100 text-primary-700 py-2 px-3 rounded text-sm hover:bg-primary-200 transition-colors">
+                      <button className="flex-1 bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 py-2 px-3 rounded text-sm hover:bg-primary-200 dark:hover:bg-primary-800/30 transition-colors">
                         Challenge
                       </button>
-                      <button className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200 transition-colors">
+                      <button className="flex-1 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-3 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors">
                         Study Together
                       </button>
                     </div>
@@ -289,29 +289,29 @@ export default function Social() {
           {activeTab === 'groups' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Study Groups</h3>
-                <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Study Groups</h3>
+                <button className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
                   Browse All Groups
                 </button>
               </div>
               
               <div className="space-y-4">
                 {studyGroups.map(group => (
-                  <div key={group.id} className="border rounded-lg p-6">
+                  <div key={group.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center mb-2">
-                          <h4 className="text-lg font-medium text-gray-900 mr-3">{group.name}</h4>
+                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mr-3">{group.name}</h4>
                           {group.isJoined && (
-                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                            <span className="bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-xs px-2 py-1 rounded-full">
                               Joined
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-600 mb-3">{group.description}</p>
-                        <div className="flex items-center text-sm text-gray-500">
+                        <p className="text-gray-600 dark:text-gray-400 mb-3">{group.description}</p>
+                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-500">
                           <span className="mr-4">👥 {group.members} members</span>
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                          <span className="bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 px-2 py-1 rounded text-xs">
                             {group.subject}
                           </span>
                         </div>
@@ -322,7 +322,7 @@ export default function Social() {
                             <button className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition-colors">
                               Enter Room
                             </button>
-                            <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors">
+                            <button className="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
                               Leave
                             </button>
                           </>
@@ -343,19 +343,19 @@ export default function Social() {
           {activeTab === 'challenges' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Active Challenges</h3>
-                <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Active Challenges</h3>
+                <button className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
                   Create Challenge
                 </button>
               </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {challenges.map(challenge => (
-                  <div key={challenge.id} className="border rounded-lg p-6">
+                  <div key={challenge.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h4 className="text-lg font-medium text-gray-900 mb-2">{challenge.title}</h4>
-                        <p className="text-gray-600 mb-3">{challenge.description}</p>
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{challenge.title}</h4>
+                        <p className="text-gray-600 dark:text-gray-400 mb-3">{challenge.description}</p>
                       </div>
                       <div className="text-2xl">
                         {challenge.type === 'quiz' ? '🧠' : 
@@ -366,16 +366,16 @@ export default function Social() {
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center space-x-4">
                         <div className="text-center">
-                          <div className="text-lg font-bold text-yellow-600">{challenge.reward}</div>
-                          <div className="text-xs text-gray-500">Tokens</div>
+                          <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{challenge.reward}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500">Tokens</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-blue-600">{challenge.participants}</div>
-                          <div className="text-xs text-gray-500">Participants</div>
+                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{challenge.participants}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500">Participants</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-500">Ends</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-500">Ends</div>
                         <div className="text-sm font-medium">
                           {new Date(challenge.deadline).toLocaleDateString()}
                         </div>
@@ -395,12 +395,12 @@ export default function Social() {
           {activeTab === 'leaderboard' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Global Leaderboard</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Global Leaderboard</h3>
                 <div className="flex space-x-2">
-                  <button className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200 transition-colors">
+                  <button className="px-3 py-1 text-sm bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded hover:bg-primary-200 dark:hover:bg-primary-800/30 transition-colors">
                     This Week
                   </button>
-                  <button className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                  <button className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors">
                     All Time
                   </button>
                 </div>
@@ -409,22 +409,22 @@ export default function Social() {
               <div className="space-y-3">
                 {leaderboard.map((user, index) => (
                   <div key={user.id} className={`flex items-center p-4 rounded-lg ${
-                    index === 0 ? 'bg-yellow-50 border border-yellow-200' :
-                    index === 1 ? 'bg-gray-50 border border-gray-200' :
-                    index === 2 ? 'bg-orange-50 border border-orange-200' :
-                    'bg-white border border-gray-200'
+                    index === 0 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800' :
+                    index === 1 ? 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600' :
+                    index === 2 ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800' :
+                    'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600'
                   }`}>
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold mr-4">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-bold mr-4">
                       {index + 1}
                     </div>
                     <div className="text-2xl mr-4">{user.avatar}</div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{user.name}</h4>
-                      <div className="text-sm text-gray-600">Level {user.level} • {user.streak} day streak</div>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{user.name}</h4>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Level {user.level} • {user.streak} day streak</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-yellow-600">{user.tokens}</div>
-                      <div className="text-xs text-gray-500">tokens</div>
+                      <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{user.tokens}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-500">tokens</div>
                     </div>
                     {index < 3 && (
                       <div className="ml-4 text-2xl">

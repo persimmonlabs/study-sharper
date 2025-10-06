@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 export default function Login() {
@@ -11,32 +11,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [pendingVerification, setPendingVerification] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const validateEmail = (email: string) => {
-    // Test email whitelist - allow these for testing
-    const testEmails = [
-      'testuser123@outlook.com',
-      'testuser456@outlook.com',
-      'testuser789@outlook.com',
-      'user@localhost'
-    ]
-
-    // Check if it's a whitelisted test email
-    if (testEmails.includes(email.toLowerCase())) {
-      return true
-    }
-
-    // Standard email validation for real emails
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
-  }
-
-  const fillTestCredentials = () => {
-    setEmail('testuser123@outlook.com')
-    setPassword('Test123!')
-    setError('')
-    setSuccess('Test credentials loaded! Click "Sign in" to continue.')
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -44,6 +25,7 @@ export default function Login() {
     setLoading(true)
     setError('')
     setSuccess('')
+    setPendingVerification(false)
 
     if (!validateEmail(email)) {
       setError('Please enter a valid email address')
@@ -52,42 +34,6 @@ export default function Login() {
     }
 
     try {
-      const testEmails = [
-        'testuser123@outlook.com',
-        'testuser456@outlook.com',
-        'testuser789@outlook.com',
-        'user@localhost'
-      ]
-
-      // Check if this is a test email - if so, bypass normal authentication
-      if (testEmails.includes(email.toLowerCase())) {
-        console.log('Test email detected, using bypass authentication...')
-        setLoading(true)
-
-        // Create a mock user session for testing
-        const mockUser = {
-          id: 'test-user-' + Date.now(),
-          email: email,
-          user_metadata: {
-            first_name: 'Test',
-            last_name: 'User'
-          }
-        }
-
-        // Store mock session in localStorage for testing (only on client side)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('testUser', JSON.stringify(mockUser))
-          localStorage.setItem('testMode', 'true')
-        }
-
-        setSuccess('Test login successful! Redirecting to dashboard...')
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 1000)
-        return
-      }
-
-      // Normal authentication for non-test emails
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -95,28 +41,19 @@ export default function Login() {
 
       if (error) {
         console.error('Login error:', error)
-
-        // Handle specific error cases for test emails
-        const testEmails = [
-          'testuser123@outlook.com',
-          'testuser456@outlook.com',
-          'testuser789@outlook.com',
-          'user@localhost'
-        ]
-
-        if (testEmails.includes(email.toLowerCase()) && error.message.includes('Email not confirmed')) {
-          setError('Test account needs confirmation. For testing purposes, try signing up again - it should auto-confirm this time.')
+        if (error.message.includes('Email not confirmed')) {
+          setError('Please confirm your email address before signing in. You can resend the verification email below if needed.')
+          setPendingVerification(true)
         } else if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. For testing, make sure to use the "Load Test Data" button first.')
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Please confirm your email address first. Check your inbox for a confirmation link.')
+          setError('Invalid email or password. Please double-check your credentials and try again.')
         } else {
           setError(error.message)
         }
       } else {
         setSuccess('Login successful! Redirecting to dashboard...')
+        const next = searchParams?.get('next') || '/dashboard'
         setTimeout(() => {
-          router.push('/dashboard')
+          router.push(next)
         }, 1000)
       }
     } catch (error) {
@@ -126,48 +63,58 @@ export default function Login() {
     }
   }
 
+  const handleResendVerification = async () => {
+    if (!validateEmail(email)) {
+      setError('Enter a valid email to resend verification')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setSuccess('Verification email resent! Please check your inbox.')
+      setPendingVerification(false)
+    } catch (resendError: any) {
+      console.error('Error resending verification email:', resendError)
+      setError(resendError.message ?? 'Unable to resend verification email. Please try again later.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
             Sign in to Study Sharper
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Or{' '}
-            <Link href="/auth/signup" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link href="/auth/signup" className="font-medium text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300">
               create a new account
             </Link>
           </p>
         </div>
-
-        {/* Test Mode Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">Test Mode</h3>
-              <p className="text-sm text-blue-700">
-                Click below to auto-fill test credentials for immediate testing
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={fillTestCredentials}
-              className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              Load Test Data
-            </button>
-          </div>
-        </div>
-
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">
               {error}
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded">
               {success}
             </div>
           )}
@@ -181,7 +128,7 @@ export default function Login() {
                 name="email"
                 type="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -196,7 +143,7 @@ export default function Login() {
                 name="password"
                 type="password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 focus:z-10 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -208,12 +155,28 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 dark:bg-primary-700 hover:bg-primary-700 dark:hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
+
+        {pendingVerification && (
+          <div className="space-y-3">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded text-sm">
+              Didn't get the confirmation email? You can resend it below.
+            </div>
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={loading}
+              className="w-full py-2 px-4 border border-blue-200 dark:border-blue-700 text-sm font-medium rounded-md text-blue-700 dark:text-blue-300 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 disabled:opacity-50"
+            >
+              {loading ? 'Resending...' : 'Resend verification email'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/components/AuthProvider'
+import type { User } from '@supabase/supabase-js'
 
 interface Assignment {
   id: string
@@ -17,10 +19,10 @@ interface Assignment {
 
 interface StudySession {
   id: string
-  title: string
-  date: string
-  duration: number
-  subject: string
+  date: string | null
+  duration_minutes: number | null
+  notes: string | null
+  created_at: string | null
 }
 
 export default function Calendar() {
@@ -31,98 +33,69 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
 
-  useEffect(() => {
-    const checkUser = async () => {
-      if (typeof window !== 'undefined') {
-        const testMode = localStorage.getItem('testMode')
-        const testUser = localStorage.getItem('testUser')
-
-        if (testMode === 'true' && testUser) {
-          console.log('Test mode detected, using mock calendar data')
-          setMockData()
-          setLoading(false)
-          return
-        }
-      }
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-
-      await fetchCalendarData()
-    }
-
-    checkUser()
-  }, [router])
-
-  const setMockData = () => {
-    const mockAssignments: Assignment[] = [
-      {
-        id: '1',
-        title: 'Math Homework Chapter 5',
-        description: 'Complete exercises 1-20',
-        due_date: '2024-01-15',
-        status: 'pending',
-        priority: 'high',
-        subject: 'Mathematics'
-      },
-      {
-        id: '2',
-        title: 'History Essay',
-        description: 'Write 1000 words on World War II',
-        due_date: '2024-01-18',
-        status: 'in_progress',
-        priority: 'medium',
-        subject: 'History'
-      }
-    ]
-
-    const mockSessions: StudySession[] = [
-      {
-        id: '1',
-        title: 'Math Study Session',
-        date: '2024-01-14',
-        duration: 90,
-        subject: 'Mathematics'
-      }
-    ]
-
-    setAssignments(mockAssignments)
-    setStudySessions(mockSessions)
-  }
-
-  const fetchCalendarData = async () => {
+  const fetchCalendarData = useCallback(async (currentUser: User) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // Fetch assignments
-      const { data: assignmentsData } = await supabase
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('assignments')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .order('due_date', { ascending: true })
 
-      // Fetch study sessions
-      const { data: sessionsData } = await supabase
+      if (assignmentsError) {
+        throw assignmentsError
+      }
+
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from('study_sessions')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('id, duration_minutes, notes, created_at')
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
 
+      if (sessionsError) {
+        throw sessionsError
+      }
+
       setAssignments(assignmentsData || [])
-      setStudySessions(sessionsData || [])
+      const normalizedSessions: StudySession[] = (sessionsData || []).map((session: any) => {
+        const createdAt: string | null = session.created_at ?? null
+        const derivedDate = createdAt ? new Date(createdAt).toISOString().split('T')[0] : null
+
+        return {
+          id: session.id,
+          date: derivedDate,
+          duration_minutes: session.duration_minutes ?? null,
+          notes: session.notes ?? null,
+          created_at: createdAt,
+        }
+      })
+
+      setStudySessions(normalizedSessions)
     } catch (error) {
       console.error('Error fetching calendar data:', error)
+      setAssignments([])
+      setStudySessions([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const getDaysInMonth = (date: Date) => {
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!user) {
+      setLoading(false)
+      const nextParam = encodeURIComponent('/calendar')
+      router.push(`/auth/login?next=${nextParam}`)
+      return
+    }
+
+    setLoading(true)
+    fetchCalendarData(user)
+  }, [authLoading, fetchCalendarData, router, user])
+
+  const getDaysInMonth = useCallback((date: Date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
     const firstDay = new Date(year, month, 1)
@@ -143,14 +116,71 @@ export default function Calendar() {
     }
     
     return days
-  }
+  }, [])
 
-  const getEventsForDate = (date: Date) => {
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, { assignments: Assignment[]; sessions: StudySession[] }>()
+
+    assignments.forEach((assignment) => {
+      const key = assignment.due_date
+      const existing = map.get(key) ?? { assignments: [], sessions: [] }
+      existing.assignments.push(assignment)
+      map.set(key, existing)
+    })
+
+    studySessions.forEach((session) => {
+      if (!session.date) return
+      const key = session.date
+      const existing = map.get(key) ?? { assignments: [], sessions: [] }
+      existing.sessions.push(session)
+      map.set(key, existing)
+    })
+
+    return map
+  }, [assignments, studySessions])
+
+  const getEventsForDate = useCallback((date: Date) => {
     const dateStr = date.toISOString().split('T')[0]
-    const dayAssignments = assignments.filter(a => a.due_date === dateStr)
-    const daySessions = studySessions.filter(s => s.date === dateStr)
-    return { assignments: dayAssignments, sessions: daySessions }
-  }
+    const events = eventsByDay.get(dateStr) ?? { assignments: [], sessions: [] }
+    return events
+  }, [eventsByDay])
+
+  const dailyTarget = 240
+  const weeklyTarget = 1200
+
+  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
+
+  const todaysMinutes = useMemo(() => {
+    return studySessions.reduce((total, session) => {
+      const sessionDate = session.date ?? (session.created_at ? new Date(session.created_at).toISOString().split('T')[0] : null)
+      if (sessionDate === todayIso) {
+        return total + (session.duration_minutes ?? 0)
+      }
+      return total
+    }, 0)
+  }, [studySessions, todayIso])
+
+  const weeklyMinutes = useMemo(() => {
+    const startOfWeek = new Date()
+    startOfWeek.setHours(0, 0, 0, 0)
+    return studySessions.reduce((total, session) => {
+      const sessionDateStr = session.date ?? (session.created_at ? new Date(session.created_at).toISOString().split('T')[0] : null)
+      if (!sessionDateStr) return total
+
+      const sessionDate = new Date(`${sessionDateStr}T00:00:00`)
+      if (sessionDate >= startOfWeek) {
+        return total + (session.duration_minutes ?? 0)
+      }
+      return total
+    }, 0)
+  }, [studySessions])
+
+  const todaysSessions = useMemo(() => {
+    return studySessions.filter((session) => {
+      const sessionDate = session.date ?? (session.created_at ? new Date(session.created_at).toISOString().split('T')[0] : null)
+      return sessionDate === todayIso
+    })
+  }, [studySessions, todayIso])
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -180,8 +210,8 @@ export default function Calendar() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calendar & Assignments</h1>
-          <p className="text-gray-600 mt-2">Manage your assignments, deadlines, and study schedule</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Calendar & Assignments</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your assignments, deadlines, and study schedule</p>
         </div>
         <div className="flex space-x-4">
           <button
@@ -200,15 +230,15 @@ export default function Calendar() {
       </div>
 
       {/* Calendar Navigation */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <div className="flex space-x-2">
             <button
               onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -216,13 +246,13 @@ export default function Calendar() {
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
+              className="px-3 py-1 text-sm bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800/30 transition-colors"
             >
               Today
             </button>
             <button
               onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -234,7 +264,7 @@ export default function Calendar() {
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1 mb-4">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
               {day}
             </div>
           ))}
@@ -255,12 +285,12 @@ export default function Calendar() {
                 key={index}
                 onClick={() => setSelectedDate(day)}
                 className={`h-24 p-1 border rounded-lg cursor-pointer transition-colors ${
-                  isToday ? 'bg-primary-50 border-primary-200' : 
-                  isSelected ? 'bg-blue-50 border-blue-200' : 
-                  'hover:bg-gray-50 border-gray-200'
+                  isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-700' : 
+                  isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' : 
+                  'hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-600'
                 }`}
               >
-                <div className={`text-sm font-medium ${isToday ? 'text-primary-700' : 'text-gray-900'}`}>
+                <div className={`text-sm font-medium ${isToday ? 'text-primary-700 dark:text-primary-300' : 'text-gray-900 dark:text-gray-100'}`}>
                   {day.getDate()}
                 </div>
                 <div className="space-y-1 mt-1">
@@ -275,13 +305,13 @@ export default function Calendar() {
                   {events.sessions.slice(0, 1).map(session => (
                     <div
                       key={session.id}
-                      className="text-xs px-1 py-0.5 rounded truncate bg-blue-100 text-blue-800"
+                      className="text-xs px-1 py-0.5 rounded truncate bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
                     >
-                      Study: {session.subject}
+                      Study session
                     </div>
                   ))}
                   {(events.assignments.length + events.sessions.length) > 3 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       +{(events.assignments.length + events.sessions.length) - 3} more
                     </div>
                   )}
@@ -294,40 +324,40 @@ export default function Calendar() {
 
       {/* Upcoming Assignments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Assignments</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Upcoming Assignments</h3>
           <div className="space-y-4">
             {assignments.slice(0, 5).map(assignment => (
-              <div key={assignment.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={assignment.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{assignment.title}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{assignment.description}</p>
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">{assignment.title}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{assignment.description}</p>
                   <div className="flex items-center mt-2 space-x-4">
                     <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(assignment.priority)}`}>
                       {assignment.priority}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       Due: {new Date(assignment.due_date).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <button className="text-primary-600 hover:text-primary-700 text-sm">
+                  <button className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm">
                     Edit
                   </button>
-                  <button className="text-green-600 hover:text-green-700 text-sm">
+                  <button className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 text-sm">
                     Complete
                   </button>
                 </div>
               </div>
             ))}
             {assignments.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p>No assignments yet</p>
-                <Link href="/calendar/new-assignment" className="text-primary-600 hover:text-primary-700 text-sm">
+                <Link href="/calendar/new-assignment" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm">
                   Add your first assignment
                 </Link>
               </div>
@@ -335,63 +365,65 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Study Goals & Time Blocking */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Study Goals & Schedule</h3>
-          
-          {/* Daily Goal Progress */}
+        {/* Study Goals & Today's Schedule */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Study Goals & Schedule</h3>
+
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Daily Study Goal</span>
-              <span className="text-sm text-gray-500">2h / 4h</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Daily Study Goal</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {Math.floor(todaysMinutes / 60)}h {todaysMinutes % 60}m / {Math.floor(dailyTarget / 60)}h {dailyTarget % 60}m
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-primary-600 h-2 rounded-full" style={{ width: '50%' }}></div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-primary-600 h-2 rounded-full transition-all"
+                style={{ width: `${Math.min((todaysMinutes / dailyTarget) * 100, 100)}%` }}
+              ></div>
             </div>
           </div>
 
-          {/* Weekly Goal Progress */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Weekly Study Goal</span>
-              <span className="text-sm text-gray-500">12h / 20h</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weekly Study Goal</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m / {Math.floor(weeklyTarget / 60)}h {weeklyTarget % 60}m
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: '60%' }}></div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-green-600 h-2 rounded-full transition-all"
+                style={{ width: `${Math.min((weeklyMinutes / weeklyTarget) * 100, 100)}%` }}
+              ></div>
             </div>
           </div>
 
-          {/* Time Blocks */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3">Today's Schedule</h4>
-            <div className="space-y-2">
-              <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">Math Study Session</div>
-                  <div className="text-xs text-gray-600">2:00 PM - 3:30 PM</div>
-                </div>
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Today's Schedule</h4>
+            {todaysSessions.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
+                No study sessions logged today yet. Schedule or log one to see it here.
               </div>
-              <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                <div className="w-2 h-2 bg-green-600 rounded-full mr-3"></div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">History Reading</div>
-                  <div className="text-xs text-gray-600">4:00 PM - 5:00 PM</div>
-                </div>
-              </div>
-            </div>
-          </div>
+            ) : (
+              <div className="space-y-3">
+                {todaysSessions.map((session) => {
+                  const duration = session.duration_minutes ?? 0
+                  const durationLabel = duration > 0 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : 'Duration not recorded'
+                  const notesPreview = session.notes ? session.notes : 'Study session'
 
-          {/* Quick Actions */}
-          <div className="mt-6 pt-6 border-t">
-            <div className="grid grid-cols-2 gap-3">
-              <button className="px-3 py-2 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors">
-                Set Goals
-              </button>
-              <button className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                Time Block
-              </button>
-            </div>
+                  return (
+                    <div key={session.id} className="flex items-start p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full mr-3 mt-2"></div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{notesPreview}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{durationLabel}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
