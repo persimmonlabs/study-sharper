@@ -286,7 +286,7 @@ export default function Calendar() {
                 onClick={() => setSelectedDate(day)}
                 className={`h-24 p-1 border rounded-lg cursor-pointer transition-colors ${
                   isToday ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-700' : 
-                  isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' : 
+                  isSelected ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600' : 
                   'hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-600'
                 }`}
               >
@@ -413,8 +413,8 @@ export default function Calendar() {
                   const notesPreview = session.notes ? session.notes : 'Study session'
 
                   return (
-                    <div key={session.id} className="flex items-start p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full mr-3 mt-2"></div>
+                    <div key={session.id} className="flex items-start p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-100 dark:border-primary-800">
+                      <div className="w-2 h-2 bg-primary-600 rounded-full mr-3 mt-2"></div>
                       <div className="flex-1">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{notesPreview}</div>
                         <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{durationLabel}</div>

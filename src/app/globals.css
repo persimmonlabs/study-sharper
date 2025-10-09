@@ -32,10 +32,27 @@
   }
 
   .dark body {
-    @apply bg-gray-900 text-gray-100;
+    @apply bg-gray-950 text-gray-100;
   }
 
   .dark * {
-    @apply border-gray-700;
+    @apply border-gray-800;
+  }
+
+  /* Fix autofill styling in dark mode */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #111827;
+    -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f9fafb;
+    -webkit-box-shadow: 0 0 0px 1000px #1f2937 inset;
+    transition: background-color 5000s ease-in-out 0s;
   }
 }

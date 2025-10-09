@@ -163,7 +163,7 @@ export default function AssignmentPage({ params }: AssignmentPageProps) {
       case 'completed':
         return 'bg-green-100 text-green-800'
       case 'in_progress':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-primary-100 text-primary-800'
       case 'pending':
         return 'bg-gray-100 text-gray-800'
       default:
@@ -228,18 +228,18 @@ export default function AssignmentPage({ params }: AssignmentPageProps) {
             ? 'bg-red-50 border-red-200'
             : isDueSoon
             ? 'bg-yellow-50 border-yellow-200'
-            : 'bg-blue-50 border-blue-200'
+            : 'bg-primary-50 border-primary-200'
         }`}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Due Date</h3>
               <p className={`text-2xl font-bold ${
-                isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-blue-600'
+                isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-primary-600'
               }`}>
                 {format(dueDate, 'EEEE, MMMM d, yyyy')}
               </p>
               <p className={`text-sm ${
-                isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-blue-600'
+                isOverdue ? 'text-red-600' : isDueSoon ? 'text-yellow-600' : 'text-primary-600'
               }`}>
                 {format(dueDate, 'h:mm a')}
               </p>

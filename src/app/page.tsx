@@ -24,37 +24,6 @@ export default function Home() {
             Log In
           </Link>
         </div>
-
-        {/* Test Instructions */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-2xl mx-auto">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">🧪 Test the Application</h3>
-          <p className="text-blue-800 mb-4">
-            Ready to try Study Sharper? Use these test credentials:
-          </p>
-          <div className="bg-white rounded p-4 border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong className="text-gray-700">Email:</strong>
-                <div className="font-mono text-blue-600">test@example.com</div>
-              </div>
-              <div>
-                <strong className="text-gray-700">Password:</strong>
-                <div className="font-mono text-blue-600">Test123!</div>
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                <strong>Instructions:</strong> Click "Sign Up" → "Load Test Data" → "Create account" → You'll see "Welcome, Test! Let's Get Started!"
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-blue-700">
-            <p><strong>Alternative test emails:</strong></p>
-            <p>• test@test.com</p>
-            <p>• demo@example.com</p>
-            <p>• user@localhost</p>
-          </div>
-        </div>
       </div>
 
       <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

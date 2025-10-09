@@ -53,7 +53,7 @@ export default function Account() {
   const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'achievements' | 'settings'>('profile')
   const router = useRouter()
   const { user, loading: authLoading, signOut, profile, profileLoading, refreshProfile } = useAuth()
-  const { theme: currentTheme, setTheme } = useTheme()
+  const { theme: currentTheme, setTheme, actualTheme } = useTheme()
   const [avatarPending, startAvatarTransition] = useTransition()
 
   const defaultNotifications = useMemo(() => ({
@@ -416,10 +416,10 @@ export default function Account() {
               
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 text-center">
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{Math.floor(userStats.totalStudyTime / 60)}h</div>
-                  <div className="text-blue-800 dark:text-blue-200 font-medium">Total Study Time</div>
-                  <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">{userStats.totalStudyTime % 60}m additional</div>
+                <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-6 text-center">
+                  <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">{Math.floor(userStats.totalStudyTime / 60)}h</div>
+                  <div className="text-primary-800 dark:text-primary-200 font-medium">Total Study Time</div>
+                  <div className="text-sm text-primary-600 dark:text-primary-400 mt-1">{userStats.totalStudyTime % 60}m additional</div>
                 </div>
                 
                 <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 text-center">
@@ -568,22 +568,35 @@ export default function Account() {
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Theme Preference</h4>
                 <div className="grid grid-cols-3 gap-4">
-                  {['light', 'dark', 'auto'].map(themeOption => (
-                    <button
-                      key={themeOption}
-                      onClick={() => handleThemeChange(themeOption)}
-                      className={`p-4 rounded-lg border-2 text-center transition-colors capitalize ${
-                        userProfile.theme === themeOption
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                      }`}
-                    >
-                      {themeOption === 'light' && '☀️'}
-                      {themeOption === 'dark' && '🌙'}
-                      {themeOption === 'auto' && '🔄'}
-                      <div className="mt-2 font-medium text-gray-900 dark:text-gray-100">{themeOption}</div>
-                    </button>
-                  ))}
+                  {['light', 'dark', 'auto'].map(themeOption => {
+                    // Determine if this option should be highlighted
+                    let isSelected = false
+                    if (themeOption === 'auto') {
+                      // For auto mode, highlight it if that's the user's preference
+                      isSelected = currentTheme === 'auto'
+                    } else {
+                      // For light/dark, highlight if it matches the current actual theme
+                      // OR if the user explicitly prefers it (when not in auto mode)
+                      isSelected = actualTheme === themeOption && (currentTheme === 'auto' || currentTheme === themeOption)
+                    }
+
+                    return (
+                      <button
+                        key={themeOption}
+                        onClick={() => handleThemeChange(themeOption)}
+                        className={`p-4 rounded-lg border-2 text-center transition-colors capitalize ${
+                          isSelected
+                            ? 'border-primary-500 bg-primary-50 dark:bg-gray-700 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        {themeOption === 'light' && '☀️'}
+                        {themeOption === 'dark' && '🌙'}
+                        {themeOption === 'auto' && '🔄'}
+                        <div className="mt-2 font-medium">{themeOption}</div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 

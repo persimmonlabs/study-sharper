@@ -7,6 +7,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
 import { NoteModal } from '@/components/NoteModal'
+import { NoteContextMenu } from '@/components/NoteContextMenu'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 interface DashboardStats {
   totalNotes: number
@@ -84,8 +86,12 @@ export default function Dashboard() {
   const [upcomingAssignmentsList, setUpcomingAssignmentsList] = useState<AssignmentSummary[]>([])
   const [modalNote, setModalNote] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; noteId: string | null; noteTitle: string }>({ isOpen: false, noteId: null, noteTitle: '' })
+  const [isDeleting, setIsDeleting] = useState(false)
   const [dailyGoalProgress, setDailyGoalProgress] = useState({ current: 0, target: 240 }) // minutes
   const [weeklyGoalProgress, setWeeklyGoalProgress] = useState({ current: 0, target: 1200 }) // minutes
+  const [isFirstLogin, setIsFirstLogin] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { user, loading: authLoading, signOut } = useAuth()
@@ -134,12 +140,23 @@ export default function Dashboard() {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('first_name, last_name')
+        .select('first_name, last_name, created_at')
         .eq('id', currentUser.id)
         .single()
 
       if (profile) {
         setUserProfile(profile)
+        
+        // Check if this is first login (created within last 5 minutes)
+        const createdAt = new Date(profile.created_at)
+        const now = new Date()
+        const timeDiff = now.getTime() - createdAt.getTime()
+        const minutesDiff = timeDiff / (1000 * 60)
+        
+        if (minutesDiff < 5) {
+          setIsFirstLogin(true)
+        }
+        
         return true
       }
       return false
@@ -353,6 +370,69 @@ export default function Dashboard() {
     // Refresh dashboard data
     if (user) {
       loadRecentActivity(user)
+      fetchStats(user)
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, noteId })
+  }
+
+  const handleDeleteClick = (noteId: string) => {
+    const activity = recentActivity.find(a => a.id === noteId && a.type === 'note')
+    if (activity) {
+      setDeleteConfirm({ isOpen: true, noteId, noteTitle: activity.title })
+      setContextMenu(null)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.noteId || !user) return
+
+    setIsDeleting(true)
+    try {
+      // Get note details to find file_path
+      const { data: note } = await supabase
+        .from('notes')
+        .select('file_path')
+        .eq('id', deleteConfirm.noteId)
+        .eq('user_id', user.id)
+        .single()
+
+      // Delete from storage if file exists
+      if (note?.file_path) {
+        await supabase.storage
+          .from('notes-pdfs')
+          .remove([note.file_path])
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', deleteConfirm.noteId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      // Close modal if deleted note was open
+      if (modalNote?.id === deleteConfirm.noteId) {
+        setIsModalOpen(false)
+        setModalNote(null)
+      }
+
+      // Refresh dashboard data
+      await loadRecentActivity(user)
+      await fetchStats(user)
+
+      setDeleteConfirm({ isOpen: false, noteId: null, noteTitle: '' })
+    } catch (error) {
+      console.error('Delete failed:', error)
+      alert('Failed to delete note. Please try again.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -385,7 +465,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Welcome back, {firstName}! 🎓
+            {isFirstLogin ? `Welcome, ${firstName}! 🎓` : `Welcome back, ${firstName}! 🎓`}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">Ready to continue your learning journey?</p>
         </div>
@@ -452,7 +532,7 @@ export default function Dashboard() {
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
             <div 
-              className="bg-blue-500 h-3 rounded-full transition-all duration-300" 
+              className="bg-primary-600 h-3 rounded-full transition-all duration-300" 
               style={{ width: `${Math.min((weeklyGoalProgress.current / weeklyGoalProgress.target) * 100, 100)}%` }}
             ></div>
           </div>
@@ -466,7 +546,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
           <div className="text-2xl mb-2">📚</div>
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalNotes}</div>
+          <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">{stats.totalNotes}</div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Notes</div>
         </div>
         
@@ -507,14 +587,14 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Activity Feed */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Activity</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Notes</h3>
             <div className="space-y-4">
               {recentActivity.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <p className="text-sm">No recent activity</p>
+                  <p className="text-sm">No recent notes</p>
                   <Link href="/notes" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-2 inline-block">
                     Create your first note
                   </Link>
@@ -527,6 +607,7 @@ export default function Dashboard() {
                       activity.type === 'note' ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors' : ''
                     }`}
                     onClick={() => activity.type === 'note' ? handleViewNote(activity.id) : undefined}
+                    onContextMenu={(e) => activity.type === 'note' ? handleContextMenu(e, activity.id) : undefined}
                   >
                     <div className="text-2xl mr-4">{activity.icon}</div>
                     <div className="flex-1">
@@ -563,7 +644,7 @@ export default function Dashboard() {
                       <h4 className="font-medium text-gray-900 dark:text-gray-100">{rec.title}</h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rec.description}</p>
                       <div className="flex items-center mt-2 space-x-2">
-                        <span className="bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded">
+                        <span className="bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-300 text-xs px-2 py-1 rounded">
                           {rec.subject}
                         </span>
                         <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(rec.priority)}`}>
@@ -673,7 +754,7 @@ export default function Dashboard() {
                 <div className="text-lg mb-1">🧠</div>
                 <div className="text-sm font-medium">Take Quiz</div>
               </Link>
-              <Link href="/social" className="bg-blue-600 text-white p-3 rounded-lg text-center hover:bg-blue-700 transition-colors">
+              <Link href="/social" className="bg-primary-600 text-white p-3 rounded-lg text-center hover:bg-primary-700 transition-colors">
                 <div className="text-lg mb-1">👥</div>
                 <div className="text-sm font-medium">Find Friends</div>
               </Link>
@@ -688,6 +769,28 @@ export default function Dashboard() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onDeleted={handleNoteDeleted}
+      />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <NoteContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onDelete={() => handleDeleteClick(contextMenu.noteId)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Note"
+        message={`Are you sure you want to delete "${deleteConfirm.noteTitle}"? This action cannot be undone.`}
+        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, noteId: null, noteTitle: '' })}
+        isDestructive={true}
       />
     </div>
   )

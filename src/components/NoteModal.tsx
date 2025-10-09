@@ -2,33 +2,51 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, type Database } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { PdfViewer } from '@/components/pdf/PdfViewer'
+import { DocxViewer } from '@/components/DocxViewer'
 
 interface Note {
   id: string
   title: string
   content: string | null
   tags: string[] | null
+  file_path: string | null
+  extracted_text: string | null
+  file_size: number | null
+  folder_id: string | null
   created_at: string
   updated_at: string
 }
+
+type NoteFolder = Database['public']['Tables']['note_folders']['Row']
 
 interface NoteModalProps {
   note: Note | null
   isOpen: boolean
   onClose: () => void
   onDeleted?: () => void
+  folders?: NoteFolder[]
+  onUpdated?: (updated: { id: string; folder_id: string | null }) => void
 }
 
-export function NoteModal({ note, isOpen, onClose, onDeleted }: NoteModalProps) {
+export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUpdated }: NoteModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [fileLoading, setFileLoading] = useState(false)
+  const [isUpdatingFolder, setIsUpdatingFolder] = useState(false)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(note?.folder_id ?? null)
   const { user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const extractedText = note?.extracted_text?.trim()?.length ? note?.extracted_text : (note?.content?.trim()?.length ? note?.content : null)
+  const isDocx = note?.file_path?.endsWith('.docx')
+  const isPdf = note?.file_path?.endsWith('.pdf')
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -55,6 +73,63 @@ export function NoteModal({ note, isOpen, onClose, onDeleted }: NoteModalProps) 
     }
   }, [isOpen, onClose])
 
+  useEffect(() => {
+    setShowDeleteConfirm(false)
+    setIsDeleting(false)
+    setSelectedFolderId(note?.folder_id ?? null)
+  }, [note?.id])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadFile = async () => {
+      if (!note?.file_path) {
+        if (isMounted) {
+          setFileUrl(null)
+          setFileError(null)
+          setFileLoading(false)
+        }
+        return
+      }
+
+      try {
+        if (isMounted) {
+          setFileLoading(true)
+          setFileError(null)
+        }
+
+        const { data, error } = await supabase.storage
+          .from('notes-pdfs')
+          .createSignedUrl(note.file_path, 60 * 60)
+
+        if (!isMounted) return
+
+        if (error || !data?.signedUrl) {
+          console.error('Failed to load file preview', error)
+          setFileUrl(null)
+          setFileError('Unable to load file preview. You can download the file instead.')
+        } else {
+          setFileUrl(data.signedUrl)
+        }
+      } catch (error) {
+        if (!isMounted) return
+        console.error('Unexpected error loading file preview', error)
+        setFileError('Unexpected error loading file preview. Please try again later.')
+        setFileUrl(null)
+      } finally {
+        if (isMounted) {
+          setFileLoading(false)
+        }
+      }
+    }
+
+    loadFile()
+
+    return () => {
+      isMounted = false
+    }
+  }, [note])
+
   const handleDeleteClick = () => {
     setShowDeleteConfirm(true)
   }
@@ -64,40 +139,64 @@ export function NoteModal({ note, isOpen, onClose, onDeleted }: NoteModalProps) 
 
     setIsDeleting(true)
     try {
-      const { error } = await supabase
+      if (note.file_path) {
+        await supabase.storage.from('notes-pdfs').remove([note.file_path])
+      }
+
+      const { error: dbError } = await supabase
         .from('notes')
         .delete()
         .eq('id', note.id)
         .eq('user_id', user.id)
 
-      if (error) throw error
+      if (dbError) throw dbError
 
-      // Close modal and dialog
       setShowDeleteConfirm(false)
+      setIsDeleting(false)
+
       onClose()
 
-      // Navigate to trigger fresh data load
-      // Add timestamp to force route refresh
-      const timestamp = new Date().getTime()
-      router.push(`${pathname}?refresh=${timestamp}`)
-      
-      // Alternative: use router.refresh() for server-side refresh
-      setTimeout(() => {
-        router.refresh()
-      }, 100)
+      if (onDeleted) {
+        onDeleted()
+      }
     } catch (error) {
       console.error('Delete failed:', error)
       alert('Failed to delete note. Please try again.')
-      setIsDeleting(false)
+    }
+  }
+
+  const handleFolderChange = async (folderId: string | null) => {
+    if (!note || !user) return
+    if (folderId === note.folder_id) return
+
+    setIsUpdatingFolder(true)
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ folder_id: folderId })
+        .eq('id', note.id)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      setSelectedFolderId(folderId)
+
+      onUpdated?.({ id: note.id, folder_id: folderId })
+    } catch (error) {
+      console.error('Failed to update folder:', error)
+      alert('Failed to update folder. Please try again.')
+      setSelectedFolderId(note.folder_id ?? null)
+    } finally {
+      setIsUpdatingFolder(false)
     }
   }
 
   if (!isOpen || !note) return null
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-6" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
       <div 
         ref={modalRef}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-h-[92vh] overflow-hidden max-w-5xl lg:max-w-6xl"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-h-[92vh] overflow-hidden max-w-5xl lg:max-w-6xl relative"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
@@ -109,6 +208,40 @@ export function NoteModal({ note, isOpen, onClose, onDeleted }: NoteModalProps) 
               <span>Updated: {new Date(note.updated_at).toLocaleDateString()}</span>
             </div>
           </div>
+          {folders.length > 0 && (
+            <div className="ml-4">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Folder</label>
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <select
+                    value={selectedFolderId ?? ''}
+                    onChange={(e) => handleFolderChange(e.target.value || null)}
+                    disabled={isUpdatingFolder}
+                    className="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">No folder</option>
+                    {folders.map(folder => (
+                      <option key={folder.id} value={folder.id}>{folder.name}</option>
+                    ))}
+                  </select>
+                  <svg
+                    className="w-4 h-4 text-gray-500 dark:text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                {selectedFolderId && (
+                  <span
+                    className="w-3 h-3 rounded-full border border-gray-200 dark:border-gray-600"
+                    style={{ backgroundColor: folders.find(f => f.id === selectedFolderId)?.color ?? '#d1d5db' }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="ml-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -137,28 +270,43 @@ export function NoteModal({ note, isOpen, onClose, onDeleted }: NoteModalProps) 
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {note.content ? (
-            <div className="prose prose-gray dark:prose-invert max-w-none">
-              <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">
-                {note.content}
-              </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-16">
+          {fileLoading && (
+            <div className="h-96 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+              <div className="text-sm text-gray-600 dark:text-gray-300">Loading preview…</div>
             </div>
-          ) : (
+          )}
+
+          {!fileLoading && fileError && (
+            <div className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
+              {fileError}
+            </div>
+          )}
+
+          {!fileLoading && fileUrl && isPdf && (
+            <div className="space-y-4 pb-6">
+              <PdfViewer src={fileUrl} title={note.title} />
+            </div>
+          )}
+
+          {!fileLoading && fileUrl && isDocx && (
+            <div className="space-y-4 pb-6">
+              <DocxViewer src={fileUrl} title={note.title} />
+            </div>
+          )}
+
+          {!fileUrl && !fileLoading && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <p>This note has no content</p>
+              <p>No content is available for this note.</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Note ID: {note.id}
-          </div>
+        <div className="flex items-center justify-end p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
           <div className="flex space-x-3">
             <button
               onClick={handleDeleteClick}

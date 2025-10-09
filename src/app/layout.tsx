@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Link from 'next/link'
 import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -22,13 +23,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider>
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-              <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+              <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center py-4">
-                  <div className="flex items-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <Link href="/dashboard" className="flex items-center text-2xl font-bold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                     Study Sharper
-                  </div>
+                  </Link>
                   <HeaderNav />
                 </div>
               </div>

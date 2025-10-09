@@ -65,7 +65,11 @@ export type Database = {
           title: string
           content: string
           summary: string | null
-          tags: string[]
+          tags: string[] | null
+          file_path: string | null
+          extracted_text: string | null
+          file_size: number | null
+          folder_id: string | null
           created_at: string
           updated_at: string
         }
@@ -75,7 +79,11 @@ export type Database = {
           title: string
           content: string
           summary?: string | null
-          tags?: string[]
+          tags?: string[] | null
+          file_path?: string | null
+          extracted_text?: string | null
+          file_size?: number | null
+          folder_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -85,9 +93,36 @@ export type Database = {
           title?: string
           content?: string
           summary?: string | null
-          tags?: string[]
+          tags?: string[] | null
+          file_path?: string | null
+          extracted_text?: string | null
+          file_size?: number | null
+          folder_id?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      note_folders: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          color: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          color: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          color?: string
+          created_at?: string
         }
       }
       assignments: {
