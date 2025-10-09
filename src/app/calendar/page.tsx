@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
 import type { User } from '@supabase/supabase-js'
+
+type StudySessionRow = Database['public']['Tables']['study_sessions']['Row']
 
 interface Assignment {
   id: string
@@ -58,7 +61,7 @@ export default function Calendar() {
       }
 
       setAssignments(assignmentsData || [])
-      const normalizedSessions: StudySession[] = (sessionsData || []).map((session: any) => {
+      const normalizedSessions: StudySession[] = (sessionsData || []).map((session: Pick<StudySessionRow, 'id' | 'duration_minutes' | 'notes' | 'created_at'>) => {
         const createdAt: string | null = session.created_at ?? null
         const derivedDate = createdAt ? new Date(createdAt).toISOString().split('T')[0] : null
 

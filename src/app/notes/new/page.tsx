@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function NewNote() {
   const [title, setTitle] = useState('')
@@ -13,6 +14,7 @@ export default function NewNote() {
   const [error, setError] = useState('')
   const [generatingSummary, setGeneratingSummary] = useState(false)
   const router = useRouter()
+  const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,33 +22,41 @@ export default function NewNote() {
     setError('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError || !session?.access_token || !session.user) {
         router.push('/auth/login')
         return
       }
 
-      const noteData = {
-        user_id: user.id,
-        title: title.trim(),
-        content: content.trim(),
-        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-        summary: null, // Will be generated if needed
+      const tagsArray = tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0)
+
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+          tags: tagsArray.length > 0 ? tagsArray : null,
+          folder_id: null
+        })
+      })
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null)
+        throw new Error(errorPayload?.error ?? 'Failed to create note')
       }
 
-      const { data, error } = await supabase
-        .from('notes')
-        .insert([noteData])
-        .select()
-        .single()
-
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push(`/notes/${data.id}`)
-      }
+      const data = await response.json()
+      router.push(`/notes/${data.id ?? ''}`)
     } catch (error) {
-      setError('An unexpected error occurred')
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred')
     } finally {
       setLoading(false)
     }

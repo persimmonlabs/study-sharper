@@ -1,13 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    async rewrites() {
-        return [
-            {
-                source: '/api/:path*',
-                destination: 'http://127.0.0.1:8000/api/:path*'
-            }
-        ]
-    }
+    // Note: API routes are now handled by Next.js API routes in src/app/api/
+    // which proxy to the backend. The BACKEND_API_URL environment variable
+    // controls where requests are forwarded (localhost for dev, deployed URL for prod)
 }
 
 module.exports = nextConfig

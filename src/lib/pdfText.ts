@@ -120,7 +120,13 @@ async function extractWithPdfJs(buffer: Buffer, maxPages?: number): Promise<{ te
       const page = await pdfDoc.getPage(pageNum)
       const textContent = await page.getTextContent()
       const pageText = textContent.items
-        .map((item: any) => ('str' in item ? item.str : ''))
+        .map((item) => {
+          // TextItem has 'str' property, TextMarkedContent does not
+          if ('str' in item) {
+            return item.str
+          }
+          return ''
+        })
         .join(' ')
       if (pageText.trim()) {
         textParts.push(pageText.trim())

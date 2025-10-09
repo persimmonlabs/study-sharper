@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
 import type { Database } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { NoteModal } from '@/components/NoteModal'
 import { NoteContextMenu } from '@/components/NoteContextMenu'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -57,7 +58,6 @@ const generateMessageId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
   }
-
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
@@ -117,7 +117,15 @@ export default function Notes() {
 
   const fetchFolders = useCallback(async (currentUser: User) => {
     try {
-      const response = await fetch('/api/folders');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
+      const response = await fetch('/api/folders', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch folders');
       }
@@ -127,7 +135,7 @@ export default function Notes() {
       setFolders(userFolders)
       setSelectedFolderId(prev => {
         if (!prev) return prev
-        return userFolders.some(folder => folder.id === prev) ? prev : null
+        return userFolders.some((folder: NoteFolder) => folder.id === prev) ? prev : null
       })
       if (userFolders.length >= FOLDER_LIMIT) {
         setIsCreateFolderOpen(false)
@@ -143,8 +151,15 @@ export default function Notes() {
 
     setIsDeletingFolder(true)
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch(`/api/folders/${folder.id}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        }
       });
 
       if (!response.ok) {
@@ -195,10 +210,15 @@ export default function Notes() {
 
     setIsSavingFolderRename(true)
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch(`/api/folders/${editingFolderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ name: editingFolderName.trim() }),
       });
@@ -226,7 +246,15 @@ export default function Notes() {
 
   const fetchNotes = useCallback(async (currentUser: User) => {
     try {
-      const response = await fetch('/api/notes');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
+      const response = await fetch('/api/notes', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch notes');
       }
@@ -308,10 +336,15 @@ export default function Notes() {
 
     setIsCreatingFolder(true)
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch('/api/folders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ name: newFolderName.trim(), color: newFolderColor }),
       });
@@ -332,6 +365,39 @@ export default function Notes() {
       alert('Failed to create folder. Please try again.')
     } finally {
       setIsCreatingFolder(false)
+    }
+  }
+
+  // Used by UploadFolderDialog: creates a folder and returns the created option
+  const handleUploadCreateFolder = async (
+    name: string,
+    color: string
+  ): Promise<{ id: string; name: string; color: string } | null> => {
+    if (!user || !name.trim() || !canCreateMoreFolders) return null
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ name: name.trim(), color }),
+      })
+
+      if (!response.ok) {
+        return null
+      }
+
+      const data = await response.json()
+      setFolders(prev => [...prev, data])
+      return { id: data.id, name: data.name, color: data.color }
+    } catch (e) {
+      console.error('Upload create folder error:', e)
+      return null
     }
   }
 
@@ -534,16 +600,21 @@ export default function Notes() {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0)
 
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           title: newNoteTitle.trim(),
           content: newNoteContent.trim() || null,
           tags: tagsArray.length > 0 ? tagsArray : null,
-          folder_id: selectedFolderId ?? null,
+          folder_id: selectedFolderId ?? null
         }),
       });
 
@@ -629,11 +700,16 @@ export default function Notes() {
     }
 
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch(`/api/notes/${noteId}`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ folder_id: folderId }),
         }
@@ -681,8 +757,15 @@ export default function Notes() {
 
     setIsDeleting(true)
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) {
+        throw new Error('Unauthorized')
+      }
       const response = await fetch(`/api/notes/${deleteConfirm.noteId}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        }
       });
 
       if (!response.ok) {

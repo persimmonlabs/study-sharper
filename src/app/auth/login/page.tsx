@@ -89,9 +89,10 @@ export default function Login() {
 
       setSuccess('Verification email resent! Please check your inbox.')
       setPendingVerification(false)
-    } catch (resendError: any) {
+    } catch (resendError) {
       console.error('Error resending verification email:', resendError)
-      setError(resendError.message ?? 'Unable to resend verification email. Please try again later.')
+      const errorMessage = resendError instanceof Error ? resendError.message : 'Unable to resend verification email. Please try again later.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -119,9 +120,10 @@ export default function Login() {
       setSuccess('Password reset email sent! Please check your inbox.')
       setShowForgotPassword(false)
       setResetEmail('')
-    } catch (resetError: any) {
+    } catch (resetError) {
       console.error('Error sending password reset email:', resetError)
-      setError(resetError.message ?? 'Unable to send password reset email. Please try again later.')
+      const errorMessage = resetError instanceof Error ? resetError.message : 'Unable to send password reset email. Please try again later.'
+      setError(errorMessage)
     } finally {
       setResetLoading(false)
     }

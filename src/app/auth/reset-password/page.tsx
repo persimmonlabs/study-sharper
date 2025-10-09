@@ -66,9 +66,10 @@ export default function ResetPassword() {
       
       // Redirect to dashboard
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Password reset error:', error)
-      setError(error.message ?? 'Failed to reset password. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reset password. Please try again.'
+      setError(errorMessage)
       setLoading(false)
     }
   }
