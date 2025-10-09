@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/components/AuthProvider'
 
 export default function NewNote() {
   const [title, setTitle] = useState('')
@@ -14,7 +13,6 @@ export default function NewNote() {
   const [error, setError] = useState('')
   const [generatingSummary, setGeneratingSummary] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
