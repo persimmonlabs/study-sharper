@@ -260,12 +260,12 @@ export default function Notes() {
       }
       const data = await response.json();
 
-      const userNotes = data || []
+      const userNotes = (data ?? []) as Note[]
       setNotes(userNotes)
       setSelectedNote(prev => (prev && userNotes.some(note => note.id === prev.id)) ? prev : (userNotes[0] ?? null))
 
       const uniqueTags = new Set<string>()
-      userNotes.forEach(note => {
+      userNotes.forEach((note: Note) => {
         note.tags?.forEach((tag: string) => uniqueTags.add(tag))
       })
       setAvailableTags(Array.from(uniqueTags).sort())
