@@ -61,54 +61,51 @@ const generateMessageId = (): string => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-// Helper function to get a valid session with retry and timeout
+// Helper function to get a valid session with smart retry logic
 const getValidSession = async (): Promise<string | null> => {
   console.log('[Notes - getValidSession] Starting...')
-  try {
-    // Add timeout to prevent hanging
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Session check timeout')), 5000)
-    )
-    
-    const sessionPromise = supabase.auth.getSession()
-    
-    const { data: { session }, error: sessionError } = await Promise.race([
-      sessionPromise,
-      timeoutPromise
-    ])
-    
-    console.log('[Notes - getValidSession] Session check complete:', {
-      hasSession: !!session,
-      hasToken: !!session?.access_token,
-      hasError: !!sessionError
-    })
-    
-    if (sessionError || !session?.access_token) {
-      console.log('[Notes - getValidSession] No valid session, attempting refresh...')
+  
+  // Retry with exponential backoff to wait for Supabase's lock to be released
+  const maxRetries = 3
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Wait progressively longer on each retry: 0ms, 100ms, 300ms
+      if (attempt > 0) {
+        const delay = attempt * attempt * 100
+        console.log(`[Notes - getValidSession] Retry ${attempt}, waiting ${delay}ms for lock...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
       
-      const refreshPromise = supabase.auth.refreshSession()
-      const { data: refreshData, error: refreshError } = await Promise.race([
-        refreshPromise,
+      // Try to get session with a reasonable timeout
+      const { data: { session }, error: sessionError } = await Promise.race([
+        supabase.auth.getSession(),
         new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Session refresh timeout')), 5000)
+          setTimeout(() => reject(new Error('Timeout')), 2000)
         )
       ])
       
-      if (refreshError || !refreshData.session?.access_token) {
-        console.error('[Notes - getValidSession] Session refresh failed:', refreshError)
-        return null
+      if (sessionError || !session?.access_token) {
+        if (attempt === maxRetries - 1) {
+          console.error('[Notes - getValidSession] No valid session after retries')
+          return null
+        }
+        continue // Retry
       }
       
-      console.log('[Notes - getValidSession] Session refreshed successfully')
-      return refreshData.session.access_token
+      console.log('[Notes - getValidSession] Got token successfully')
+      return session.access_token
+      
+    } catch (error) {
+      console.log(`[Notes - getValidSession] Attempt ${attempt + 1} failed:`, error)
+      if (attempt === maxRetries - 1) {
+        console.error('[Notes - getValidSession] All retry attempts exhausted')
+        return null
+      }
+      // Continue to next retry
     }
-    
-    console.log('[Notes - getValidSession] Returning token')
-    return session.access_token
-  } catch (error) {
-    console.error('[Notes - getValidSession] Error:', error)
-    return null
   }
+  
+  return null
 }
 
 export default function Notes() {
@@ -366,16 +363,22 @@ export default function Notes() {
   useEffect(() => {
     if (!user) return
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        console.log('[Notes] Auth event received, refetching data...', event)
+      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+        console.log('[Notes] Auth event received:', event, '- waiting for lock release...')
+        
+        // CRITICAL: Wait a bit for Supabase to release its internal lock
+        // before trying to fetch the session ourselves
+        await new Promise(resolve => setTimeout(resolve, 150))
+        
+        console.log('[Notes] Lock should be released, refetching data...')
         try {
-          // Avoid flicker: keep current UI, just refresh data in background
           const notesOk = await fetchNotes(user)
           const foldersOk = await fetchFolders(user)
-          if (!notesOk || !foldersOk) {
-            console.log('[Notes] Auth event fired but session not ready yet; will rely on subsequent events')
-          } else {
+          if (notesOk && foldersOk) {
             setLoading(false)
+            console.log('[Notes] Data refetch successful after auth event')
+          } else {
+            console.log('[Notes] Refetch incomplete, waiting for next event')
           }
         } catch (e) {
           console.error('[Notes] Error during auth-event refetch:', e)
