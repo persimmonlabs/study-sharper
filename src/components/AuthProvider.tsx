@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
@@ -34,6 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
+  
+  // Refs to prevent race conditions
+  const isRefreshingRef = useRef(false)
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastVisibilityChangeRef = useRef<number>(0)
 
   const loadProfile = useCallback(async (targetUser: User | null) => {
     if (!targetUser) {
@@ -127,40 +132,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await loadProfile(session?.user ?? null)
     })
 
-    // Refresh session when tab becomes visible again
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[AuthProvider] Tab became visible, refreshing session...')
-        try {
-          const { data: { session }, error } = await supabase.auth.getSession()
-          
-          if (error) {
-            console.error('[AuthProvider] Error refreshing session:', error)
-            return
-          }
-          
-          // If we have a session, try to refresh the token
-          if (session) {
-            const { data, error: refreshError } = await supabase.auth.refreshSession()
-            if (refreshError) {
-              console.error('[AuthProvider] Error refreshing token:', refreshError)
-            } else if (data.session) {
-              console.log('[AuthProvider] Session refreshed successfully')
-              setSession(data.session)
-              setUser(data.session.user)
-            }
-          }
-        } catch (err) {
-          console.error('[AuthProvider] Unexpected error during visibility refresh:', err)
-        }
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    // NOTE: Supabase GoTrue already handles tab visibility and auto-refresh internally.
+    // Removing our manual visibility refresh to avoid lock contention with GoTrue's storage lock.
+    // The onAuthStateChange listener below will keep session/user/profile in sync.
 
     return () => {
       listener.subscription.unsubscribe()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      // Reset any refresh flags (no visibility listener anymore)
+      isRefreshingRef.current = false
     }
   }, [loadProfile])
 
