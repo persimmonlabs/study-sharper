@@ -357,7 +357,10 @@ export default function Notes() {
       console.error('Error fetching notes:', error)
       setNotes([])
       setAvailableTags([])
-       }, [router])
+      setSelectedNote(null)
+      return true
+    }
+  }, [router])
 
   // Refetch when Supabase refreshes token or re-emits session
   useEffect(() => {
@@ -383,10 +386,6 @@ export default function Notes() {
       sub.subscription.unsubscribe()
     }
   }, [user, fetchNotes, fetchFolders])
-e(null)
-      return true
-    }
-  }, [router])
 
   useEffect(() => {
     if (authLoading) {
