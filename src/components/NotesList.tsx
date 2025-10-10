@@ -1,7 +1,9 @@
+
 'use client'
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useEffect, useState } from 'react'
+import { useUser } from '@supabase/auth-helpers-react'
+import { useCallback, useEffect, useState } from 'react'
 
 type Note = {
   id: string
@@ -9,27 +11,45 @@ type Note = {
   created_at: string
   file_size: number
 }
-
 export default function NotesList() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClientComponentClient()
+  const user = useUser()
+
+  const fetchNotes = useCallback(async () => {
+    if (!user) {
+      setNotes([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('notes')
+        .select('id, title, created_at, file_size')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching notes:', error)
+        setNotes([])
+        return
+      }
+
+      setNotes(data ?? [])
+    } catch (err) {
+      console.error('Unexpected error fetching notes:', err)
+      setNotes([])
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase, user])
 
   useEffect(() => {
-    fetchNotes()
-  }, [])
-
-  const fetchNotes = async () => {
-    const { data, error } = await supabase
-      .from('notes')
-      .select('id, title, created_at, file_size')
-      .order('created_at', { ascending: false })
-
-    if (!error && data) {
-      setNotes(data)
-    }
-    setLoading(false)
-  }
+    void fetchNotes()
+  }, [fetchNotes])
 
   const downloadPDF = async (note: Note) => {
     try {
@@ -85,7 +105,7 @@ export default function NotesList() {
         .eq('id', noteId)
 
       // Refresh list
-      fetchNotes()
+      await fetchNotes()
     } catch (err) {
       console.error('Delete error:', err)
       alert('Failed to delete note')

@@ -58,7 +58,7 @@ export function FileSizeWarningDialog({
             </div>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Would you like to upload anyway for general note storage? You'll still be able to view the PDF, but AI features like text extraction and chat won't be available.
+            Would you like to upload anyway for general note storage? You&apos;ll still be able to view the PDF, but AI features like text extraction and chat won&apos;t be available.
           </p>
         </div>
 

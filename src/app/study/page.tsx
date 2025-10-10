@@ -43,7 +43,7 @@ export default function Study() {
       <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-primary-900 dark:text-primary-200 mb-2">Future Features</h3>
         <p className="text-primary-800 dark:text-primary-300">
-          We're working on advanced study features including AI-powered spaced repetition, personalized study guides, and intelligent practice tests to enhance your learning experience.
+          We&apos;re working on advanced study features including AI-powered spaced repetition, personalized study guides, and intelligent practice tests to enhance your learning experience.
         </p>
       </div>
     </div>

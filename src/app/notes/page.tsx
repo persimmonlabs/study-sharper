@@ -129,9 +129,9 @@ export default function Notes() {
       if (!response.ok) {
         throw new Error('Failed to fetch folders');
       }
-      const data = await response.json();
+      const data = await response.json() as NoteFolder[] | null | undefined
 
-      const userFolders = data || []
+      const userFolders = data ?? []
       setFolders(userFolders)
       setSelectedFolderId(prev => {
         if (!prev) return prev
@@ -227,7 +227,7 @@ export default function Notes() {
         throw new Error('Folder rename failed');
       }
 
-      const updatedFolder = await response.json();
+      const updatedFolder = await response.json() as NoteFolder
 
       setFolders(prev => prev.map(folder => (folder.id === editingFolderId ? updatedFolder : folder)))
 
@@ -258,9 +258,9 @@ export default function Notes() {
       if (!response.ok) {
         throw new Error('Failed to fetch notes');
       }
-      const data = await response.json();
+      const data = await response.json() as Note[] | null | undefined
 
-      const userNotes = (data ?? []) as Note[]
+      const userNotes = data ?? []
       setNotes(userNotes)
       setSelectedNote(prev => (prev && userNotes.some(note => note.id === prev.id)) ? prev : (userNotes[0] ?? null))
 
@@ -392,7 +392,7 @@ export default function Notes() {
         return null
       }
 
-      const data = await response.json()
+      const data = await response.json() as NoteFolder
       setFolders(prev => [...prev, data])
       return { id: data.id, name: data.name, color: data.color }
     } catch (e) {

@@ -201,7 +201,7 @@ export default function Login() {
         {pendingVerification && (
           <div className="space-y-3">
             <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300 px-4 py-3 rounded text-sm">
-              Didn't get the confirmation email? You can resend it below.
+              Didn&apos;t get the confirmation email? You can resend it below.
             </div>
             <button
               type="button"

@@ -56,7 +56,8 @@ async function runOcrFallback(buffer: Buffer, fileName?: string): Promise<{ text
     formData.append('scale', 'true')
     formData.append('OCREngine', process.env.OCR_SPACE_ENGINE ?? '2')
 
-    const blob = new Blob([buffer], { type: 'application/pdf' })
+    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
     formData.append('file', blob, fileName ?? 'upload.pdf')
 
     const response = await fetch(endpoint, {

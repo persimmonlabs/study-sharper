@@ -403,7 +403,7 @@ export default function Calendar() {
           </div>
 
           <div>
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Today's Schedule</h4>
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Today&apos;s Schedule</h4>
             {todaysSessions.length === 0 ? (
               <div className="text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
                 No study sessions logged today yet. Schedule or log one to see it here.

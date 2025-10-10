@@ -77,7 +77,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
     setShowDeleteConfirm(false)
     setIsDeleting(false)
     setSelectedFolderId(note?.folder_id ?? null)
-  }, [note?.id])
+  }, [note?.id, note?.folder_id])
 
   useEffect(() => {
     let isMounted = true

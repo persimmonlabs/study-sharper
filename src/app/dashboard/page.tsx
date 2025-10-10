@@ -107,35 +107,6 @@ export default function Dashboard() {
     redirectToLogin()
   }, [redirectToLogin])
 
-  useEffect(() => {
-    if (!user) {
-      return
-    }
-
-    const loadDashboard = async () => {
-      try {
-        const [profileLoaded] = await Promise.all([
-          fetchUserProfile(user),
-          fetchStats(user),
-        ])
-
-        if (!profileLoaded) {
-          await createFallbackProfile(user)
-          await fetchUserProfile(user)
-        }
-
-        await loadRecentActivity(user)
-        await loadSocialData(user)
-      } catch (loadError) {
-        console.error('Error loading dashboard data:', loadError)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadDashboard()
-  }, [user])
-
   const fetchUserProfile = useCallback(async (currentUser: User) => {
     try {
       const { data: profile } = await supabase
@@ -335,9 +306,38 @@ export default function Dashboard() {
     }
   }, [])
 
-  const handleViewNote = async (noteId: string) => {
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    const loadDashboard = async () => {
+      try {
+        const [profileLoaded] = await Promise.all([
+          fetchUserProfile(user),
+          fetchStats(user),
+        ])
+
+        if (!profileLoaded) {
+          await createFallbackProfile(user)
+          await fetchUserProfile(user)
+        }
+
+        await loadRecentActivity(user)
+        await loadSocialData(user)
+      } catch (loadError) {
+        console.error('Error loading dashboard data:', loadError)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadDashboard()
+  }, [user, fetchUserProfile, fetchStats, createFallbackProfile, loadRecentActivity, loadSocialData])
+
+  const handleViewNote = useCallback(async (noteId: string) => {
     if (!user) return
-    
+
     try {
       const { data, error } = await supabase
         .from('notes')
@@ -355,7 +355,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching note:', error)
     }
-  }
+  }, [user])
 
   const handleCloseModal = () => {
     setIsModalOpen(false)

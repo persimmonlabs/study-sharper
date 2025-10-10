@@ -27,10 +27,11 @@ export function DocxViewer({ src, title }: DocxViewerProps) {
         }
 
         const arrayBuffer = await response.arrayBuffer()
-        
+
         // Import mammoth dynamically
         const mammoth = await import('mammoth')
-        const result = await mammoth.convertToHtml({ arrayBuffer })
+        const input = { arrayBuffer } as Parameters<typeof mammoth.convertToHtml>[0]
+        const result = await mammoth.convertToHtml(input)
 
         if (!isMounted) return
 

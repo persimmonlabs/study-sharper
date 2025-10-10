@@ -1,4 +1,4 @@
-// File: C:\Users\owenr\Desktop\Windsurf Projects\Study_Sharper\src\app\social\page.tsx
+// File: C:\Users\owenr\Desktop\Windsurf Projects\Study_Sharper_Complete\Study_Sharper_Frontend\src\app\social\page.tsx
 import * as entry from '../../../../src/app/social/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

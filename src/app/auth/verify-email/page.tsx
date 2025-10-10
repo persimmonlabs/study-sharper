@@ -7,7 +7,7 @@ export default function VerifyEmail() {
             Check your email
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            We've sent you a verification link. Please check your email and click the link to activate your account.
+            We&apos;ve sent you a verification link. Please check your email and click the link to activate your account.
           </p>
         </div>
         <div className="text-center">
