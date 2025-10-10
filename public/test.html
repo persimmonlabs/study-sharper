@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript & Console Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .test {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .pass { color: #00ff00; }
+        .fail { color: #ff0000; }
+        button {
+            background: #00ff00;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00dd00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 JavaScript & Console Diagnostic Page</h1>
+    <p>This page tests if JavaScript and console logging are working in your browser.</p>
+    
+    <div id="tests"></div>
+    
+    <h2>Manual Tests</h2>
+    <button onclick="testAlert()">Test Alert</button>
+    <button onclick="testConsoleLog()">Test console.log</button>
+    <button onclick="testConsoleError()">Test console.error</button>
+    <button onclick="testConsoleWarn()">Test console.warn</button>
+    <button onclick="testLocalStorage()">Test LocalStorage</button>
+    <button onclick="testFetch()">Test Fetch API</button>
+    
+    <h2>Instructions</h2>
+    <ol>
+        <li>Open browser DevTools (F12)</li>
+        <li>Go to Console tab</li>
+        <li>You should see test results above and in console</li>
+        <li>Click the buttons to run manual tests</li>
+        <li>If you don't see console messages, something is blocking them</li>
+    </ol>
+
+    <script>
+        const testsDiv = document.getElementById('tests');
+        
+        function addTest(name, passed, details) {
+            const div = document.createElement('div');
+            div.className = 'test';
+            div.innerHTML = `
+                <span class="${passed ? 'pass' : 'fail'}">${passed ? '✅' : '❌'}</span>
+                <strong>${name}</strong>: ${details}
+            `;
+            testsDiv.appendChild(div);
+        }
+        
+        // Test 1: Basic JavaScript
+        addTest('JavaScript Execution', true, 'If you see this, JavaScript is running');
+        
+        // Test 2: Console exists
+        const consoleExists = typeof console !== 'undefined';
+        addTest('Console Object', consoleExists, consoleExists ? 'console object exists' : 'console object missing');
+        
+        // Test 3: console.log exists
+        const logExists = typeof console.log === 'function';
+        addTest('console.log', logExists, logExists ? 'console.log is a function' : 'console.log missing');
+        
+        // Test 4: console.error exists
+        const errorExists = typeof console.error === 'function';
+        addTest('console.error', errorExists, errorExists ? 'console.error is a function' : 'console.error missing');
+        
+        // Test 5: Test actual logging
+        try {
+            console.log('🔍 TEST: console.log is working!');
+            console.error('🔍 TEST: console.error is working!');
+            console.warn('🔍 TEST: console.warn is working!');
+            console.info('🔍 TEST: console.info is working!');
+            console.debug('🔍 TEST: console.debug is working!');
+            addTest('Console Logging', true, 'Check browser console for test messages');
+        } catch (e) {
+            addTest('Console Logging', false, 'Error: ' + e.message);
+        }
+        
+        // Test 6: Fetch API
+        const fetchExists = typeof fetch === 'function';
+        addTest('Fetch API', fetchExists, fetchExists ? 'fetch is available' : 'fetch not available');
+        
+        // Test 7: LocalStorage
+        const storageWorks = (function() {
+            try {
+                const test = '__test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        })();
+        addTest('LocalStorage', storageWorks, storageWorks ? 'localStorage working' : 'localStorage blocked');
+        
+        // Test 8: Async/Await
+        const asyncWorks = (async function() {
+            try {
+                await Promise.resolve(true);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        })();
+        
+        asyncWorks.then(works => {
+            addTest('Async/Await', works, works ? 'async/await supported' : 'async/await not supported');
+        });
+        
+        // Manual test functions
+        function testAlert() {
+            alert('✅ Alerts are working! You should see this popup.');
+            console.log('🔍 Alert test executed');
+        }
+        
+        function testConsoleLog() {
+            console.log('🔍 MANUAL TEST: This is a console.log message');
+            console.log('🔍 MANUAL TEST: Object:', { test: true, value: 123 });
+            console.log('🔍 MANUAL TEST: Array:', [1, 2, 3]);
+        }
+        
+        function testConsoleError() {
+            console.error('🔍 MANUAL TEST: This is a console.error message');
+            console.error('🔍 MANUAL TEST: Error object:', new Error('Test error'));
+        }
+        
+        function testConsoleWarn() {
+            console.warn('🔍 MANUAL TEST: This is a console.warn message');
+        }
+        
+        function testLocalStorage() {
+            try {
+                const testKey = 'diagnostic_test_' + Date.now();
+                const testValue = 'Test Value: ' + Math.random();
+                localStorage.setItem(testKey, testValue);
+                const retrieved = localStorage.getItem(testKey);
+                localStorage.removeItem(testKey);
+                
+                if (retrieved === testValue) {
+                    alert('✅ LocalStorage is working!');
+                    console.log('🔍 LocalStorage test: PASS');
+                } else {
+                    alert('❌ LocalStorage write/read mismatch');
+                    console.error('🔍 LocalStorage test: FAIL - mismatch');
+                }
+            } catch (e) {
+                alert('❌ LocalStorage error: ' + e.message);
+                console.error('🔍 LocalStorage test: ERROR', e);
+            }
+        }
+        
+        function testFetch() {
+            console.log('🔍 Testing Fetch API...');
+            fetch('https://jsonplaceholder.typicode.com/posts/1')
+                .then(response => {
+                    console.log('🔍 Fetch response:', response);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('🔍 Fetch data:', data);
+                    alert('✅ Fetch API is working! Check console for details.');
+                })
+                .catch(error => {
+                    console.error('🔍 Fetch error:', error);
+                    alert('❌ Fetch failed: ' + error.message);
+                });
+        }
+        
+        // Log browser info
+        console.log('🔍 Browser Info:');
+        console.log('  User Agent:', navigator.userAgent);
+        console.log('  Platform:', navigator.platform);
+        console.log('  Language:', navigator.language);
+        console.log('  Online:', navigator.onLine);
+        console.log('  Cookies Enabled:', navigator.cookieEnabled);
+        
+        // Final message
+        console.log('🔍 ==================================');
+        console.log('🔍 Diagnostic tests completed!');
+        console.log('🔍 If you can see these messages, console logging is working.');
+        console.log('🔍 ==================================');
+    </script>
+</body>
+</html>

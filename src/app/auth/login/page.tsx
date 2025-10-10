@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -15,8 +15,35 @@ export default function Login() {
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Add debug logging helper
+  const addDebug = (message: string) => {
+    console.log('[LOGIN DEBUG]', message)
+    setDebugInfo(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]} - ${message}`])
+  }
+
+  useEffect(() => {
+    addDebug('Login page mounted')
+    addDebug(`Supabase client exists: ${!!supabase}`)
+    addDebug(`Supabase auth exists: ${!!supabase?.auth}`)
+    addDebug(`signInWithPassword exists: ${typeof supabase?.auth?.signInWithPassword}`)
+    addDebug(`NEXT_PUBLIC_SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL || 'MISSING'}`)
+    addDebug(`NEXT_PUBLIC_SUPABASE_ANON_KEY: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set (length: ' + process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length + ')' : 'MISSING'}`)
+    
+    // Test if we can call a simple Supabase method
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        addDebug(`⚠️ Initial session check error: ${error.message}`)
+      } else {
+        addDebug(`✅ Initial session check OK (session: ${data.session ? 'exists' : 'none'})`)
+      }
+    }).catch(err => {
+      addDebug(`❌ Failed to check session: ${err}`)
+    })
+  }, [])
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -24,46 +51,99 @@ export default function Login() {
   }
 
   const handleLogin = async (e: React.FormEvent) => {
+    addDebug('=== LOGIN ATTEMPT STARTED ===')
+    addDebug(`Form submit event: ${e.type}`)
+    
     e.preventDefault()
+    addDebug('preventDefault() called')
+    
     setLoading(true)
     setError('')
     setSuccess('')
     setPendingVerification(false)
+    addDebug(`Email: ${email}`)
+    addDebug(`Password length: ${password.length}`)
 
     if (!validateEmail(email)) {
+      addDebug('Email validation failed')
       setError('Please enter a valid email address')
       setLoading(false)
       return
     }
+    addDebug('Email validation passed')
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      addDebug('Calling supabase.auth.signInWithPassword...')
+      const startTime = Date.now()
+      
+      const response = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+      
+      const endTime = Date.now()
+      addDebug(`API call completed in ${endTime - startTime}ms`)
+      addDebug(`Response received: ${JSON.stringify({
+        hasData: !!response.data,
+        hasUser: !!response.data?.user,
+        hasSession: !!response.data?.session,
+        hasError: !!response.error,
+        errorMessage: response.error?.message || 'none'
+      })}`)
+
+      const { error, data } = response
 
       if (error) {
+        addDebug(`Login error: ${error.message}`)
+        addDebug(`Error status: ${error.status}`)
+        addDebug(`Error name: ${error.name}`)
         console.error('Login error:', error)
+        
         if (error.message.includes('Email not confirmed')) {
+          addDebug('Setting pending verification state')
           setError('Please confirm your email address before signing in. You can resend the verification email below if needed.')
           setPendingVerification(true)
         } else if (error.message.includes('Invalid login credentials')) {
+          addDebug('Invalid credentials detected')
           setError('Invalid email or password. Please double-check your credentials and try again.')
           setShowForgotPassword(true)
         } else {
+          addDebug('Unknown error type')
           setError(error.message)
         }
       } else {
+        addDebug('✅ LOGIN SUCCESSFUL!')
+        addDebug(`User ID: ${data.user?.id}`)
+        addDebug(`Session: ${data.session?.access_token ? 'Token present' : 'No token'}`)
+        
         setSuccess('Login successful! Redirecting to dashboard...')
         const next = searchParams?.get('next') || '/dashboard'
+        addDebug(`Redirecting to: ${next}`)
+        
         setTimeout(() => {
+          addDebug('Executing router.push...')
           router.push(next)
         }, 1000)
       }
     } catch (error) {
-      setError('An unexpected error occurred')
+      addDebug(`❌ CATCH BLOCK: ${error}`)
+      addDebug(`Error type: ${typeof error}`)
+      addDebug(`Error constructor: ${error?.constructor?.name}`)
+      
+      if (error instanceof Error) {
+        addDebug(`Error message: ${error.message}`)
+        addDebug(`Error stack: ${error.stack}`)
+        console.error('Unexpected error during login:', error)
+      } else {
+        addDebug(`Non-Error object caught: ${JSON.stringify(error)}`)
+        console.error('Non-standard error:', error)
+      }
+      
+      setError(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
+      addDebug('Finally block executed')
       setLoading(false)
+      addDebug('=== LOGIN ATTEMPT ENDED ===')
     }
   }
 
@@ -245,6 +325,28 @@ export default function Login() {
               >
                 {resetLoading ? 'Sending...' : 'Send reset link'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Panel - Only show in development */}
+        {process.env.NODE_ENV === 'development' && debugInfo.length > 0 && (
+          <div className="mt-8 bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-auto max-h-96">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-white font-bold">🔍 Debug Console</h3>
+              <button
+                onClick={() => setDebugInfo([])}
+                className="text-red-400 hover:text-red-300 text-xs"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="space-y-1">
+              {debugInfo.map((info, idx) => (
+                <div key={idx} className="whitespace-pre-wrap break-all">
+                  {info}
+                </div>
+              ))}
             </div>
           </div>
         )}
