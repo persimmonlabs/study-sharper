@@ -110,14 +110,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initialize()
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AuthProvider] Auth state changed:', event)
+      
+      // Handle session expiration
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('[AuthProvider] Token refreshed successfully')
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        console.log('[AuthProvider] User signed out')
+      }
+      
       setSession(session)
       setUser(session?.user ?? null)
       await loadProfile(session?.user ?? null)
     })
 
+    // Refresh session when tab becomes visible again
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AuthProvider] Tab became visible, refreshing session...')
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession()
+          
+          if (error) {
+            console.error('[AuthProvider] Error refreshing session:', error)
+            return
+          }
+          
+          // If we have a session, try to refresh the token
+          if (session) {
+            const { data, error: refreshError } = await supabase.auth.refreshSession()
+            if (refreshError) {
+              console.error('[AuthProvider] Error refreshing token:', refreshError)
+            } else if (data.session) {
+              console.log('[AuthProvider] Session refreshed successfully')
+              setSession(data.session)
+              setUser(data.session.user)
+            }
+          }
+        } catch (err) {
+          console.error('[AuthProvider] Unexpected error during visibility refresh:', err)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       listener.subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [loadProfile])
 

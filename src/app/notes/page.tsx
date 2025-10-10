@@ -119,7 +119,33 @@ export default function Notes() {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session?.access_token) {
-        throw new Error('Unauthorized')
+        console.error('[Notes] Folders session error:', sessionError)
+        // Try to refresh the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError || !refreshData.session) {
+          console.error('[Notes] Failed to refresh session for folders')
+          throw new Error('Unauthorized')
+        }
+        // Use refreshed session
+        const response = await fetch('/api/folders', {
+          headers: {
+            Authorization: `Bearer ${refreshData.session.access_token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch folders');
+        }
+        const data = await response.json() as NoteFolder[] | null | undefined
+        const userFolders = data ?? []
+        setFolders(userFolders)
+        setSelectedFolderId(prev => {
+          if (!prev) return prev
+          return userFolders.some((folder: NoteFolder) => folder.id === prev) ? prev : null
+        })
+        if (userFolders.length >= FOLDER_LIMIT) {
+          setIsCreateFolderOpen(false)
+        }
+        return
       }
       const response = await fetch('/api/folders', {
         headers: {
@@ -248,7 +274,33 @@ export default function Notes() {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session?.access_token) {
-        throw new Error('Unauthorized')
+        console.error('[Notes] Session error:', sessionError)
+        // Try to refresh the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError || !refreshData.session) {
+          console.error('[Notes] Failed to refresh session, redirecting to login')
+          router.push('/auth/login?next=/notes')
+          return
+        }
+        // Use refreshed session
+        const response = await fetch('/api/notes', {
+          headers: {
+            Authorization: `Bearer ${refreshData.session.access_token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch notes');
+        }
+        const data = await response.json() as Note[] | null | undefined
+        const userNotes = data ?? []
+        setNotes(userNotes)
+        setSelectedNote(prev => (prev && userNotes.some(note => note.id === prev.id)) ? prev : (userNotes[0] ?? null))
+        const uniqueTags = new Set<string>()
+        userNotes.forEach((note: Note) => {
+          note.tags?.forEach((tag: string) => uniqueTags.add(tag))
+        })
+        setAvailableTags(Array.from(uniqueTags).sort())
+        return
       }
       const response = await fetch('/api/notes', {
         headers: {
@@ -256,6 +308,11 @@ export default function Notes() {
         },
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('[Notes] Unauthorized, redirecting to login')
+          router.push('/auth/login?next=/notes')
+          return
+        }
         throw new Error('Failed to fetch notes');
       }
       const data = await response.json() as Note[] | null | undefined
@@ -277,7 +334,7 @@ export default function Notes() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (authLoading) return

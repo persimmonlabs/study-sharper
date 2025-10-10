@@ -10,8 +10,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    // Try to enable auto-confirmation for development
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // Use localStorage for better persistence
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'study-sharper-auth',
+    // Prevent session from expiring too quickly
+    debug: process.env.NODE_ENV === 'development',
   }
 })
 
