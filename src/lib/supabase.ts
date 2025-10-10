@@ -230,12 +230,105 @@ export type Database = {
           updated_at?: string
         }
       }
+      note_embeddings: {
+        Row: {
+          id: string
+          note_id: string
+          user_id: string
+          embedding: string // JSON stringified array of numbers
+          content_hash: string | null
+          model: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          note_id: string
+          user_id: string
+          embedding: string
+          content_hash?: string | null
+          model?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          note_id?: string
+          user_id?: string
+          embedding?: string
+          content_hash?: string | null
+          model?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      embedding_queue: {
+        Row: {
+          id: string
+          note_id: string
+          user_id: string
+          priority: number
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message: string | null
+          retry_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          note_id: string
+          user_id: string
+          priority?: number
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message?: string | null
+          retry_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          note_id?: string
+          user_id?: string
+          priority?: number
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          error_message?: string | null
+          retry_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      search_similar_notes: {
+        Args: {
+          query_embedding: string
+          user_id_param: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Array<{
+          note_id: string
+          title: string
+          content: string
+          summary: string | null
+          similarity: number
+        }>
+      }
+      find_related_notes: {
+        Args: {
+          source_note_id: string
+          match_count?: number
+        }
+        Returns: Array<{
+          note_id: string
+          title: string
+          summary: string | null
+          similarity: number
+        }>
+      }
     }
     Enums: {
       [_ in never]: never

@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase'
 
+const BACKEND_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000'
+
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet'
 
@@ -15,6 +17,7 @@ type ChatMessage = {
 interface ChatRequestBody {
   messages: ChatMessage[]
   noteIds?: string[]
+  useSemanticSearch?: boolean  // Enable automatic context retrieval via vector search
   model?: string
 }
 
@@ -126,6 +129,7 @@ export async function POST(request: Request) {
     let context = ''
     let sources: ChatResponsePayload['sources'] = []
 
+    // Option 1: Use explicit note IDs if provided
     if (body.noteIds && body.noteIds.length > 0) {
       const { data: notes, error } = await supabase
         .from('notes')
@@ -145,6 +149,55 @@ export async function POST(request: Request) {
         const built = buildNoteContext(notes as NoteForContext[])
         context = built.context
         sources = built.sources
+      }
+    }
+    // Option 2: Use semantic search to automatically find relevant notes
+    else if (body.useSemanticSearch !== false) {
+      // Get the last user message as the search query
+      const userMessages = body.messages.filter(m => m.role === 'user')
+      const lastUserMessage = userMessages[userMessages.length - 1]?.content
+
+      if (lastUserMessage) {
+        try {
+          // Call backend for semantic search
+          const searchResponse = await fetch(`${BACKEND_URL}/api/embeddings/search`, {
+            method: 'POST',
+            headers: {
+              'Authorization': request.headers.get('authorization') || '',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: lastUserMessage,
+              limit: 4,
+              threshold: 0.7
+            })
+          })
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json()
+            const searchResults = searchData.results || []
+
+            if (searchResults.length > 0) {
+              // Transform search results to NoteForContext format
+              const notes: NoteForContext[] = searchResults.map((result: any) => ({
+                id: result.note_id,
+                title: result.title,
+                summary: result.summary,
+                content: result.content,
+                extracted_text: null
+              }))
+
+              const built = buildNoteContext(notes)
+              context = built.context
+              sources = built.sources
+            }
+          } else {
+            console.warn('Vector search failed, continuing without context')
+          }
+        } catch (embedError) {
+          console.warn('Error in semantic search:', embedError)
+          // Continue without context rather than failing the entire request
+        }
       }
     }
 
