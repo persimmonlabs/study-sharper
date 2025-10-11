@@ -29,10 +29,19 @@ export default function Login() {
 
   // Redirect if user is already logged in
   useEffect(() => {
+    addDebug(`[REDIRECT CHECK] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
+    
     if (!authLoading && user) {
       addDebug(`User already authenticated, redirecting to dashboard...`)
       const next = searchParams?.get('next') || '/dashboard'
-      router.push(next)
+      addDebug(`Redirecting to: ${next}`)
+      
+      // Use replace instead of push for cleaner navigation
+      router.replace(next)
+    } else if (!authLoading && !user) {
+      addDebug(`No user authenticated, staying on login page`)
+    } else {
+      addDebug(`Auth still loading, waiting...`)
     }
   }, [user, authLoading, router, searchParams, addDebug])
 
@@ -111,7 +120,16 @@ export default function Login() {
         } else {
           addDebug('✅ LOGIN SUCCESSFUL!')
           setSuccess('Login successful! Redirecting to dashboard...')
-          // The redirect will be handled by the useEffect watching the user state
+          setLoading(false)
+          
+          // Also try to redirect directly in case useEffect doesn't trigger
+          const nextUrl = new URLSearchParams(window.location.search).get('next') || '/dashboard'
+          addDebug(`Direct redirect attempt to: ${nextUrl}`)
+          
+          setTimeout(() => {
+            addDebug('Executing direct redirect...')
+            router.replace(nextUrl)
+          }, 1000)
         }
       }).catch(err => {
         addDebug(`❌ Login promise rejected: ${err}`)
