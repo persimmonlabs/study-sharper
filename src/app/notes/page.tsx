@@ -61,51 +61,19 @@ const generateMessageId = (): string => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-// Helper function to get a valid session with smart retry logic
-const getValidSession = async (): Promise<string | null> => {
-  console.log('[Notes - getValidSession] Starting...')
-  
-  // Retry with exponential backoff to wait for Supabase's lock to be released
-  const maxRetries = 3
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      // Wait progressively longer on each retry: 0ms, 100ms, 300ms
-      if (attempt > 0) {
-        const delay = attempt * attempt * 100
-        console.log(`[Notes - getValidSession] Retry ${attempt}, waiting ${delay}ms for lock...`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-      }
-      
-      // Try to get session with a reasonable timeout
-      const { data: { session }, error: sessionError } = await Promise.race([
-        supabase.auth.getSession(),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 2000)
-        )
-      ])
-      
-      if (sessionError || !session?.access_token) {
-        if (attempt === maxRetries - 1) {
-          console.error('[Notes - getValidSession] No valid session after retries')
-          return null
-        }
-        continue // Retry
-      }
-      
-      console.log('[Notes - getValidSession] Got token successfully')
-      return session.access_token
-      
-    } catch (error) {
-      console.log(`[Notes - getValidSession] Attempt ${attempt + 1} failed:`, error)
-      if (attempt === maxRetries - 1) {
-        console.error('[Notes - getValidSession] All retry attempts exhausted')
-        return null
-      }
-      // Continue to next retry
+// Helper function to get session token
+const getSessionToken = async (): Promise<string | null> => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error) {
+      console.error('[Notes] Session error:', error)
+      return null
     }
+    return session?.access_token || null
+  } catch (error) {
+    console.error('[Notes] Failed to get session:', error)
+    return null
   }
-  
-  return null
 }
 
 export default function Notes() {
@@ -163,53 +131,72 @@ export default function Notes() {
   const OCR_SIZE_LIMIT = 1024 * 1024
 
   const fetchFolders = useCallback(async (currentUser: User): Promise<boolean> => {
-    console.log('[fetchFolders] Starting for user:', currentUser.id)
+    console.log('[fetchFolders] Starting folder fetch for user:', currentUser.id)
     try {
-      console.log('[fetchFolders] Calling getValidSession...')
-      const accessToken = await getValidSession()
-      console.log('[fetchFolders] Got accessToken:', accessToken ? 'YES' : 'NO')
+      const accessToken = await getSessionToken()
       
       if (!accessToken) {
-        console.warn('[fetchFolders] No valid session yet (likely refreshing). Will retry on auth event.')
-        return false
+        console.warn('[fetchFolders] No session token available')
+        setFolders([])
+        return true // Continue even without token - don't block the page
       }
       
-      console.log('[fetchFolders] Fetching from /api/folders...')
+      console.log('[fetchFolders] Making request to /api/folders')
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      
       const response = await fetch('/api/folders', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      });
+        signal: controller.signal
+      }).catch(err => {
+        console.warn('[fetchFolders] Fetch error:', err.message)
+        return null
+      }).finally(() => {
+        clearTimeout(timeoutId)
+      })
+      
+      if (!response) {
+        console.warn('[fetchFolders] No response - backend may be down')
+        setFolders([])
+        return true // Continue without folders
+      }
+      
       console.log('[fetchFolders] Response status:', response.status)
       
       if (!response.ok) {
         if (response.status === 401) {
-          console.error('[Notes] Unauthorized for folders')
-          setFolders([])
+          console.error('[Notes] Unauthorized - redirecting to login')
+          router.push('/auth/login?next=/notes')
           return false
         }
-        throw new Error('Failed to fetch folders');
+        
+        console.warn('[fetchFolders] Non-OK response, using empty folders')
+        setFolders([])
+        return true
       }
       
-      const data = await response.json() as NoteFolder[] | null | undefined
-      const userFolders = data ?? []
+      const data = await response.json() as NoteFolder[]
       
-      setFolders(userFolders)
+      setFolders(data || [])
       setSelectedFolderId(prev => {
         if (!prev) return prev
-        return userFolders.some((folder: NoteFolder) => folder.id === prev) ? prev : null
+        return data?.some((folder: NoteFolder) => folder.id === prev) ? prev : null
       })
       
-      if (userFolders.length >= FOLDER_LIMIT) {
+      if (folders.length >= FOLDER_LIMIT) {
         setIsCreateFolderOpen(false)
       }
       return true
     } catch (error) {
-      console.error('Error fetching folders:', error)
+      console.error('[fetchFolders] Error:', error)
       setFolders([])
-      return true
+      return true // Always return true to prevent hanging
     }
-  }, [])
+  }, [router, folders.length])
 
   const handleFolderDelete = async (folder: NoteFolder) => {
     if (!user) return
@@ -310,122 +297,110 @@ export default function Notes() {
   }
 
   const fetchNotes = useCallback(async (currentUser: User): Promise<boolean> => {
-    console.log('[fetchNotes] Starting for user:', currentUser.id)
+    console.log('[fetchNotes] Starting notes fetch for user:', currentUser.id)
     try {
-      console.log('[fetchNotes] Calling getValidSession...')
-      const accessToken = await getValidSession()
-      console.log('[fetchNotes] Got accessToken:', accessToken ? 'YES' : 'NO')
+      const accessToken = await getSessionToken()
       
       if (!accessToken) {
-        console.warn('[fetchNotes] No valid session yet (likely refreshing). Will retry on auth event.')
-        return false
+        console.warn('[fetchNotes] No session token available')
+        setNotes([])
+        setAvailableTags([])
+        setSelectedNote(null)
+        return true // Continue even without token
       }
       
-      console.log('[fetchNotes] Fetching from /api/notes...')
+      console.log('[fetchNotes] Making request to /api/notes')
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      
       const response = await fetch('/api/notes', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      });
+        signal: controller.signal
+      }).catch(err => {
+        console.warn('[fetchNotes] Fetch error:', err.message)
+        return null
+      }).finally(() => {
+        clearTimeout(timeoutId)
+      })
+      
+      if (!response) {
+        console.warn('[fetchNotes] No response - backend may be down')
+        setNotes([])
+        setAvailableTags([])
+        setSelectedNote(null)
+        return true // Continue without notes
+      }
+      
       console.log('[fetchNotes] Response status:', response.status)
       
       if (!response.ok) {
         if (response.status === 401) {
-          console.error('[Notes] Unauthorized, redirecting to login')
+          console.error('[Notes] Unauthorized - redirecting to login')
           router.push('/auth/login?next=/notes')
           return false
         }
-        throw new Error('Failed to fetch notes');
+        
+        console.warn('[fetchNotes] Non-OK response, using empty notes')
+        setNotes([])
+        setAvailableTags([])
+        setSelectedNote(null)
+        return true
       }
       
-      const data = await response.json() as Note[] | null | undefined
-      const userNotes = data ?? []
+      const data = await response.json() as Note[]
       
-      setNotes(userNotes)
-      setSelectedNote(prev => (prev && userNotes.some(note => note.id === prev.id)) ? prev : (userNotes[0] ?? null))
+      setNotes(data || [])
+      setSelectedNote(prev => (prev && data?.some(note => note.id === prev.id)) ? prev : (data?.[0] ?? null))
 
       const uniqueTags = new Set<string>()
-      userNotes.forEach((note: Note) => {
+      data?.forEach((note: Note) => {
         note.tags?.forEach((tag: string) => uniqueTags.add(tag))
       })
       setAvailableTags(Array.from(uniqueTags).sort())
       return true
     } catch (error) {
-      console.error('Error fetching notes:', error)
+      console.error('[fetchNotes] Error:', error)
       setNotes([])
       setAvailableTags([])
       setSelectedNote(null)
-      return true
+      return true // Always return true to prevent hanging
     }
   }, [router])
 
-  // Refetch when Supabase refreshes token or re-emits session
-  useEffect(() => {
-    if (!user) return
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-        console.log('[Notes] Auth event received:', event, '- waiting for lock release...')
-        
-        // CRITICAL: Wait a bit for Supabase to release its internal lock
-        // before trying to fetch the session ourselves
-        await new Promise(resolve => setTimeout(resolve, 150))
-        
-        console.log('[Notes] Lock should be released, refetching data...')
-        try {
-          const notesOk = await fetchNotes(user)
-          const foldersOk = await fetchFolders(user)
-          if (notesOk && foldersOk) {
-            setLoading(false)
-            console.log('[Notes] Data refetch successful after auth event')
-          } else {
-            console.log('[Notes] Refetch incomplete, waiting for next event')
-          }
-        } catch (e) {
-          console.error('[Notes] Error during auth-event refetch:', e)
-        }
-      }
-    })
-    return () => {
-      sub.subscription.unsubscribe()
-    }
-  }, [user, fetchNotes, fetchFolders])
+  // Load data when user is available
+  // Removed problematic auth event listener that was causing race conditions
 
   useEffect(() => {
     if (authLoading) {
-      console.log('[Notes] Auth is loading...')
       return
     }
 
     if (!user) {
-      console.log('[Notes] No user, stopping load')
       setLoading(false)
       return
     }
 
-    console.log('[Notes] User authenticated, fetching data...')
-    setLoading(true)
-    
-    // Serialize the fetches to avoid race conditions
     const loadData = async () => {
       try {
-        const notesOk = await fetchNotes(user)
-        const foldersOk = await fetchFolders(user)
-        if (notesOk && foldersOk) {
-          setLoading(false)
-        } else {
-          console.log('[Notes] Waiting for session refresh to complete before finishing load...')
-          // Keep loading true; we'll refetch on auth event
-        }
+        const [notesOk, foldersOk] = await Promise.all([
+          fetchNotes(user),
+          fetchFolders(user),
+        ])
+        
+        console.log('[Notes] Data loaded - notes:', notesOk, 'folders:', foldersOk)
       } catch (error) {
-        console.error('[Notes] Error loading data:', error)
+        console.error('[Notes] Error during data load:', error)
+      } finally {
         setLoading(false)
       }
     }
-    
+
     loadData()
-    // Only depend on user and authLoading, not the fetch functions
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user])
+  }, [user, authLoading, fetchNotes, fetchFolders])
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {

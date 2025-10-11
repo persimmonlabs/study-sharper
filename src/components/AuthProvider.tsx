@@ -35,12 +35,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
   
-  // Refs to prevent race conditions
-  const isRefreshingRef = useRef(false)
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastVisibilityChangeRef = useRef<number>(0)
+  // Prevent concurrent operations
+  const initializingRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const loadProfile = useCallback(async (targetUser: User | null) => {
+    if (!mountedRef.current) return
+    
     if (!targetUser) {
       setProfile(null)
       setProfileLoading(false)
@@ -56,23 +57,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', targetUser.id)
         .maybeSingle()
 
+      if (!mountedRef.current) return
+
       if (error) {
-        throw error
+        console.warn('Error loading profile:', error.message)
       }
 
-      if (data) {
-        setProfile(data)
-      } else {
-        setProfile({
-          id: targetUser.id,
-          email: targetUser.email ?? null,
-          first_name: targetUser.user_metadata?.first_name ?? null,
-          last_name: targetUser.user_metadata?.last_name ?? null,
-          avatar_url: null,
-        })
+      // Always set profile, even if database query failed
+      const profileData = data || {
+        id: targetUser.id,
+        email: targetUser.email ?? null,
+        first_name: targetUser.user_metadata?.first_name ?? null,
+        last_name: targetUser.user_metadata?.last_name ?? null,
+        avatar_url: null,
       }
+
+      setProfile(profileData)
     } catch (err) {
-      console.error('Error loading profile', err)
+      if (!mountedRef.current) return
+      
+      console.error('Error loading profile:', err)
+      // Set fallback profile even on error
       setProfile({
         id: targetUser.id,
         email: targetUser.email ?? null,
@@ -81,98 +86,159 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatar_url: null,
       })
     } finally {
-      setProfileLoading(false)
+      if (mountedRef.current) {
+        setProfileLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
     const initialize = async () => {
+      if (initializingRef.current || !mountedRef.current) {
+        return
+      }
+      
+      initializingRef.current = true
       setLoading(true)
+      
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
-
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (!mountedRef.current) return
+        
+        console.log('[AuthProvider] Initial session check:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          error: error?.message
+        })
+        
         if (error) {
-          throw error
+          console.error('[AuthProvider] Initial session error:', error)
+          setError('Unable to load authentication state')
+        } else {
+          setSession(session)
+          setUser(session?.user ?? null)
+          await loadProfile(session?.user ?? null)
+          setError(null)
+          
+          console.log('[AuthProvider] Initial state set:', {
+            hasUser: !!(session?.user),
+            userId: session?.user?.id
+          })
         }
-
-        setSession(session)
-        setUser(session?.user ?? null)
-        await loadProfile(session?.user ?? null)
-        setError(null)
       } catch (err) {
-        console.error('Error loading auth session', err)
-        setError('Unable to load authentication state')
+        if (!mountedRef.current) return
+        
+        console.error('[AuthProvider] Initialization error:', err)
+        setError('Unable to initialize authentication')
         setSession(null)
         setUser(null)
         setProfile(null)
       } finally {
-        setLoading(false)
+        if (mountedRef.current) {
+          setLoading(false)
+          console.log('[AuthProvider] Initial loading complete')
+        }
+        initializingRef.current = false
       }
     }
 
     initialize()
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthProvider] Auth state changed:', event)
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mountedRef.current) return
       
-      // Handle session expiration
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('[AuthProvider] Token refreshed successfully')
-      }
+      console.log('[AuthProvider] Auth state changed:', {
+        event,
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id
+      })
       
-      if (event === 'SIGNED_OUT') {
-        console.log('[AuthProvider] User signed out')
-      }
-      
+      // Update state immediately
       setSession(session)
       setUser(session?.user ?? null)
+      setError(null)
+      
+      console.log('[AuthProvider] User state updated:', {
+        hasUser: !!(session?.user),
+        userId: session?.user?.id
+      })
+      
+      // Load profile for new/changed users
       await loadProfile(session?.user ?? null)
     })
 
-    // NOTE: Supabase GoTrue already handles tab visibility and auto-refresh internally.
-    // Removing our manual visibility refresh to avoid lock contention with GoTrue's storage lock.
-    // The onAuthStateChange listener below will keep session/user/profile in sync.
-
     return () => {
-      listener.subscription.unsubscribe()
-      // Reset any refresh flags (no visibility listener anymore)
-      isRefreshingRef.current = false
+      console.log('[AuthProvider] Cleanup - unmounting')
+      mountedRef.current = false
+      subscription.unsubscribe()
+      initializingRef.current = false
     }
   }, [loadProfile])
 
   const refresh = useCallback(async () => {
+    if (!mountedRef.current || initializingRef.current) return
+    
     setLoading(true)
+    console.log('[AuthProvider] Manual refresh triggered')
+    
     try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
 
+      if (!mountedRef.current) return
+      
+      console.log('[AuthProvider] Manual refresh session check:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        error: error?.message
+      })
+      
       if (error) {
-        throw error
+        console.error('[AuthProvider] Refresh error:', error)
+        setError('Unable to refresh authentication state')
+      } else {
+        setSession(session)
+        setUser(session?.user ?? null)
+        await loadProfile(session?.user ?? null)
+        setError(null)
+        
+        console.log('[AuthProvider] Manual refresh complete, user set:', {
+          hasUser: !!(session?.user),
+          userId: session?.user?.id
+        })
       }
-
-      setSession(session)
-      setUser(session?.user ?? null)
-      await loadProfile(session?.user ?? null)
-      setError(null)
     } catch (err) {
-      console.error('Error refreshing auth session', err)
+      if (!mountedRef.current) return
+      
+      console.error('[AuthProvider] Refresh error:', err)
       setError('Unable to refresh authentication state')
     } finally {
-      setLoading(false)
+      if (mountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [loadProfile])
 
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    setSession(null)
-    setUser(null)
-    setProfile(null)
-  }
+  const signOut = useCallback(async () => {
+    try {
+      await supabase.auth.signOut()
+      // State will be updated by onAuthStateChange listener
+    } catch (err) {
+      console.error('[AuthProvider] Sign out error:', err)
+      // Force state reset even if signOut fails
+      if (mountedRef.current) {
+        setSession(null)
+        setUser(null)
+        setProfile(null)
+        setError(null)
+      }
+    }
+  }, [])
 
   const refreshProfile = useCallback(async () => {
     await loadProfile(user)
@@ -190,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profileLoading,
       refreshProfile,
     }),
-    [user, session, loading, error, refresh, profile, profileLoading, refreshProfile]
+    [user, session, loading, error, refresh, signOut, profile, profileLoading, refreshProfile]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

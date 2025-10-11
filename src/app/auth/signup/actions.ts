@@ -2,7 +2,6 @@
 
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
 type CreateProfileInput = {
@@ -22,16 +21,6 @@ export async function createProfile({ id, email, first_name, last_name }: Create
     email,
     first_name: first_name || null,
     last_name: last_name || null,
-  }
-
-  if (supabaseAdmin) {
-    await supabaseAdmin
-      .from('profiles')
-      .upsert({
-        ...normalizedInput,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
-    return
   }
 
   const supabase = createServerActionClient<Database>({ cookies })

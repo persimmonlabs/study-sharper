@@ -3,7 +3,6 @@
 import { cookies } from 'next/headers'
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/supabase'
-import { supabaseAdmin } from '@/lib/supabase'
 
 const DEFAULT_AVATAR = '👤'
 
@@ -22,28 +21,6 @@ export async function updateAvatarAction({ userId, avatar }: UpdateAvatarInput):
   }
 
   const timestamp = new Date().toISOString()
-
-  if (supabaseAdmin) {
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .upsert(
-        {
-          id: userId,
-          avatar_url: avatar,
-          updated_at: timestamp,
-        },
-        { onConflict: 'id' }
-      )
-      .select('avatar_url')
-      .maybeSingle()
-
-    if (error) {
-      throw error
-    }
-
-    return { avatar: data?.avatar_url ?? DEFAULT_AVATAR }
-  }
-
   const supabase = createServerActionClient<Database>({ cookies })
 
   const {

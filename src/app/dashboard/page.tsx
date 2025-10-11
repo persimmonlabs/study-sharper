@@ -64,6 +64,8 @@ interface AssignmentSummary {
 }
 
 export default function Dashboard() {
+  console.log('[Dashboard] Component mounting/rendering')
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalNotes: 0,
     totalAssignments: 0,
@@ -93,19 +95,15 @@ export default function Dashboard() {
   const [weeklyGoalProgress, setWeeklyGoalProgress] = useState({ current: 0, target: 1200 }) // minutes
   const [isFirstLogin, setIsFirstLogin] = useState(false)
   const router = useRouter()
-  const pathname = usePathname()
   const { user, loading: authLoading, signOut } = useAuth()
 
-  const redirectToLogin = useCallback(() => {
-    if (!user && !authLoading) {
-      const nextParam = pathname && pathname !== '/dashboard' ? `?next=${encodeURIComponent(pathname)}` : ''
-      router.push(`/auth/login${nextParam}`)
-    }
-  }, [authLoading, pathname, router, user])
-
+  // Simple auth redirect - only redirect when auth is done loading and no user
   useEffect(() => {
-    redirectToLogin()
-  }, [redirectToLogin])
+    if (!authLoading && !user) {
+      console.log('[Dashboard] No user after auth loaded, redirecting to login')
+      router.push('/auth/login?next=/dashboard')
+    }
+  }, [authLoading, user, router])
 
   const fetchUserProfile = useCallback(async (currentUser: User) => {
     try {
@@ -307,33 +305,57 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
+    if (authLoading) {
+      return // Wait for auth to finish
+    }
+    
     if (!user) {
+      setLoading(false) // Not logged in, stop loading
       return
     }
 
     const loadDashboard = async () => {
+      console.log('[Dashboard] Loading dashboard data for user:', user.id)
+      setLoading(true)
+      
       try {
-        const [profileLoaded] = await Promise.all([
-          fetchUserProfile(user),
-          fetchStats(user),
+        // Load data with timeout
+        const timeoutId = setTimeout(() => {
+          console.warn('[Dashboard] Load timeout - using fallback data')
+          setLoading(false)
+        }, 8000)
+        
+        // Load all data in parallel
+        await Promise.allSettled([
+          fetchUserProfile(user).catch(err => {
+            console.warn('[Dashboard] Profile fetch failed:', err)
+            setUserProfile({
+              first_name: user.user_metadata?.first_name || 'User',
+              last_name: user.user_metadata?.last_name || null,
+            })
+          }),
+          fetchStats(user).catch(err => {
+            console.warn('[Dashboard] Stats fetch failed:', err)
+          }),
+          loadRecentActivity(user).catch(err => {
+            console.warn('[Dashboard] Activity fetch failed:', err)
+          }),
+          loadSocialData(user).catch(err => {
+            console.warn('[Dashboard] Social data fetch failed:', err)
+          }),
         ])
-
-        if (!profileLoaded) {
-          await createFallbackProfile(user)
-          await fetchUserProfile(user)
-        }
-
-        await loadRecentActivity(user)
-        await loadSocialData(user)
-      } catch (loadError) {
-        console.error('Error loading dashboard data:', loadError)
+        
+        clearTimeout(timeoutId)
+        console.log('[Dashboard] Dashboard data loaded')
+      } catch (error) {
+        console.error('[Dashboard] Unexpected error:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    void loadDashboard()
-  }, [user, fetchUserProfile, fetchStats, createFallbackProfile, loadRecentActivity, loadSocialData])
+    loadDashboard()
+  }, [user, authLoading, fetchUserProfile, fetchStats, loadRecentActivity, loadSocialData])
 
   const handleViewNote = useCallback(async (noteId: string) => {
     if (!user) return
@@ -436,10 +458,11 @@ export default function Dashboard() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-lg">Loading...</div>
+      <div className="flex flex-col items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+        <div className="text-lg text-gray-600 dark:text-gray-400">Loading dashboard...</div>
       </div>
     )
   }

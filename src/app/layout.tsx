@@ -5,6 +5,7 @@ import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { HeaderNav } from '@/components/HeaderNav'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -35,7 +36,9 @@ export default function RootLayout({
               </div>
               </header>
               <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </main>
             </div>
           </ThemeProvider>
