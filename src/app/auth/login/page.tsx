@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -18,12 +19,22 @@ export default function Login() {
   const [debugInfo, setDebugInfo] = useState<string[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, loading: authLoading } = useAuth()
 
   // Add debug logging helper
-  const addDebug = (message: string) => {
+  const addDebug = useCallback((message: string) => {
     console.log('[LOGIN DEBUG]', message)
     setDebugInfo(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]} - ${message}`])
-  }
+  }, [])
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      addDebug(`User already authenticated, redirecting to dashboard...`)
+      const next = searchParams?.get('next') || '/dashboard'
+      router.push(next)
+    }
+  }, [user, authLoading, router, searchParams, addDebug])
 
   useEffect(() => {
     addDebug('Login page mounted')
@@ -43,7 +54,7 @@ export default function Login() {
     }).catch(err => {
       addDebug(`❌ Failed to check session: ${err}`)
     })
-  }, [])
+  }, [addDebug])
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -76,55 +87,40 @@ export default function Login() {
       addDebug('Calling supabase.auth.signInWithPassword...')
       const startTime = Date.now()
       
-      const response = await supabase.auth.signInWithPassword({
+      // Don't await the full response, just catch errors
+      supabase.auth.signInWithPassword({
         email,
         password,
+      }).then(response => {
+        const endTime = Date.now()
+        addDebug(`API call completed in ${endTime - startTime}ms`)
+        
+        if (response.error) {
+          addDebug(`Login error: ${response.error.message}`)
+          setLoading(false)
+          
+          if (response.error.message.includes('Email not confirmed')) {
+            setError('Please confirm your email address before signing in. You can resend the verification email below if needed.')
+            setPendingVerification(true)
+          } else if (response.error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please double-check your credentials and try again.')
+            setShowForgotPassword(true)
+          } else {
+            setError(response.error.message)
+          }
+        } else {
+          addDebug('✅ LOGIN SUCCESSFUL!')
+          setSuccess('Login successful! Redirecting to dashboard...')
+          // The redirect will be handled by the useEffect watching the user state
+        }
+      }).catch(err => {
+        addDebug(`❌ Login promise rejected: ${err}`)
+        setError('An unexpected error occurred during login')
+        setLoading(false)
       })
       
-      const endTime = Date.now()
-      addDebug(`API call completed in ${endTime - startTime}ms`)
-      addDebug(`Response received: ${JSON.stringify({
-        hasData: !!response.data,
-        hasUser: !!response.data?.user,
-        hasSession: !!response.data?.session,
-        hasError: !!response.error,
-        errorMessage: response.error?.message || 'none'
-      })}`)
-
-      const { error, data } = response
-
-      if (error) {
-        addDebug(`Login error: ${error.message}`)
-        addDebug(`Error status: ${error.status}`)
-        addDebug(`Error name: ${error.name}`)
-        console.error('Login error:', error)
-        
-        if (error.message.includes('Email not confirmed')) {
-          addDebug('Setting pending verification state')
-          setError('Please confirm your email address before signing in. You can resend the verification email below if needed.')
-          setPendingVerification(true)
-        } else if (error.message.includes('Invalid login credentials')) {
-          addDebug('Invalid credentials detected')
-          setError('Invalid email or password. Please double-check your credentials and try again.')
-          setShowForgotPassword(true)
-        } else {
-          addDebug('Unknown error type')
-          setError(error.message)
-        }
-      } else {
-        addDebug('✅ LOGIN SUCCESSFUL!')
-        addDebug(`User ID: ${data.user?.id}`)
-        addDebug(`Session: ${data.session?.access_token ? 'Token present' : 'No token'}`)
-        
-        setSuccess('Login successful! Redirecting to dashboard...')
-        const next = searchParams?.get('next') || '/dashboard'
-        addDebug(`Redirecting to: ${next}`)
-        
-        setTimeout(() => {
-          addDebug('Executing router.push...')
-          router.push(next)
-        }, 1000)
-      }
+      // Don't wait for the promise to resolve
+      addDebug('Login request initiated, waiting for auth state change...')
     } catch (error) {
       addDebug(`❌ CATCH BLOCK: ${error}`)
       addDebug(`Error type: ${typeof error}`)
