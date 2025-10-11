@@ -170,6 +170,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Load profile for new/changed users
       await loadProfile(session?.user ?? null)
+      
+      // CRITICAL FIX: Set loading to false after auth state change
+      if (mountedRef.current) {
+        setLoading(false)
+        console.log('[AuthProvider] Auth loading set to false after state change')
+      }
     })
 
     return () => {

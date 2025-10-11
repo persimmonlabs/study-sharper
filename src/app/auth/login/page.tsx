@@ -32,12 +32,23 @@ export default function Login() {
     addDebug(`[REDIRECT CHECK] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
     
     if (!authLoading && user) {
-      addDebug(`User already authenticated, redirecting to dashboard...`)
+      addDebug(`User authenticated and auth not loading, redirecting...`)
       const next = searchParams?.get('next') || '/dashboard'
       addDebug(`Redirecting to: ${next}`)
-      
-      // Use replace instead of push for cleaner navigation
       router.replace(next)
+    } else if (user && authLoading) {
+      // BACKUP: If user exists but authLoading is stuck, redirect anyway after a short delay
+      addDebug(`User exists but authLoading stuck, scheduling backup redirect...`)
+      const timeoutId = setTimeout(() => {
+        if (user) {
+          addDebug(`Executing backup redirect for stuck authLoading...`)
+          const next = searchParams?.get('next') || '/dashboard'
+          router.replace(next)
+        }
+      }, 2000)
+      
+      // Cleanup timeout if authLoading becomes false
+      return () => clearTimeout(timeoutId)
     } else if (!authLoading && !user) {
       addDebug(`No user authenticated, staying on login page`)
     } else {
@@ -119,6 +130,7 @@ export default function Login() {
           }
         } else {
           addDebug('✅ LOGIN SUCCESSFUL!')
+          addDebug(`Response data: user=${!!response.data?.user}, session=${!!response.data?.session}`)
           setSuccess('Login successful! Redirecting to dashboard...')
           setLoading(false)
           
