@@ -4,6 +4,14 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback, u
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+// Render marker to verify provider is mounted and running on the client
+if (typeof window !== 'undefined') {
+  // This will run on every import, once per page load
+  // Helps confirm the new bundle is actually loaded
+  // eslint-disable-next-line no-console
+  console.log('[AuthProvider] Module loaded on client')
+}
+
 interface Profile {
   id: string
   email: string | null
@@ -28,6 +36,8 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // eslint-disable-next-line no-console
+  console.log('[AuthProvider] Render start')
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,7 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadProfile = useCallback(async (targetUser: User | null) => {
     if (!mountedRef.current) return
     
+    console.log('[AuthProvider] loadProfile called:', { hasUser: !!targetUser, userId: targetUser?.id })
+    
     if (!targetUser) {
+      console.log('[AuthProvider] No user, clearing profile')
       setProfile(null)
       setProfileLoading(false)
       return
@@ -51,16 +64,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileLoading(true)
 
     try {
-      const { data, error } = await supabase
+      console.log('[AuthProvider] Fetching profile from database...')
+      
+      // Add timeout to prevent hanging
+      const profilePromise = supabase
         .from('profiles')
         .select('id, email, first_name, last_name, avatar_url')
         .eq('id', targetUser.id)
         .maybeSingle()
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      )
+      
+      const { data, error } = await Promise.race([profilePromise, timeoutPromise]) as any
 
       if (!mountedRef.current) return
 
       if (error) {
-        console.warn('Error loading profile:', error.message)
+        console.warn('[AuthProvider] Error loading profile:', error.message)
       }
 
       // Always set profile, even if database query failed
@@ -72,29 +94,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatar_url: null,
       }
 
+      console.log('[AuthProvider] Profile loaded:', { hasData: !!data, profileId: profileData.id })
       setProfile(profileData)
     } catch (err) {
       if (!mountedRef.current) return
       
-      console.error('Error loading profile:', err)
+      console.error('[AuthProvider] Error loading profile:', err)
       // Set fallback profile even on error
-      setProfile({
+      const fallbackProfile = {
         id: targetUser.id,
         email: targetUser.email ?? null,
         first_name: targetUser.user_metadata?.first_name ?? null,
         last_name: targetUser.user_metadata?.last_name ?? null,
         avatar_url: null,
-      })
+      }
+      console.log('[AuthProvider] Using fallback profile')
+      setProfile(fallbackProfile)
     } finally {
       if (mountedRef.current) {
         setProfileLoading(false)
+        console.log('[AuthProvider] Profile loading complete - profileLoading set to FALSE')
       }
     }
   }, [])
 
   useEffect(() => {
+    // In React Strict Mode (Next.js dev), effects run twice: mount -> cleanup -> mount.
+    // Ensure our "mounted" flag is reset to true at the start of every effect run.
+    mountedRef.current = true
+    // eslint-disable-next-line no-console
+    console.log('[AuthProvider] useEffect initialize registering')
     const initialize = async () => {
       if (initializingRef.current || !mountedRef.current) {
+        console.log('[AuthProvider] Skipping initialize - already initializing or unmounted')
         return
       }
       
@@ -102,10 +134,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       
       try {
-        // Get initial session
+        // Get initial session with timeout
+        console.log('[AuthProvider] Starting session check...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (!mountedRef.current) return
+        if (!mountedRef.current) {
+          console.log('[AuthProvider] Component unmounted during session check')
+          return
+        }
         
         console.log('[AuthProvider] Initial session check:', {
           hasSession: !!session,
@@ -117,9 +153,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('[AuthProvider] Initial session error:', error)
           setError('Unable to load authentication state')
+          // Still set the states even with error
+          setSession(null)
+          setUser(null)
+          setProfile(null)
         } else {
           setSession(session)
           setUser(session?.user ?? null)
+          
+          console.log('[AuthProvider] Session set, loading profile...')
           await loadProfile(session?.user ?? null)
           setError(null)
           
@@ -139,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         if (mountedRef.current) {
           setLoading(false)
-          console.log('[AuthProvider] Initial loading complete')
+          console.log('[AuthProvider] Initial loading complete - loading set to FALSE')
         }
         initializingRef.current = false
       }

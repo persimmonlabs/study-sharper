@@ -2,32 +2,40 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing required Supabase environment variables')
+}
 
 // Create regular client for normal operations
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    // Core authentication settings
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce',
-    // Use localStorage for better persistence
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    storageKey: 'study-sharper-auth',
-    // Prevent session from expiring too quickly
-    debug: process.env.NODE_ENV === 'development',
-  }
+    // flowType removed; default flow works for email/password and avoids edge-cases in dev
+
+    // Storage configuration - let Supabase use default storage
+    // Removing custom storage to prevent lock conflicts
+
+    // Session storage key (keep default to avoid conflicts)
+    // storageKey: 'sb-project-auth-token',
+
+    // Enable debug during development to surface auth issues
+    debug: true,
+  },
+  // Global configuration
+  global: {
+    headers: {
+      'X-Client-Info': 'study-sharper-frontend',
+    },
+  },
 })
 
-// Create admin client for development/testing (only if service role key is available)
-export const supabaseAdmin = supabaseServiceRoleKey
-  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-  : null
+// SECURITY: No admin client in frontend - service role key should NEVER be in frontend code
+// Admin operations should be handled by backend API
 
 // Database types
 export type Database = {

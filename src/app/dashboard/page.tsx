@@ -98,11 +98,34 @@ export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth()
 
   // Simple auth redirect - only redirect when auth is done loading and no user
+  // Add a fallback: if authLoading never resolves within 2s, check session directly
   useEffect(() => {
+    let timeout: any
+
+    const directCheck = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        console.log('[Dashboard] Fallback session check:', { hasSession: !!data.session, userId: data.session?.user?.id })
+        if (data.session && !user) {
+          // Soft refresh to let AuthProvider pick it up
+          router.refresh()
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Fallback getSession error:', err)
+      }
+    }
+
     if (!authLoading && !user) {
       console.log('[Dashboard] No user after auth loaded, redirecting to login')
       router.push('/auth/login?next=/dashboard')
+    } else if (authLoading) {
+      timeout = setTimeout(() => {
+        console.warn('[Dashboard] authLoading still true after 2000ms, running fallback session check')
+        directCheck()
+      }, 2000)
     }
+
+    return () => clearTimeout(timeout)
   }, [authLoading, user, router])
 
   const fetchUserProfile = useCallback(async (currentUser: User) => {
