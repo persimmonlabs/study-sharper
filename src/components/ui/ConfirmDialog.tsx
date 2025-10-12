@@ -2,17 +2,38 @@
 
 import { useEffect, useRef } from 'react'
 
+/**
+ * Props for the ConfirmDialog component
+ */
 interface ConfirmDialogProps {
+  /** Controls dialog visibility */
   isOpen: boolean
+  /** Dialog title text */
   title: string
+  /** Main message/question for the user */
   message: string
+  /** Text for confirm button (default: 'Confirm') */
   confirmText?: string
+  /** Text for cancel button (default: 'Cancel') */
   cancelText?: string
+  /** Callback when user confirms */
   onConfirm: () => void
+  /** Callback when user cancels */
   onCancel: () => void
+  /** If true, displays red warning style (default: false) */
   isDestructive?: boolean
 }
 
+/**
+ * ConfirmDialog Component
+ * 
+ * A modal confirmation dialog for user actions that require explicit confirmation.
+ * Supports destructive actions (delete, etc.) with red warning styling.
+ * Handles ESC key and click-outside to cancel.
+ * 
+ * @param props - Component props
+ * @returns A modal dialog overlay with confirmation UI
+ */
 export function ConfirmDialog({
   isOpen,
   title,

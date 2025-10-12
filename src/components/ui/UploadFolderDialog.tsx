@@ -2,22 +2,47 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+/**
+ * Represents a folder option for selection
+ */
 interface FolderOption {
+  /** Unique folder identifier */
   id: string
+  /** Display name of the folder */
   name: string
+  /** Hex color code for folder badge */
   color: string
 }
 
+/**
+ * Props for the UploadFolderDialog component
+ */
 interface UploadFolderDialogProps {
+  /** Controls dialog visibility */
   isOpen: boolean
+  /** List of available folders */
   folders: FolderOption[]
+  /** Callback when user cancels */
   onCancel: () => void
+  /** Callback when user selects a folder (null for 'All notes') */
   onSelectFolder: (folderId: string | null) => void
+  /** Whether user can create new folders (based on limit) */
   canCreateFolder: boolean
+  /** Available color options for new folders */
   folderColors: string[]
+  /** Optional callback to create a new folder */
   onCreateFolder?: (name: string, color: string) => Promise<FolderOption | null>
 }
 
+/**
+ * UploadFolderDialog Component
+ * 
+ * Modal dialog for selecting which folder to upload files to.
+ * Supports creating new folders inline if the limit hasn't been reached.
+ * 
+ * @param props - Component props
+ * @returns A modal dialog with folder selection and creation UI
+ */
 export function UploadFolderDialog({
   isOpen,
   folders,

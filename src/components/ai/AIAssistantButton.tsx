@@ -2,10 +2,23 @@
 
 import { useState } from 'react'
 
+/**
+ * Props for the AIAssistantButton component
+ */
 interface AIAssistantButtonProps {
+  /** Callback function when the AI assistant button is clicked */
   onOpen?: () => void
 }
 
+/**
+ * AIAssistantButton Component
+ * 
+ * Displays a floating action button (FAB) to open the AI chat assistant.
+ * Features an animated glow effect and tooltip on hover.
+ * 
+ * @param props - Component props
+ * @returns A fixed-position button with hover effects and tooltip
+ */
 export function AIAssistantButton({ onOpen }: AIAssistantButtonProps) {
   const [isHovered, setIsHovered] = useState(false)
 

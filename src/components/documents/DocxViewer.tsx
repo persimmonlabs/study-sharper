@@ -2,11 +2,25 @@
 
 import { useEffect, useState } from 'react'
 
+/**
+ * Props for the DocxViewer component
+ */
 interface DocxViewerProps {
+  /** URL or signed URL to the DOCX file */
   src: string
+  /** Title of the document (used for accessibility) */
   title: string
 }
 
+/**
+ * DocxViewer Component
+ * 
+ * Renders Microsoft Word (.docx) files as HTML using the mammoth library.
+ * Displays loading spinner while converting and shows error messages on failure.
+ * 
+ * @param props - Component props
+ * @returns A rendered HTML view of the DOCX document
+ */
 export function DocxViewer({ src, title }: DocxViewerProps) {
   const [htmlContent, setHtmlContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)

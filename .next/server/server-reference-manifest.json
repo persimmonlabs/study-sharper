@@ -1,5 +1,1 @@
-{
-  "node": {},
-  "edge": {},
-  "encryptionKey": "wYs9S4Jp1w+Us/GzIuF/Pf3sc7bXmrkzvI/uAE+/hlk="
-}
+{"node":{"1af75437b3437d1a9395fe3c8f811871abd2cb94":{"workers":{"app/auth/signup/page":"6244"},"layer":{"app/auth/signup/page":"action-browser"}}},"edge":{},"encryptionKey":"vBW20kCp9eJHGzgIi+pR+ZmZ2MQc9yUbTY59IiGe1xY="}

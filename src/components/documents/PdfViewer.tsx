@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react'
 
+/**
+ * Props for the PdfViewer component
+ */
 interface PdfViewerProps {
+  /** URL or signed URL to the PDF file */
   src: string | null
+  /** Optional title for the PDF (used in iframe title attribute) */
   title?: string
 }
 
+/**
+ * PdfViewer Component
+ * 
+ * Displays a PDF file in an iframe with loading state.
+ * Shows a placeholder when no source is provided.
+ * 
+ * @param props - Component props
+ * @returns An iframe displaying the PDF or a placeholder
+ */
 export function PdfViewer({ src, title }: PdfViewerProps) {
   const [loaded, setLoaded] = useState(false)
 

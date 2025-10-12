@@ -1,14 +1,32 @@
 'use client'
 
+/**
+ * Props for the FileSizeWarningDialog component
+ */
 interface FileSizeWarningDialogProps {
+  /** Controls dialog visibility */
   isOpen: boolean
+  /** Name of the file being uploaded */
   fileName: string
+  /** Size of the file in bytes */
   fileSize: number
+  /** Maximum allowed file size in bytes */
   maxSize: number
+  /** Callback when user confirms to proceed anyway */
   onConfirm: () => void
+  /** Callback when user cancels the upload */
   onCancel: () => void
 }
 
+/**
+ * FileSizeWarningDialog Component
+ * 
+ * Warns users when a file exceeds the size limit for AI features.
+ * Allows users to proceed with upload for storage without AI capabilities.
+ * 
+ * @param props - Component props
+ * @returns A modal dialog with file size warning and options
+ */
 export function FileSizeWarningDialog({
   isOpen,
   fileName,
