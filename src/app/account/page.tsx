@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/components/AuthProvider'
-import { useTheme } from '@/components/ThemeProvider'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { useTheme } from '@/components/common/ThemeProvider'
 import type { User } from '@supabase/supabase-js'
 
 interface UserStats {
@@ -311,8 +311,8 @@ export default function Account() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your profile, view achievements, and customize your experience</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Account Settings</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your profile, view achievements, and customize your experience</p>
         </div>
         <button
           onClick={handleLogout}
@@ -393,12 +393,13 @@ export default function Account() {
                   {avatarOptions.map(avatar => (
                     <button
                       key={avatar}
-                      onClick={() => setUserProfile({...userProfile, avatar})}
+                      onClick={() => handleAvatarSelect(avatar)}
+                      disabled={avatarPending}
                       className={`text-4xl p-4 rounded-lg border-2 transition-colors ${
                         userProfile.avatar === avatar
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                      }`}
+                      } ${avatarPending ? 'opacity-50 cursor-wait' : ''}`}
                     >
                       {avatar}
                     </button>

@@ -44,18 +44,6 @@ export default function Social() {
 
   useEffect(() => {
     const checkUser = async () => {
-      if (typeof window !== 'undefined') {
-        const testMode = localStorage.getItem('testMode')
-        const testUser = localStorage.getItem('testUser')
-
-        if (testMode === 'true' && testUser) {
-          console.log('Test mode detected, using mock social data')
-          setMockData()
-          setLoading(false)
-          return
-        }
-      }
-
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
@@ -68,97 +56,22 @@ export default function Social() {
     checkUser()
   }, [router])
 
-  const setMockData = () => {
-    const mockFriends: Friend[] = [
-      {
-        id: '1',
-        name: 'Alex Johnson',
-        avatar: '👨‍🎓',
-        level: 15,
-        tokens: 2450,
-        streak: 7,
-        status: 'studying'
-      },
-      {
-        id: '2',
-        name: 'Sarah Chen',
-        avatar: '👩‍🎓',
-        level: 12,
-        tokens: 1890,
-        streak: 12,
-        status: 'online'
-      },
-      {
-        id: '3',
-        name: 'Mike Rodriguez',
-        avatar: '👨‍💻',
-        level: 18,
-        tokens: 3200,
-        streak: 5,
-        status: 'offline'
-      }
-    ]
-
-    const mockGroups: StudyGroup[] = [
-      {
-        id: '1',
-        name: 'Calculus Masters',
-        description: 'Advanced calculus study group for exam prep',
-        members: 24,
-        subject: 'Mathematics',
-        isJoined: true
-      },
-      {
-        id: '2',
-        name: 'History Buffs',
-        description: 'World history discussion and study sessions',
-        members: 18,
-        subject: 'History',
-        isJoined: false
-      },
-      {
-        id: '3',
-        name: 'Chemistry Lab Partners',
-        description: 'Organic chemistry problem solving group',
-        members: 31,
-        subject: 'Chemistry',
-        isJoined: true
-      }
-    ]
-
-    const mockChallenges: Challenge[] = [
-      {
-        id: '1',
-        title: 'Week-long Study Streak',
-        description: 'Study for at least 1 hour every day for 7 days',
-        type: 'streak',
-        reward: 500,
-        deadline: '2024-01-21',
-        participants: 156
-      },
-      {
-        id: '2',
-        title: 'Math Quiz Champion',
-        description: 'Score 90% or higher on 5 math quizzes',
-        type: 'quiz',
-        reward: 300,
-        deadline: '2024-01-18',
-        participants: 89
-      }
-    ]
-
-    setFriends(mockFriends)
-    setStudyGroups(mockGroups)
-    setChallenges(mockChallenges)
-    setLeaderboard(mockFriends.sort((a, b) => b.tokens - a.tokens))
-  }
 
   const fetchSocialData = async () => {
     try {
-      // In a real app, you'd fetch from your database
+      // TODO: Implement real social features fetching from database
+      // For now, just show empty state
+      setFriends([])
+      setStudyGroups([])
+      setChallenges([])
+      setLeaderboard([])
       setLoading(false)
     } catch (error) {
       console.error('Error fetching social data:', error)
+      setFriends([])
+      setStudyGroups([])
+      setChallenges([])
+      setLeaderboard([])
       setLoading(false)
     }
   }
@@ -243,7 +156,17 @@ export default function Social() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {friends.map(friend => (
+                {friends.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <div className="text-6xl mb-4">👥</div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No friends yet</h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Start connecting with study buddies to collaborate and compete!</p>
+                    <button className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                      Find Study Buddies
+                    </button>
+                  </div>
+                ) : (
+                  friends.map(friend => (
                   <div key={friend.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:-translate-y-1">
                     <div className="flex items-center mb-3">
                       <div className="text-3xl mr-3">{friend.avatar}</div>
@@ -280,7 +203,8 @@ export default function Social() {
                       </button>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </div>
           )}
@@ -296,7 +220,17 @@ export default function Social() {
               </div>
               
               <div className="space-y-4">
-                {studyGroups.map(group => (
+                {studyGroups.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📚</div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No study groups yet</h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Join or create study groups to learn together!</p>
+                    <button className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                      Create Study Group
+                    </button>
+                  </div>
+                ) : (
+                  studyGroups.map(group => (
                   <div key={group.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -334,7 +268,8 @@ export default function Social() {
                       </div>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </div>
           )}
@@ -350,7 +285,17 @@ export default function Social() {
               </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {challenges.map(challenge => (
+                {challenges.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <div className="text-6xl mb-4">🏆</div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No active challenges</h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Create or join challenges to compete with friends!</p>
+                    <button className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                      Create Challenge
+                    </button>
+                  </div>
+                ) : (
+                  challenges.map(challenge => (
                   <div key={challenge.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -386,7 +331,8 @@ export default function Social() {
                       Join Challenge
                     </button>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </div>
           )}
@@ -407,7 +353,14 @@ export default function Social() {
               </div>
               
               <div className="space-y-3">
-                {leaderboard.map((user, index) => (
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📈</div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Leaderboard coming soon</h4>
+                    <p className="text-gray-600 dark:text-gray-400">Start studying to earn tokens and climb the ranks!</p>
+                  </div>
+                ) : (
+                  leaderboard.map((user, index) => (
                   <div key={user.id} className={`flex items-center p-4 rounded-lg ${
                     index === 0 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800' :
                     index === 1 ? 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600' :
@@ -432,7 +385,8 @@ export default function Social() {
                       </div>
                     )}
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </div>
           )}

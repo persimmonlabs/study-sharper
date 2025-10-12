@@ -5,16 +5,16 @@ import type { FormEvent, MouseEvent, ChangeEvent } from 'react'
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@/components/AuthProvider'
+import { useAuth } from '@/components/auth/AuthProvider'
 import type { Database } from '@/lib/supabase'
 import { supabase } from '@/lib/supabase'
-import { NoteModal } from '@/components/NoteModal'
-import { NoteContextMenu } from '@/components/NoteContextMenu'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { FileSizeWarningDialog } from '@/components/FileSizeWarningDialog'
-import { FolderContextMenu } from '@/components/FolderContextMenu'
-import { UploadFolderDialog } from '@/components/UploadFolderDialog'
-import { AIChatPanel } from '@/components/AIChatPanel'
+import { NoteModal } from '@/components/notes/NoteModal'
+import { NoteContextMenu } from '@/components/notes/NoteContextMenu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { FileSizeWarningDialog } from '@/components/ui/FileSizeWarningDialog'
+import { FolderContextMenu } from '@/components/notes/FolderContextMenu'
+import { UploadFolderDialog } from '@/components/ui/UploadFolderDialog'
+import { AIChatPanel } from '@/components/ai/AIChatPanel'
 import type { User } from '@supabase/supabase-js'
 
 type Note = Database['public']['Tables']['notes']['Row'] & {
@@ -144,20 +144,13 @@ export default function Notes() {
       
       console.log('[fetchFolders] Making request to /api/folders')
       
-      // Add timeout to prevent hanging
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-      
       const response = await fetch('/api/folders', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        signal: controller.signal
       }).catch(err => {
         console.warn('[fetchFolders] Fetch error:', err.message)
         return null
-      }).finally(() => {
-        clearTimeout(timeoutId)
       })
       
       if (!response) {
@@ -248,6 +241,12 @@ export default function Notes() {
     setIsRenamingFolder(true)
     setIsSavingFolderRename(false)
     setFolderContextMenu(null)
+    
+    // Auto-focus the rename input after render
+    setTimeout(() => {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }, 0)
   }
 
   const handleFolderRenameCancel = () => {
@@ -312,20 +311,13 @@ export default function Notes() {
       
       console.log('[fetchNotes] Making request to /api/notes')
       
-      // Add timeout to prevent hanging
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-      
       const response = await fetch('/api/notes', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        signal: controller.signal
       }).catch(err => {
         console.warn('[fetchNotes] Fetch error:', err.message)
         return null
-      }).finally(() => {
-        clearTimeout(timeoutId)
       })
       
       if (!response) {
@@ -387,15 +379,25 @@ export default function Notes() {
 
     const loadData = async () => {
       try {
-        const [notesOk, foldersOk] = await Promise.all([
-          fetchNotes(user),
-          fetchFolders(user),
-        ])
+        // Load notes and folders in parallel, but don't wait for both
+        // This allows notes to display immediately while folders load
+        console.log('[Notes] Starting data load...')
         
-        console.log('[Notes] Data loaded - notes:', notesOk, 'folders:', foldersOk)
+        fetchNotes(user).then(() => {
+          console.log('[Notes] Notes loaded')
+          // Set loading to false as soon as notes are loaded
+          setLoading(false)
+        }).catch(error => {
+          console.error('[Notes] Error loading notes:', error)
+          setLoading(false)
+        })
+        
+        // Load folders separately (won't block notes display)
+        fetchFolders(user).catch(error => {
+          console.error('[Notes] Error loading folders:', error)
+        })
       } catch (error) {
         console.error('[Notes] Error during data load:', error)
-      } finally {
         setLoading(false)
       }
     }
@@ -444,6 +446,16 @@ export default function Notes() {
   const handleCreateFolder = async () => {
     if (!user || !newFolderName.trim() || !canCreateMoreFolders) return
 
+    // Check for duplicate folder name
+    const isDuplicate = folders.some(folder => 
+      folder.name.toLowerCase() === newFolderName.trim().toLowerCase()
+    )
+    
+    if (isDuplicate) {
+      alert(`A folder named "${newFolderName.trim()}" already exists. Please choose a different name.`)
+      return
+    }
+
     setIsCreatingFolder(true)
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -484,6 +496,17 @@ export default function Notes() {
     color: string
   ): Promise<{ id: string; name: string; color: string } | null> => {
     if (!user || !name.trim() || !canCreateMoreFolders) return null
+    
+    // Check for duplicate folder name
+    const isDuplicate = folders.some(folder => 
+      folder.name.toLowerCase() === name.trim().toLowerCase()
+    )
+    
+    if (isDuplicate) {
+      alert(`A folder named "${name.trim()}" already exists. Please choose a different name.`)
+      return null
+    }
+    
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session?.access_token) {
@@ -559,6 +582,22 @@ export default function Notes() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
+      
+      // Check for duplicate filename
+      const fileNameWithoutExt = file.name.replace(/\.(pdf|docx)$/i, '')
+      const isDuplicate = notes.some(note => 
+        note.title === fileNameWithoutExt && 
+        (!targetFolderId || note.folder_id === targetFolderId)
+      )
+      
+      if (isDuplicate) {
+        const confirmUpload = confirm(
+          `A file named "${fileNameWithoutExt}" already exists${targetFolderId ? ' in this folder' : ''}. Do you want to upload it anyway?`
+        )
+        if (!confirmUpload) {
+          continue
+        }
+      }
 
       // Only process PDFs and DOCX files
       const supportedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
@@ -729,7 +768,9 @@ export default function Notes() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create note');
+        const errorText = await response.text();
+        console.error('[createNote] API error:', response.status, errorText);
+        throw new Error(`Failed to create note: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -748,7 +789,13 @@ export default function Notes() {
       }
     } catch (error) {
       console.error('Error creating note:', error)
-      alert('Failed to create note. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        alert('Cannot connect to backend server. Please ensure the backend is running at http://127.0.0.1:8000')
+      } else {
+        alert(`Failed to create note: ${errorMessage}`)
+      }
     } finally {
       setIsCreating(false)
     }

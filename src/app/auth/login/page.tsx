@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@/components/AuthProvider'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 export default function Login() {
   const [email, setEmail] = useState('')

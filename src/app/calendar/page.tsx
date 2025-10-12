@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@/components/AuthProvider'
+import { useAuth } from '@/components/auth/AuthProvider'
 import type { User } from '@supabase/supabase-js'
 
 type StudySessionRow = Database['public']['Tables']['study_sessions']['Row']

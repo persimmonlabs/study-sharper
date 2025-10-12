@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { AuthProvider } from '@/components/AuthProvider'
-import { ThemeProvider } from '@/components/ThemeProvider'
-import { Sidebar } from '@/components/Sidebar'
-import { TopBar } from '@/components/TopBar'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { AuthProvider } from '@/components/auth/AuthProvider'
+import { ThemeProvider } from '@/components/common/ThemeProvider'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { TopBar } from '@/components/layout/TopBar'
+import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 

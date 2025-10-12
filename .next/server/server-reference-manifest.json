@@ -1,1 +1,5 @@
-{"node":{"1af75437b3437d1a9395fe3c8f811871abd2cb94":{"workers":{"app/auth/signup/page":"6244"},"layer":{"app/auth/signup/page":"action-browser"}}},"edge":{},"encryptionKey":"3XXJxAm+BTkTKIQ62oB5kJXqY7fn4Ii+ymj7g2FfZIw="}
+{
+  "node": {},
+  "edge": {},
+  "encryptionKey": "wYs9S4Jp1w+Us/GzIuF/Pf3sc7bXmrkzvI/uAE+/hlk="
+}

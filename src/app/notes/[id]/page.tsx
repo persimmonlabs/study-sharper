@@ -5,8 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Database } from '@/lib/supabase'
-import { useAuth } from '@/components/AuthProvider'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type Note = Database['public']['Tables']['notes']['Row']
 
