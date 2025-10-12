@@ -991,6 +991,17 @@ export default function Notes() {
     }
   }
 
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'N/A'
+      return date.toLocaleDateString()
+    } catch {
+      return 'N/A'
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -1279,7 +1290,7 @@ export default function Notes() {
                         {note.content}
                       </p>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        {new Date(note.updated_at).toLocaleDateString()}
+                        {formatDate(note.updated_at)}
                       </div>
                     </div>
                   )
@@ -1310,7 +1321,7 @@ export default function Notes() {
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{note.content}</p>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {new Date(note.updated_at).toLocaleDateString()}
+                      {formatDate(note.updated_at)}
                     </div>
                   </div>
                 ))}
