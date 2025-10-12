@@ -27,34 +27,20 @@ export default function Login() {
     setDebugInfo(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]} - ${message}`])
   }, [])
 
-  // Redirect if user is already logged in
+  // Check user authentication status and show appropriate message
   useEffect(() => {
-    addDebug(`[REDIRECT CHECK] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
+    addDebug(`[AUTH STATUS] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
     
     if (!authLoading && user) {
-      addDebug(`User authenticated and auth not loading, redirecting...`)
-      const next = searchParams?.get('next') || '/dashboard'
-      addDebug(`Redirecting to: ${next}`)
-      router.replace(next)
-    } else if (user && authLoading) {
-      // BACKUP: If user exists but authLoading is stuck, redirect anyway after a short delay
-      addDebug(`User exists but authLoading stuck, scheduling backup redirect...`)
-      const timeoutId = setTimeout(() => {
-        if (user) {
-          addDebug(`Executing backup redirect for stuck authLoading...`)
-          const next = searchParams?.get('next') || '/dashboard'
-          router.replace(next)
-        }
-      }, 2000)
-      
-      // Cleanup timeout if authLoading becomes false
-      return () => clearTimeout(timeoutId)
+      addDebug(`User already authenticated but staying on login page - user may want to switch accounts`)
+      // DON'T auto-redirect - let the user decide what they want to do
+      // They might want to log in with different credentials
     } else if (!authLoading && !user) {
-      addDebug(`No user authenticated, staying on login page`)
+      addDebug(`No user authenticated, ready for login`)
     } else {
       addDebug(`Auth still loading, waiting...`)
     }
-  }, [user, authLoading, router, searchParams, addDebug])
+  }, [user, authLoading, addDebug])
 
   useEffect(() => {
     addDebug('Login page mounted')
@@ -134,14 +120,15 @@ export default function Login() {
           setSuccess('Login successful! Redirecting to dashboard...')
           setLoading(false)
           
-          // Also try to redirect directly in case useEffect doesn't trigger
+          // Redirect after successful login
           const nextUrl = new URLSearchParams(window.location.search).get('next') || '/dashboard'
-          addDebug(`Direct redirect attempt to: ${nextUrl}`)
+          addDebug(`Redirecting to: ${nextUrl} after successful login`)
           
+          // Small delay to show success message, then redirect
           setTimeout(() => {
-            addDebug('Executing direct redirect...')
+            addDebug('Executing post-login redirect...')
             router.replace(nextUrl)
-          }, 1000)
+          }, 1500)
         }
       }).catch(err => {
         addDebug(`❌ Login promise rejected: ${err}`)
@@ -249,6 +236,43 @@ export default function Login() {
             </Link>
           </p>
         </div>
+        
+        {/* Show info if user is already logged in */}
+        {!authLoading && user && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">You&apos;re already signed in!</p>
+                <p className="text-xs mt-1 opacity-80">You can proceed to your dashboard or sign in with different credentials.</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    addDebug('User clicked Sign Out to use different credentials')
+                    await supabase.auth.signOut()
+                    // The auth state change will clear the user automatically
+                  }}
+                  className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded text-sm transition-colors"
+                >
+                  Sign Out
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = searchParams?.get('next') || '/dashboard'
+                    addDebug(`User chose to go to dashboard: ${next}`)
+                    router.replace(next)
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">

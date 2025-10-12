@@ -39,44 +39,59 @@ export default function Calendar() {
   const { user, loading: authLoading } = useAuth()
 
   const fetchCalendarData = useCallback(async (currentUser: User) => {
+    console.log('[Calendar] Fetching calendar data for user:', currentUser.id)
     try {
-      const { data: assignmentsData, error: assignmentsError } = await supabase
-        .from('assignments')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('due_date', { ascending: true })
+      // Set timeout for database operations
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Calendar data fetch timeout')), 5000)
+      )
+      
+      const fetchPromise = async () => {
+        const { data: assignmentsData, error: assignmentsError } = await supabase
+          .from('assignments')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('due_date', { ascending: true })
 
-      if (assignmentsError) {
-        throw assignmentsError
-      }
-
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('study_sessions')
-        .select('id, duration_minutes, notes, created_at')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-
-      if (sessionsError) {
-        throw sessionsError
-      }
-
-      setAssignments(assignmentsData || [])
-      const normalizedSessions: StudySession[] = (sessionsData || []).map((session: Pick<StudySessionRow, 'id' | 'duration_minutes' | 'notes' | 'created_at'>) => {
-        const createdAt: string | null = session.created_at ?? null
-        const derivedDate = createdAt ? new Date(createdAt).toISOString().split('T')[0] : null
-
-        return {
-          id: session.id,
-          date: derivedDate,
-          duration_minutes: session.duration_minutes ?? null,
-          notes: session.notes ?? null,
-          created_at: createdAt,
+        // Don't fail if assignments table doesn't exist or has issues
+        if (assignmentsError) {
+          console.warn('[Calendar] Assignments query error:', assignmentsError)
         }
-      })
 
-      setStudySessions(normalizedSessions)
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from('study_sessions')
+          .select('id, duration_minutes, notes, created_at')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+
+        // Don't fail if sessions table doesn't exist or has issues  
+        if (sessionsError) {
+          console.warn('[Calendar] Sessions query error:', sessionsError)
+        }
+
+        setAssignments(assignmentsData || [])
+        const normalizedSessions: StudySession[] = (sessionsData || []).map((session: Pick<StudySessionRow, 'id' | 'duration_minutes' | 'notes' | 'created_at'>) => {
+          const createdAt: string | null = session.created_at ?? null
+          const derivedDate = createdAt ? new Date(createdAt).toISOString().split('T')[0] : null
+
+          return {
+            id: session.id,
+            date: derivedDate,
+            duration_minutes: session.duration_minutes ?? null,
+            notes: session.notes ?? null,
+            created_at: createdAt,
+          }
+        })
+
+        setStudySessions(normalizedSessions)
+      }
+      
+      await Promise.race([fetchPromise(), timeoutPromise])
+      console.log('[Calendar] Data loaded successfully')
+      
     } catch (error) {
-      console.error('Error fetching calendar data:', error)
+      console.error('[Calendar] Error fetching calendar data:', error)
+      // Set empty data but don't fail - allow calendar to show
       setAssignments([])
       setStudySessions([])
     } finally {
@@ -209,7 +224,7 @@ export default function Calendar() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -233,7 +248,7 @@ export default function Calendar() {
       </div>
 
       {/* Calendar Navigation */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -326,8 +341,8 @@ export default function Calendar() {
       </div>
 
       {/* Upcoming Assignments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Upcoming Assignments</h3>
           <div className="space-y-4">
             {assignments.slice(0, 5).map(assignment => (

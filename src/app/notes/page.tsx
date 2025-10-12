@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FileSizeWarningDialog } from '@/components/FileSizeWarningDialog'
 import { FolderContextMenu } from '@/components/FolderContextMenu'
 import { UploadFolderDialog } from '@/components/UploadFolderDialog'
+import { AIChatPanel } from '@/components/AIChatPanel'
 import type { User } from '@supabase/supabase-js'
 
 type Note = Database['public']['Tables']['notes']['Row'] & {
@@ -1040,11 +1041,11 @@ export default function Notes() {
         </div>
       </div>
 
-      <div className="flex pt-6">
+      <div className="flex pt-6 gap-6">
         {/* Sidebar */}
         <div className={`${
           sidebarOpen ? 'w-80' : 'w-12'
-        } bg-white dark:bg-gray-800 shadow-lg rounded-lg transition-all duration-300 flex flex-col border-r border-gray-200 dark:border-gray-700`}>
+        } bg-white dark:bg-gray-800 shadow-lg rounded-xl transition-all duration-300 flex flex-col border border-gray-200 dark:border-gray-700`}>
 
           {/* Sidebar Header */}
           <div className={`p-2 border-b border-gray-200 dark:border-gray-700 flex items-center ${sidebarOpen ? 'justify-between pl-2 pr-2' : 'justify-center'}`}>
@@ -1256,10 +1257,10 @@ export default function Notes() {
                       key={note.id}
                       onClick={() => handleViewNote(note)}
                       onContextMenu={(e) => handleContextMenu(e, note.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 mb-2 ${
                         selectedNote?.id === note.id
-                          ? 'bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                          ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 hover:shadow-sm'
                       }`}
                     >
                       <div className="flex items-center space-x-2">
@@ -1289,15 +1290,15 @@ export default function Notes() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 pl-6 space-y-8">
+        <div className="flex-1 space-y-6">
             {/* Recent Files Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Files</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredNotes.slice(0, 4).map((note) => (
                   <div
                     key={note.id}
-                    className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                    className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer"
                     onClick={() => handleViewNote(note)}
                     onContextMenu={(e) => handleContextMenu(e, note.id)}
                   >
@@ -1324,26 +1325,95 @@ export default function Notes() {
               </div>
             </div>
 
+            {/* Upload Files */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upload Files</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Upload PDF or DOCX files for AI-powered processing</p>
+                </div>
+              </div>
+              <div 
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-primary-400 dark:hover:border-primary-500 transition-colors"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (e.dataTransfer.files) {
+                    openUploadDialog(Array.from(e.dataTransfer.files))
+                  }
+                }}
+              >
+                <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Drop files here or click to upload</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  Automatic text extraction, summarization, and smart tagging
+                </p>
+                <div className="flex justify-center space-x-4">
+                  <label className="bg-gradient-to-br from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-200 cursor-pointer shadow-md hover:shadow-lg">
+                    Choose Files
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept=".pdf,.docx"
+                      onChange={(e) => {
+                      if (e.target.files) {
+                        openUploadDialog(Array.from(e.target.files))
+                        e.target.value = ''
+                      }
+                    }}
+                    />
+                  </label>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                  <p className="font-medium mb-1">PDF & DOCX files • Max 10MB</p>
+                  <p className="text-yellow-600 dark:text-yellow-400">⚠️ Files under 1MB recommended for AI features</p>
+                  <p className="mt-2">📄 Text extraction • 🔍 AI-powered search • 🏷️ Smart organization</p>
+                </div>
+              </div>
+              
+              {uploadedFiles.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Processing Queue</h3>
+                  <div className="space-y-2">
+                    {uploadedFiles.map(file => (
+                      <div key={file.id} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="text-xl mr-3">{getFileIcon(file.type)}</div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{file.name}</div>
+                          <div className={`text-xs ${getStatusColor(file.status)}`}>
+                            {file.status === 'completed' ? '✅ AI Processing Complete' : '🤖 Processing...'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Create Notes Manually Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create Notes Manually</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Craft a new note by hand and save it to your collection.</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Craft a new note by hand and save it to your collection</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={handleClearNoteFields}
-                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     Clear
                   </button>
                   <button
                     onClick={handleCreateNote}
                     disabled={!newNoteTitle.trim() || isCreating}
-                    className="px-4 py-2 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                   >
-                    {isCreating ? 'Saving...' : 'Save note'}
+                    {isCreating ? 'Saving...' : 'Save Note'}
                   </button>
                 </div>
               </div>
@@ -1397,145 +1467,17 @@ export default function Notes() {
               </div>
             </div>
 
-            {/* Upload Files */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Upload Files</h2>
-              <div 
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  if (e.dataTransfer.files) {
-                    openUploadDialog(Array.from(e.dataTransfer.files))
-                  }
-                }}
-              >
-                <div className="text-4xl mb-4">🤖</div>
-                <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">AI-Enhanced Processing</p>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Upload files for automatic transcription, summarization, and smart tagging
-                </p>
-                <div className="flex justify-center space-x-4">
-                  <label className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors cursor-pointer">
-                    Choose Files
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      accept=".pdf,.docx"
-                      onChange={(e) => {
-                      if (e.target.files) {
-                        openUploadDialog(Array.from(e.target.files))
-                        e.target.value = ''
-                      }
-                    }}
-                    />
-                  </label>
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-                  <p className="font-medium mb-1">PDF & DOCX files • Max 10MB</p>
-                  <p className="text-yellow-600 dark:text-yellow-400">⚠️ Files under 1MB recommended for AI features</p>
-                  <p className="mt-2">📄 Text extraction • 🔍 AI-powered search • 🏷️ Smart organization</p>
-                </div>
-              </div>
-              
-              {uploadedFiles.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Processing Queue</h3>
-                  <div className="space-y-2">
-                    {uploadedFiles.map(file => (
-                      <div key={file.id} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="text-xl mr-3">{getFileIcon(file.type)}</div>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{file.name}</div>
-                          <div className={`text-xs ${getStatusColor(file.status)}`}>
-                            {file.status === 'completed' ? '✅ AI Processing Complete' : '🤖 Processing...'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* AI Chat Interface */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Study Assistant</h2>
-                <div className="ml-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full">
-                  AI
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4 h-64 overflow-y-auto">
-                {chatMessages.length === 0 ? (
-                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    <div className="text-4xl mb-4">🤖</div>
-                    <p>Ask me anything about your notes!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {chatMessages.slice(-5).map(message => (
-                      <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
-                          message.type === 'user' 
-                            ? 'bg-primary-600 text-white' 
-                            : 'bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100'
-                        }`}>
-                          <p className="whitespace-pre-line">{message.content}</p>
-                          {message.sources && message.sources.length > 0 && (
-                            <div className="mt-2 border-t border-gray-200 dark:border-gray-500 pt-2">
-                              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Sources</p>
-                              <ul className="text-xs text-gray-600 dark:text-gray-200 space-y-1">
-                                {message.sources.map(source => (
-                                  <li key={source.id} className="flex items-start space-x-1">
-                                    <span>•</span>
-                                    <span>{source.title}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {isChatLoading && (
-                  <div className="mt-4 flex justify-start text-sm text-gray-500 dark:text-gray-300">
-                    Thinking...
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void handleSendMessage()
-                    }
-                  }}
-                  placeholder="Ask about your notes..."
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  disabled={isChatLoading}
-                />
-                <button
-                  onClick={() => {
-                    void handleSendMessage()
-                  }}
-                  disabled={isChatLoading || !chatInput.trim()}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isChatLoading ? 'Sending...' : 'Send'}
-                </button>
-              </div>
-            </div>
         </div>
+
+        {/* AI Chat Panel */}
+        <AIChatPanel 
+          messages={chatMessages}
+          input={chatInput}
+          isLoading={isChatLoading}
+          onInputChange={setChatInput}
+          onSendMessage={handleSendMessage}
+          selectedNoteName={selectedNote?.title}
+        />
       </div>
 
       <UploadFolderDialog

@@ -11,6 +11,16 @@ export function HeaderNav() {
   const pathname = usePathname()
   const avatar = profile?.avatar_url ?? DEFAULT_AVATAR
   const displayAvatar = loading || profileLoading ? '⏳' : avatar || DEFAULT_AVATAR
+  
+  // Debug logging
+  console.log('[HeaderNav] Auth state:', { 
+    hasUser: !!user,
+    userId: user?.id,
+    loading, 
+    hasProfile: !!profile, 
+    profileLoading,
+    pathname 
+  })
 
   const getLinkClassName = (href: string) => {
     const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import Link from 'next/link'
 import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { HeaderNav } from '@/components/HeaderNav'
+import { Sidebar } from '@/components/Sidebar'
+import { TopBar } from '@/components/TopBar'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -24,22 +24,22 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider>
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-              <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center py-4">
-                  <Link href="/dashboard" className="flex items-center text-2xl font-bold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                    Study Sharper
-                  </Link>
-                  <HeaderNav />
-                </div>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+              {/* Sidebar Navigation */}
+              <Sidebar />
+              
+              {/* Main Content Area */}
+              <div className="flex flex-col flex-1 min-h-screen">
+                {/* Top Bar */}
+                <TopBar />
+                
+                {/* Page Content */}
+                <main className="flex-1 p-6">
+                  <ErrorBoundary>
+                    {children}
+                  </ErrorBoundary>
+                </main>
               </div>
-              </header>
-              <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <ErrorBoundary>
-                  {children}
-                </ErrorBoundary>
-              </main>
             </div>
           </ThemeProvider>
         </AuthProvider>

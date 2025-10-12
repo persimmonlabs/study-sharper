@@ -190,7 +190,7 @@ export default function Social() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -208,7 +208,7 @@ export default function Social() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           {[
             { id: 'friends', label: 'Friends', icon: '👥' },
@@ -244,7 +244,7 @@ export default function Social() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {friends.map(friend => (
-                  <div key={friend.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div key={friend.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:-translate-y-1">
                     <div className="flex items-center mb-3">
                       <div className="text-3xl mr-3">{friend.avatar}</div>
                       <div className="flex-1">

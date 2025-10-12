@@ -8,6 +8,15 @@ module.exports = {
   ],
   theme: {
     extend: {
+      animation: {
+        fadeIn: 'fadeIn 0.2s ease-in',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
       colors: {
         gray: {
           50: '#f9fafb',
@@ -22,25 +31,52 @@ module.exports = {
           900: '#111827',
           950: '#030712',
         },
+        // Modern purple/blue palette - works beautifully in light & dark
         primary: {
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
+          950: '#2e1065',
+        },
+        // Accent colors for different features
+        secondary: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+          950: '#172554',
+        },
+        success: {
           50: '#f0fdf4',
           100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
           500: '#22c55e',
           600: '#16a34a',
           700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
         },
-        secondary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          500: '#06b6d4',
-          600: '#0891b2',
-          700: '#0e7490',
+        warning: {
+          50: '#fff7ed',
+          100: '#ffedd5',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+        },
+        streak: {
+          50: '#fef3c7',
+          500: '#f59e0b',
+          600: '#d97706',
         },
       },
     },

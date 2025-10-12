@@ -248,11 +248,26 @@ export default function Account() {
     }
 
     const loadAccount = async () => {
+      console.log('[Account] Loading account data for user:', user.id)
       try {
-        await fetchUserStats(user)
-        await fetchAchievements(user)
+        // Set timeout for account data loading
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Account data load timeout')), 5000)
+        )
+        
+        const loadPromise = async () => {
+          await Promise.allSettled([
+            fetchUserStats(user),
+            fetchAchievements(user)
+          ])
+        }
+        
+        await Promise.race([loadPromise(), timeoutPromise])
+        console.log('[Account] Account data loaded successfully')
+        
       } catch (error) {
-        console.error('Error loading account data:', error)
+        console.error('[Account] Error loading account data:', error)
+        // Always set fallback data so account page shows
         const fallback = getDefaultProfile(user)
         if (fallback) {
           setUserProfile(fallback)
@@ -260,6 +275,7 @@ export default function Account() {
         setUserStats(defaultStats)
         setAchievements([])
       } finally {
+        console.log('[Account] Setting loading to false')
         setLoading(false)
       }
     }

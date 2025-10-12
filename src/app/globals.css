@@ -10,15 +10,29 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors;
+    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md;
   }
 
   .btn-secondary {
-    @apply border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors;
+    @apply border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200;
   }
 
   .card {
-    @apply bg-white p-6 rounded-lg shadow-sm border;
+    @apply bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Enhanced scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800 rounded-lg;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500;
   }
 }
 
@@ -28,7 +42,7 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 antialiased;
   }
 
   .dark body {
@@ -37,6 +51,18 @@
 
   .dark * {
     @apply border-gray-800;
+  }
+
+  /* Smooth transitions for theme switching */
+  * {
+    transition-property: color, background-color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  /* Disable transitions for interactive elements to keep them snappy */
+  button, a, input, select, textarea {
+    transition-property: transform, box-shadow, opacity;
   }
 
   /* Fix autofill styling in dark mode */

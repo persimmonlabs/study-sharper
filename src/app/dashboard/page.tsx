@@ -9,6 +9,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { NoteModal } from '@/components/NoteModal'
 import { NoteContextMenu } from '@/components/NoteContextMenu'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { WelcomeBanner, QuickActionCard, ProgressRing, StreakTracker, StatCard } from '@/components/dashboard'
 
 interface DashboardStats {
   totalNotes: number
@@ -506,134 +507,103 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header with Level & Tokens */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {isFirstLogin ? `Welcome, ${firstName}! 🎓` : `Welcome back, ${firstName}! 🎓`}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Ready to continue your learning journey?</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-3 py-2 rounded-lg text-sm h-10 flex items-center">
-            <div className="text-center whitespace-nowrap">
-              <span className="text-sm font-bold">Level {stats.level}</span>
-              <span className="text-xs opacity-90 ml-1">{stats.xp} XP</span>
-            </div>
-          </div>
-          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-3 py-2 rounded-lg text-sm h-10 flex items-center">
-            <div className="text-center whitespace-nowrap">
-              <span className="text-sm font-bold">{stats.tokens}</span>
-              <span className="text-xs opacity-90 ml-1">Tokens</span>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors h-10 flex items-center justify-center whitespace-nowrap"
-          >
-            Logout
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Welcome Banner */}
+      <WelcomeBanner 
+        firstName={firstName}
+        isFirstLogin={isFirstLogin}
+        level={stats.level}
+        xp={stats.xp}
+        tokens={stats.tokens}
+      />
+
+      {/* Quick Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <QuickActionCard 
+          title="Start Studying"
+          description="Begin a study session"
+          icon="📚"
+          href="/study"
+          color="blue"
+        />
+        <QuickActionCard 
+          title="Upload Notes"
+          description="Add new study materials"
+          icon="📝"
+          href="/notes"
+          color="green"
+        />
+        <QuickActionCard 
+          title="Take a Quiz"
+          description="Test your knowledge"
+          icon="🧠"
+          href="/study?mode=quiz"
+          color="purple"
+        />
+        <QuickActionCard 
+          title="Find Friends"
+          description="Connect with peers"
+          icon="👥"
+          href="/social"
+          color="orange"
+        />
       </div>
 
-      {/* Study Streak & Goals */}
+      {/* Streak & Goals Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Study Streak */}
-        <div className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-6 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Study Streak 🔥</h3>
-              <div className="text-3xl font-bold">{stats.streakDays}</div>
-              <div className="text-orange-100">days in a row</div>
-            </div>
-            <div className="text-5xl opacity-80">🔥</div>
+        {/* Streak Tracker */}
+        <StreakTracker streakDays={stats.streakDays} />
+        
+        {/* Progress Rings */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Daily Goal</h3>
+          <div className="flex justify-center">
+            <ProgressRing 
+              current={dailyGoalProgress.current}
+              target={dailyGoalProgress.target}
+              label="Minutes Today"
+              color="green"
+              size="medium"
+            />
           </div>
         </div>
 
-        {/* Daily Goal */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Daily Goal</h3>
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <span>Study Time</span>
-            <span>{dailyGoalProgress.current}m / {dailyGoalProgress.target}m</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-            <div 
-              className="bg-green-500 h-3 rounded-full transition-all duration-300" 
-              style={{ width: `${Math.min((dailyGoalProgress.current / dailyGoalProgress.target) * 100, 100)}%` }}
-            ></div>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-            {Math.round((dailyGoalProgress.current / dailyGoalProgress.target) * 100)}% complete
-          </div>
-        </div>
-
-        {/* Weekly Goal */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Weekly Goal</h3>
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <span>Study Time</span>
-            <span>{Math.floor(weeklyGoalProgress.current / 60)}h {weeklyGoalProgress.current % 60}m / {Math.floor(weeklyGoalProgress.target / 60)}h</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-            <div 
-              className="bg-primary-600 h-3 rounded-full transition-all duration-300" 
-              style={{ width: `${Math.min((weeklyGoalProgress.current / weeklyGoalProgress.target) * 100, 100)}%` }}
-            ></div>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-            {Math.round((weeklyGoalProgress.current / weeklyGoalProgress.target) * 100)}% complete
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Weekly Goal</h3>
+          <div className="flex justify-center">
+            <ProgressRing 
+              current={weeklyGoalProgress.current}
+              target={weeklyGoalProgress.target}
+              label="Minutes This Week"
+              color="blue"
+              size="medium"
+            />
           </div>
         </div>
       </div>
 
       {/* Enhanced Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">📚</div>
-          <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">{stats.totalNotes}</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Notes</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">📝</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.totalAssignments}</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Assignments</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">🧠</div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.quizzesCompleted}</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Quizzes</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">⏱️</div>
-          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{Math.floor(stats.totalStudyTime / 60)}h</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Study Time</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">⚡</div>
-          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.xp}</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">XP</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <div className="text-2xl mb-2">⏰</div>
-          <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.upcomingAssignments}</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Due Soon</div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <StatCard icon="📚" value={stats.totalNotes} label="Notes" color="primary" />
+        <StatCard icon="📝" value={stats.totalAssignments} label="Assignments" color="green" />
+        <StatCard icon="🧠" value={stats.quizzesCompleted} label="Quizzes" color="purple" />
+        <StatCard icon="⏱️" value={`${Math.floor(stats.totalStudyTime / 60)}h`} label="Study Time" color="orange" />
+        <StatCard icon="⚡" value={stats.xp} label="XP" color="yellow" />
+        <StatCard icon="⏰" value={stats.upcomingAssignments} label="Due Soon" color="red" />
       </div>
 
       {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Activity & AI Recommendations */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Activity Feed */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Notes</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h3>
+              <Link href="/notes" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
+                View All →
+              </Link>
+            </div>
             <div className="space-y-4">
               {recentActivity.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -649,23 +619,25 @@ export default function Dashboard() {
                 recentActivity.map(activity => (
                   <div 
                     key={activity.id} 
-                    className={`flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg ${
-                      activity.type === 'note' ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors' : ''
+                    className={`flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg transition-all duration-200 ${
+                      activity.type === 'note' ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 hover:shadow-md hover:-translate-y-0.5' : ''
                     }`}
                     onClick={() => activity.type === 'note' ? handleViewNote(activity.id) : undefined}
                     onContextMenu={(e) => activity.type === 'note' ? handleContextMenu(e, activity.id) : undefined}
                   >
-                    <div className="text-2xl mr-4">{activity.icon}</div>
+                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white dark:bg-gray-600 shadow-sm mr-4">
+                      <span className="text-2xl">{activity.icon}</span>
+                    </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{activity.title}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100">{activity.title}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{activity.description}</p>
                       <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        {new Date(activity.timestamp).toLocaleString()}
+                        {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                     {activity.tokens && (
-                      <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded text-sm font-medium">
-                        +{activity.tokens} tokens
+                      <div className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
+                        +{activity.tokens} 🪙
                       </div>
                     )}
                   </div>
@@ -675,70 +647,107 @@ export default function Dashboard() {
           </div>
 
           {/* AI Recommendations */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Study Recommendations</h3>
-              <div className="ml-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full">
-                AI
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-lg mr-3">
+                  🤖
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Recommendations</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Personalized for you</p>
+                </div>
               </div>
             </div>
             <div className="space-y-4">
-              {aiRecommendations.map(rec => (
-                <div key={rec.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{rec.title}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rec.description}</p>
-                      <div className="flex items-center mt-2 space-x-2">
-                        <span className="bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-300 text-xs px-2 py-1 rounded">
-                          {rec.subject}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(rec.priority)}`}>
-                          {rec.priority} priority
-                        </span>
-                      </div>
-                    </div>
-                    <button className="bg-primary-600 text-white px-3 py-1 rounded text-sm hover:bg-primary-700 transition-colors">
-                      Start
-                    </button>
+              {aiRecommendations.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 flex items-center justify-center">
+                    <span className="text-3xl">🤖</span>
                   </div>
+                  <p className="text-sm mb-2">AI recommendations coming soon!</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Keep studying to unlock personalized tips</p>
                 </div>
-              ))}
+              ) : (
+                aiRecommendations.map(rec => (
+                  <div key={rec.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">{rec.title}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rec.description}</p>
+                        <div className="flex items-center mt-2 space-x-2">
+                          <span className="bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-300 text-xs px-2 py-1 rounded font-medium">
+                            {rec.subject}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded font-medium ${getPriorityColor(rec.priority)}`}>
+                            {rec.priority}
+                          </span>
+                        </div>
+                      </div>
+                      <button className="bg-gradient-to-br from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg text-sm hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-sm ml-3 flex-shrink-0">
+                        Start
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        {/* Right Column - Friends & Quick Actions */}
+        {/* Right Column - Friends & Deadlines */}
         <div className="space-y-6">
           {/* Mini Leaderboard */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Friends 🏆</h3>
-            <div className="space-y-3">
-              {topFriends.map((friend, index) => (
-                <div key={friend.id} className="flex items-center">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-bold text-sm mr-3">
-                    {index + 1}
-                  </div>
-                  <div className="text-xl mr-3">{friend.avatar}</div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{friend.name}</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Level {friend.level}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{friend.tokens}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-500">tokens</div>
-                  </div>
-                </div>
-              ))}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                🏆 Top Friends
+              </h3>
+              <Link href="/social" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
+                View All →
+              </Link>
             </div>
-            <Link href="/social" className="block text-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-4">
-              View All Friends →
-            </Link>
+            <div className="space-y-3">
+              {topFriends.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <svg className="mx-auto h-12 w-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <p className="text-sm mb-2">No friends yet</p>
+                  <Link href="/social" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
+                    Find study buddies
+                  </Link>
+                </div>
+              ) : (
+                topFriends.map((friend, index) => (
+                  <div key={friend.id} className="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white font-bold text-sm mr-3 shadow-sm">
+                      {index + 1}
+                    </div>
+                    <div className="text-2xl mr-3">{friend.avatar}</div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{friend.name}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Level {friend.level}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{friend.tokens} 🪙</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Upcoming Deadlines */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Upcoming Deadlines</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                📅 Upcoming Deadlines
+              </h3>
+              <Link href="/calendar" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
+                View All →
+              </Link>
+            </div>
             <div className="space-y-3">
               {upcomingAssignmentsList.length === 0 ? (
                 <div className="text-center py-6 text-gray-500 dark:text-gray-400">
@@ -754,58 +763,42 @@ export default function Dashboard() {
                 upcomingAssignmentsList.map((assignment) => {
                   const dueDateLabel = assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'
                   return (
-                    <div key={assignment.id} className="flex items-start justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{assignment.title}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {dueDateLabel}</p>
-                        {assignment.description && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{assignment.description}</p>
-                        )}
-                        <div className="flex items-center mt-2 space-x-2">
-                          {assignment.priority && (
-                            <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${getPriorityColor(assignment.priority)}`}>
-                              {assignment.priority} priority
-                            </span>
+                    <Link 
+                      key={assignment.id} 
+                      href="/calendar"
+                      className="block p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:shadow-md hover:border-primary-500 dark:hover:border-primary-500 transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{assignment.title}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">📅 {dueDateLabel}</p>
+                          {assignment.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{assignment.description}</p>
                           )}
-                          {assignment.status && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 capitalize">
-                              {assignment.status.replace('_', ' ')}
-                            </span>
-                          )}
+                          <div className="flex items-center mt-2 space-x-2">
+                            {assignment.priority && (
+                              <span className={`px-2 py-0.5 text-xs rounded-full capitalize font-medium ${getPriorityColor(assignment.priority)}`}>
+                                {assignment.priority}
+                              </span>
+                            )}
+                            {assignment.status && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 capitalize font-medium">
+                                {assignment.status.replace('_', ' ')}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
-                      <Link href="/calendar" className="ml-4 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium">
-                        View
-                      </Link>
-                    </div>
+                    </Link>
                   )
                 })
               )}
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Link href="/study" className="bg-primary-600 text-white p-3 rounded-lg text-center hover:bg-primary-700 transition-colors">
-                <div className="text-lg mb-1">📚</div>
-                <div className="text-sm font-medium">Start Studying</div>
-              </Link>
-              <Link href="/notes" className="bg-green-600 text-white p-3 rounded-lg text-center hover:bg-green-700 transition-colors">
-                <div className="text-lg mb-1">📝</div>
-                <div className="text-sm font-medium">Upload Notes</div>
-              </Link>
-              <Link href="/study?mode=quiz" className="bg-purple-600 text-white p-3 rounded-lg text-center hover:bg-purple-700 transition-colors">
-                <div className="text-lg mb-1">🧠</div>
-                <div className="text-sm font-medium">Take Quiz</div>
-              </Link>
-              <Link href="/social" className="bg-primary-600 text-white p-3 rounded-lg text-center hover:bg-primary-700 transition-colors">
-                <div className="text-lg mb-1">👥</div>
-                <div className="text-sm font-medium">Find Friends</div>
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
 
