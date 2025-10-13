@@ -81,7 +81,7 @@ export function FlashcardViewer({ card, isFlipped, onFlip }: FlashcardViewerProp
             QUESTION
           </div>
           <p className="text-2xl text-center text-gray-900 dark:text-white font-medium">
-            {card.question}
+            {card.front}
           </p>
           <div className="absolute bottom-6 text-sm text-gray-500 dark:text-gray-400">
             Click to reveal answer
@@ -100,13 +100,13 @@ export function FlashcardViewer({ card, isFlipped, onFlip }: FlashcardViewerProp
             ANSWER
           </div>
           <p className="text-2xl text-center text-gray-900 dark:text-white font-medium mb-6">
-            {card.answer}
+            {card.back}
           </p>
-          {card.hint && (
+          {card.explanation && (
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg max-w-md">
               <p className="text-sm text-blue-900 dark:text-blue-200">
-                <span className="font-semibold">💡 Hint: </span>
-                {card.hint}
+                <span className="font-semibold">💡 Explanation: </span>
+                {card.explanation}
               </p>
             </div>
           )}
@@ -122,13 +122,13 @@ export function FlashcardViewer({ card, isFlipped, onFlip }: FlashcardViewerProp
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>Reviews: {card.review_count}</span>
+          <span>Reviews: {card.times_reviewed}</span>
         </div>
         <div className="flex items-center space-x-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
-          <span>Streak: {card.correct_streak}</span>
+          <span>Correct: {card.times_correct}</span>
         </div>
       </div>
 

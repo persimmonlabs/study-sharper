@@ -27,6 +27,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
 
   useEffect(() => {
     fetchFlashcards()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedParams.setId])
 
   const fetchFlashcards = async () => {
@@ -152,6 +153,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, isFlipped, loading])
 
   if (loading) {
@@ -253,7 +255,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
                   className="flex-1 max-w-xs px-6 py-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors font-medium border-2 border-red-300 dark:border-red-800"
                 >
                   <div className="text-2xl mb-1">😕</div>
-                  <div className="font-semibold">Didn't Know</div>
+                  <div className="font-semibold">Didn&apos;t Know</div>
                   <div className="text-xs mt-1 opacity-75">(Press 1)</div>
                 </button>
                 <button
@@ -301,7 +303,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
             <span className="ml-4">Space/Enter = Flip</span>
             <span className="ml-4">← = Previous</span>
             <span className="ml-4">→ = Next</span>
-            <span className="ml-4">1 = Didn't Know</span>
+            <span className="ml-4">1 = Didn&apos;t Know</span>
             <span className="ml-4">2 = Knew It</span>
           </div>
         </div>

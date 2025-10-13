@@ -23,14 +23,13 @@ export interface Flashcard {
   back: string
   explanation?: string
   position: number
-  mastery_level: number  // 0-5
+  mastery_level: number  // 0-3 (backend uses 0-3)
   times_reviewed: number
   times_correct: number
   times_incorrect: number
   last_reviewed_at?: string
   next_review_at?: string
   source_note_id?: string
-  ai_generated: boolean
   created_at: string
   updated_at: string
 }
@@ -61,10 +60,9 @@ export interface GenerateFlashcardsResponse {
   count: number
 }
 
-export interface ReviewFlashcardRequest {
-  was_correct: boolean
-  confidence_rating?: number
-  time_spent_seconds?: number
+export interface RecordReviewRequest {
+  flashcard_id: string
+  correct: boolean
 }
 
 export interface ReviewFlashcardResponse {
