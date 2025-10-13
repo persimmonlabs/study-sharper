@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { createProfile } from '../signup/actions'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -58,6 +59,32 @@ export default function Login() {
               addDebug('✅ Session established from OAuth tokens!')
               addDebug(`User ID: ${data.session.user.id}`)
               addDebug(`Email: ${data.session.user.email}`)
+              
+              // Ensure profile exists
+              try {
+                addDebug('👤 Checking/creating user profile...')
+                
+                // Extract name from user metadata
+                const userMetadata = data.session.user.user_metadata
+                const fullName = userMetadata?.full_name || userMetadata?.name || ''
+                const firstName = userMetadata?.first_name || fullName.split(' ')[0] || null
+                const lastName = userMetadata?.last_name || fullName.split(' ').slice(1).join(' ') || null
+                
+                addDebug(`Name extracted: ${firstName} ${lastName}`)
+                
+                await createProfile({
+                  id: data.session.user.id,
+                  email: data.session.user.email ?? '',
+                  first_name: firstName,
+                  last_name: lastName,
+                })
+                
+                addDebug('✅ Profile ensured')
+              } catch (profileError) {
+                addDebug(`⚠️ Profile creation warning: ${profileError}`)
+                console.warn('Profile creation error (non-fatal):', profileError)
+                // Don't block login if profile creation fails
+              }
               
               // Clear the URL hash
               window.history.replaceState(null, '', '/dashboard')
