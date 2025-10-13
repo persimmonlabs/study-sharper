@@ -27,6 +27,58 @@ export default function Login() {
     setDebugInfo(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]} - ${message}`])
   }, [])
 
+  // Check for OAuth tokens in URL fragment (implicit flow)
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const hash = window.location.hash
+      
+      if (hash && hash.includes('access_token')) {
+        addDebug('🔑 OAuth tokens detected in URL fragment (implicit flow)')
+        addDebug(`Hash: ${hash.substring(0, 100)}...`)
+        
+        try {
+          // Supabase client will automatically handle the tokens from the URL
+          const { data, error } = await supabase.auth.getSession()
+          
+          if (error) {
+            addDebug(`❌ Error getting session: ${error.message}`)
+            setError(`Authentication failed: ${error.message}`)
+          } else if (data.session) {
+            addDebug('✅ Session established from OAuth tokens!')
+            addDebug(`User ID: ${data.session.user.id}`)
+            addDebug(`Redirecting to dashboard...`)
+            
+            // Clear the URL hash
+            window.history.replaceState(null, '', '/auth/login')
+            
+            // Redirect to dashboard
+            router.push('/dashboard')
+          }
+        } catch (err) {
+          addDebug(`❌ Exception handling OAuth callback: ${err}`)
+          console.error('OAuth callback error:', err)
+        }
+      }
+      
+      // Also check for errors in query params
+      if (searchParams) {
+        const error = searchParams.get('error')
+        const errorDescription = searchParams.get('error_description')
+        const errorCode = searchParams.get('error_code')
+        
+        if (error && error !== 'missing_verification_code') {
+          addDebug(`🚨 OAuth Error in query params:` )
+          addDebug(`  - error: ${error}`)
+          addDebug(`  - error_description: ${errorDescription}`)
+          addDebug(`  - error_code: ${errorCode}`)
+          setError(`Authentication failed: ${errorDescription || error || 'Unknown error'}`)
+        }
+      }
+    }
+    
+    handleOAuthCallback()
+  }, [searchParams, addDebug, router])
+
   // Check user authentication status and show appropriate message
   useEffect(() => {
     addDebug(`[AUTH STATUS] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
