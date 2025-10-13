@@ -37,26 +37,45 @@ export default function Login() {
         addDebug(`Hash: ${hash.substring(0, 100)}...`)
         
         try {
-          // Supabase client will automatically handle the tokens from the URL
-          const { data, error } = await supabase.auth.getSession()
+          // Parse tokens from URL fragment
+          const hashParams = new URLSearchParams(hash.substring(1))
+          const accessToken = hashParams.get('access_token')
+          const refreshToken = hashParams.get('refresh_token')
           
-          if (error) {
-            addDebug(`❌ Error getting session: ${error.message}`)
-            setError(`Authentication failed: ${error.message}`)
-          } else if (data.session) {
-            addDebug('✅ Session established from OAuth tokens!')
-            addDebug(`User ID: ${data.session.user.id}`)
-            addDebug(`Redirecting to dashboard...`)
+          if (accessToken && refreshToken) {
+            addDebug(`Extracted tokens - access: ${accessToken.substring(0, 20)}..., refresh: ${refreshToken}`)
             
-            // Clear the URL hash
-            window.history.replaceState(null, '', '/auth/login')
+            // Manually set the session using the tokens
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            })
             
-            // Redirect to dashboard
-            router.push('/dashboard')
+            if (error) {
+              addDebug(`❌ Error setting session: ${error.message}`)
+              setError(`Authentication failed: ${error.message}`)
+            } else if (data.session) {
+              addDebug('✅ Session established from OAuth tokens!')
+              addDebug(`User ID: ${data.session.user.id}`)
+              addDebug(`Email: ${data.session.user.email}`)
+              
+              // Clear the URL hash
+              window.history.replaceState(null, '', '/dashboard')
+              
+              // Redirect to dashboard
+              addDebug('🚀 Redirecting to dashboard...')
+              router.replace('/dashboard')
+            } else {
+              addDebug('⚠️ Session data missing after setSession')
+            }
+          } else {
+            addDebug('❌ Missing access_token or refresh_token in URL')
+            setError('Authentication failed: Missing required tokens')
           }
         } catch (err) {
           addDebug(`❌ Exception handling OAuth callback: ${err}`)
           console.error('OAuth callback error:', err)
+          setError(`Authentication error: ${err instanceof Error ? err.message : 'Unknown error'}`)
         }
       }
       
