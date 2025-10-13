@@ -229,20 +229,20 @@ export default function Login() {
     setSuccess('')
 
     try {
-      const redirectUrl = `${window.location.origin}/auth/callback`
       const nextUrl = searchParams?.get('next') || '/dashboard'
       
-      addDebug(`Google OAuth redirect URL: ${redirectUrl}`)
       addDebug(`Post-login destination: ${nextUrl}`)
+      addDebug(`Origin: ${window.location.origin}`)
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${redirectUrl}?next=${encodeURIComponent(nextUrl)}`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
+          skipBrowserRedirect: false,
         },
       })
 
@@ -252,7 +252,8 @@ export default function Login() {
       }
 
       addDebug('Google OAuth initiated successfully')
-      // Browser will redirect to Google, so no need to handle response
+      addDebug(`Redirect URL: ${data.url}`)
+      // Browser will automatically redirect to Google
     } catch (error) {
       addDebug(`❌ Google sign-in error: ${error}`)
       console.error('Google sign-in error:', error)

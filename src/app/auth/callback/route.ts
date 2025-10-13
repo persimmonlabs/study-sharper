@@ -8,12 +8,10 @@ import type { Database } from '@/lib/supabase'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('redirect_to') ?? requestUrl.searchParams.get('next') ?? '/dashboard'
   
   console.log('[AUTH CALLBACK] Processing authentication callback')
   console.log('[AUTH CALLBACK] Request URL:', requestUrl.toString())
   console.log('[AUTH CALLBACK] Code present:', !!code)
-  console.log('[AUTH CALLBACK] Next destination:', next)
 
   // If no code, redirect to login with error
   if (!code) {
@@ -84,9 +82,9 @@ export async function GET(request: Request) {
     console.error('[AUTH CALLBACK] Unexpected error ensuring profile exists:', profileError)
   }
 
-  // Construct final redirect URL
-  const redirectUrl = new URL(next, requestUrl.origin)
-  console.log('[AUTH CALLBACK] Redirecting to:', redirectUrl.toString())
+  // Always redirect to dashboard after successful authentication
+  const dashboardUrl = new URL('/dashboard', requestUrl.origin)
+  console.log('[AUTH CALLBACK] Redirecting to dashboard:', dashboardUrl.toString())
   
-  return NextResponse.redirect(redirectUrl)
+  return NextResponse.redirect(dashboardUrl)
 }
