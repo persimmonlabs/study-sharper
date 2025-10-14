@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const DEFAULT_AVATAR = '👤'
 
@@ -22,7 +22,13 @@ export function Sidebar() {
   const avatar = profile?.avatar_url ?? DEFAULT_AVATAR
   const displayAvatar = loading || profileLoading ? '⏳' : avatar || DEFAULT_AVATAR
   const firstName = profile?.first_name || 'User'
-  
+
+  useEffect(() => {
+    if (!isCollapsed) {
+      setIsCollapsed(true)
+    }
+  }, [pathname, isCollapsed])
+
   // Navigation items
   const navItems: NavItem[] = [
     { href: '/dashboard', icon: '', label: 'Dashboard' },
