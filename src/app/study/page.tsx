@@ -40,7 +40,7 @@ export default function Study() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">📚 Study Hub</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Study Hub</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
           Master your knowledge with AI-powered study tools
         </p>
@@ -81,7 +81,7 @@ export default function Study() {
             </svg>
             <div className="text-3xl font-bold text-gray-400">{stats.quizzes}</div>
           </div>
-          <h3 className="text-xl font-semibold text-gray-500 dark:text-gray-400 mb-2">📝 Quizzes</h3>
+          <h3 className="text-xl font-semibold text-gray-500 dark:text-gray-400 mb-2">Quizzes</h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
             Test your knowledge with AI-generated quizzes and instant feedback
           </p>
@@ -101,7 +101,7 @@ export default function Study() {
             </svg>
             <div className="text-3xl font-bold text-gray-400">{stats.exams}</div>
           </div>
-          <h3 className="text-xl font-semibold text-gray-500 dark:text-gray-400 mb-2">📊 Practice Exams</h3>
+          <h3 className="text-xl font-semibold text-gray-500 dark:text-gray-400 mb-2">Practice Exams</h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
             Comprehensive practice exams with detailed performance analytics
           </p>
@@ -113,7 +113,7 @@ export default function Study() {
 
       {/* Recent Activity Section - Placeholder */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📈 Recent Activity</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <p>No recent study activity yet. Start studying to see your progress here!</p>
         </div>

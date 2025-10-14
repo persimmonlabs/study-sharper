@@ -233,15 +233,6 @@ export default function FlashcardsPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
             Create your first flashcard set from your notes. AI will generate intelligent Q&A pairs to help you master the material.
           </p>
-          <button
-            onClick={() => setIsDialogOpen(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-flex items-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Your First Set
-          </button>
         </div>
       )}
 
