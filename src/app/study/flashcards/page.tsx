@@ -7,7 +7,7 @@ import type { FlashcardSet, GenerateFlashcardsRequest, SuggestedFlashcardSet } f
 import { GenerateFlashcardsDialog } from '@/components/notes/GenerateFlashcardsDialog'
 import { FlashcardAIChat } from '@/components/flashcards/FlashcardAIChat'
 import { CreateManualSetDialog } from '@/components/flashcards/CreateManualSetDialog'
-import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards } from '@/lib/api/flashcards'
+import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards, deleteFlashcardSet } from '@/lib/api/flashcards'
 
 export default function FlashcardsPage() {
   const router = useRouter()
@@ -93,14 +93,17 @@ export default function FlashcardsPage() {
     }
 
     try {
-      // TODO: Implement API call to DELETE /api/flashcards/sets/:id
-      console.log('Deleting set:', setId)
-      
-      // Refresh list
+      const response = await deleteFlashcardSet(setId)
+
+      if (!response.success) {
+        throw new Error('Delete failed')
+      }
+
       await fetchFlashcardSets()
     } catch (error) {
       console.error('Failed to delete flashcard set:', error)
-      alert('Failed to delete flashcard set. Please try again.')
+      const message = error instanceof Error ? error.message : 'Failed to delete flashcard set.'
+      alert(`Failed to delete flashcard set. ${message}`)
     }
   }
 

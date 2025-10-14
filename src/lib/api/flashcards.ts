@@ -51,6 +51,22 @@ export async function generateFlashcards(
 }
 
 /**
+ * Delete a flashcard set
+ */
+export async function deleteFlashcardSet(setId: string): Promise<{ success: boolean }> {
+  const response = await fetchWithAuth(`/api/flashcards/sets/${setId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to delete flashcard set')
+  }
+
+  return response.json()
+}
+
+/**
  * Fetch all flashcard sets for the current user
  */
 export async function getFlashcardSets(): Promise<FlashcardSet[]> {

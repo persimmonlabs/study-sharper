@@ -57,7 +57,7 @@ export default function Study() {
               </svg>
               <div className="text-3xl font-bold">{stats.flashcardSets}</div>
             </div>
-            <h3 className="text-xl font-semibold mb-2">🎴 Flashcards</h3>
+            <h3 className="text-xl font-semibold mb-2">Flashcards</h3>
             <p className="text-blue-100 text-sm mb-4">
               AI-generated flashcards with spaced repetition for optimal learning
             </p>
