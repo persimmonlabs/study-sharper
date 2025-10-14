@@ -23,7 +23,8 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
 
   return fetch(input, {
     ...init,
-    headers
+    headers,
+    credentials: 'include' // Include cookies for session-based auth
   })
 }
 
