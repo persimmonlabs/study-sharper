@@ -103,7 +103,7 @@ export function CreateManualSetDialog({ isOpen, onClose, onSuccess }: CreateManu
           {/* Info */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
             <p className="text-sm text-blue-900 dark:text-blue-100">
-              💡 After creating the set, you'll be able to add individual flashcards manually.
+              💡 After creating the set, you&apos;ll be able to add individual flashcards manually.
             </p>
           </div>
 
