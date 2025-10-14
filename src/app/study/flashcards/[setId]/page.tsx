@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Flashcard } from '@/types/flashcards'
 import { FlashcardViewer } from '@/components/flashcards/FlashcardViewer'
+import { AddManualCardDialog } from '@/components/flashcards/AddManualCardDialog'
 import { getFlashcardsInSet, recordFlashcardReview } from '@/lib/api/flashcards'
 
 interface PageProps {
@@ -19,6 +20,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [loading, setLoading] = useState(true)
   const [studyMode, setStudyMode] = useState<'all' | 'review'>('all')
+  const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [sessionStats, setSessionStats] = useState({
     correct: 0,
     incorrect: 0,
@@ -195,8 +197,17 @@ export default function FlashcardStudyPage({ params }: PageProps) {
             Back to Sets
           </Link>
 
-          {/* Session Stats */}
+          {/* Session Stats & Add Card Button */}
           <div className="flex items-center space-x-4 text-sm">
+            <button
+              onClick={() => setIsAddCardDialogOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Card
+            </button>
             <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
               ✓ {sessionStats.correct}
             </div>
@@ -307,6 +318,17 @@ export default function FlashcardStudyPage({ params }: PageProps) {
             <span className="ml-4">2 = Knew It</span>
           </div>
         </div>
+
+        {/* Add Manual Card Dialog */}
+        <AddManualCardDialog
+          isOpen={isAddCardDialogOpen}
+          setId={resolvedParams.setId}
+          onClose={() => setIsAddCardDialogOpen(false)}
+          onSuccess={(card) => {
+            // Add the new card to the list
+            setFlashcards(prev => [...prev, card])
+          }}
+        />
       </div>
     </div>
   )

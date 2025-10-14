@@ -2,7 +2,11 @@ import type {
   GenerateFlashcardsRequest, 
   FlashcardSet, 
   Flashcard,
-  RecordReviewRequest 
+  RecordReviewRequest,
+  SuggestedFlashcardSet,
+  CreateFlashcardSetRequest,
+  AIChatMessage,
+  AIChatResponse
 } from '@/types/flashcards'
 
 /**
@@ -76,6 +80,112 @@ export async function recordFlashcardReview(
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.error || 'Failed to record review')
+  }
+
+  return response.json()
+}
+
+/**
+ * Trigger auto-generation of suggested flashcard sets
+ */
+export async function generateSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
+  const response = await fetch('/api/flashcards/suggest', {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to generate suggestions')
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetch suggested flashcard sets
+ */
+export async function getSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
+  const response = await fetch('/api/flashcards/suggest', {
+    method: 'GET',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to fetch suggestions')
+  }
+
+  return response.json()
+}
+
+/**
+ * Create a blank flashcard set for manual card creation
+ */
+export async function createBlankFlashcardSet(
+  request: CreateFlashcardSetRequest
+): Promise<{ success: boolean, set: FlashcardSet }> {
+  const response = await fetch('/api/flashcards/sets/create', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to create flashcard set')
+  }
+
+  return response.json()
+}
+
+/**
+ * Send a message to the AI chatbot for flashcard generation
+ */
+export async function sendFlashcardChatMessage(
+  message: AIChatMessage
+): Promise<AIChatResponse> {
+  const response = await fetch('/api/flashcards/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Chat request failed')
+  }
+
+  return response.json()
+}
+
+/**
+ * Create a manual flashcard in a set
+ */
+export async function createManualFlashcard(
+  setId: string,
+  front: string,
+  back: string,
+  explanation?: string
+): Promise<Flashcard> {
+  const response = await fetch('/api/flashcards', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      set_id: setId,
+      front,
+      back,
+      explanation,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to create flashcard')
   }
 
   return response.json()

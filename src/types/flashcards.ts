@@ -88,3 +88,30 @@ export const MASTERY_LEVELS: Record<number, { label: string; color: string }> = 
   4: { label: 'Mastered', color: 'text-green-500' },
   5: { label: 'Expert', color: 'text-blue-500' }
 }
+
+// New types for enhanced flashcard features
+export interface SuggestedFlashcardSet extends FlashcardSet {
+  is_suggested: boolean
+  is_accepted: boolean | null
+  suggestion_date: string
+}
+
+export interface CreateFlashcardSetRequest {
+  title: string
+  description?: string
+}
+
+export interface AIChatMessage {
+  message: string
+  context?: Record<string, any>
+}
+
+export interface AIChatResponse {
+  message: string
+  action?: 'generate_flashcards'
+  note_ids?: string[]
+  num_cards?: number
+  difficulty?: DifficultyLevel
+  set_title?: string
+  recommended_prompts?: string[]
+}

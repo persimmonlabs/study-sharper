@@ -3,19 +3,26 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { FlashcardSet, GenerateFlashcardsRequest } from '@/types/flashcards'
+import type { FlashcardSet, GenerateFlashcardsRequest, SuggestedFlashcardSet } from '@/types/flashcards'
 import { GenerateFlashcardsDialog } from '@/components/notes/GenerateFlashcardsDialog'
-import { generateFlashcards, getFlashcardSets } from '@/lib/api/flashcards'
+import { FlashcardAIChat } from '@/components/flashcards/FlashcardAIChat'
+import { CreateManualSetDialog } from '@/components/flashcards/CreateManualSetDialog'
+import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards } from '@/lib/api/flashcards'
 
 export default function FlashcardsPage() {
   const router = useRouter()
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([])
+  const [suggestedSets, setSuggestedSets] = useState<SuggestedFlashcardSet[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isManualDialogOpen, setIsManualDialogOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [createMode, setCreateMode] = useState<'ai' | 'manual' | null>(null)
 
   useEffect(() => {
     fetchFlashcardSets()
+    fetchSuggestedSets()
   }, [])
 
   const fetchFlashcardSets = async () => {
@@ -28,6 +35,32 @@ export default function FlashcardsPage() {
       setFlashcardSets([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSuggestedSets = async () => {
+    try {
+      setLoadingSuggestions(true)
+      const result = await getSuggestedFlashcards()
+      setSuggestedSets(result.suggestions)
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error)
+      setSuggestedSets([])
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  const handleGenerateSuggestions = async () => {
+    try {
+      setLoadingSuggestions(true)
+      await generateSuggestedFlashcards()
+      await fetchSuggestedSets()
+    } catch (error) {
+      console.error('Failed to generate suggestions:', error)
+      alert('Failed to generate suggestions. Please try again.')
+    } finally {
+      setLoadingSuggestions(false)
     }
   }
 
@@ -106,16 +139,77 @@ export default function FlashcardsPage() {
             AI-generated flashcards with spaced repetition for optimal learning
           </p>
         </div>
-        <button
-          onClick={() => setIsDialogOpen(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center shadow-md hover:shadow-lg"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create New Set
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => {
+              setCreateMode('ai')
+              setIsDialogOpen(true)
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center shadow-md hover:shadow-lg"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            AI Generate
+          </button>
+          <button
+            onClick={() => {
+              setCreateMode('manual')
+              setIsManualDialogOpen(true)
+            }}
+            className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium flex items-center shadow-md hover:shadow-lg"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Manual Create
+          </button>
+        </div>
       </div>
+
+      {/* Suggested Flashcards Section */}
+      {!loadingSuggestions && suggestedSets.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                <span className="text-2xl mr-2">✨</span>
+                Suggested for You
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                AI-generated flashcard sets based on your recent notes
+              </p>
+            </div>
+            <button
+              onClick={handleGenerateSuggestions}
+              disabled={loadingSuggestions}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {suggestedSets.slice(0, 4).map((set) => (
+              <div
+                key={set.id}
+                className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+              >
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                  {set.title}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {set.description}
+                </p>
+                <Link href={`/study/flashcards/${set.id}`}>
+                  <button className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium">
+                    Study Now →
+                  </button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -223,13 +317,45 @@ export default function FlashcardsPage() {
       )}
 
       {/* Generate Flashcards Dialog */}
-      {isDialogOpen && (
+      {isDialogOpen && createMode === 'ai' && (
         <GenerateFlashcardsDialog
           isOpen={isDialogOpen}
-          onClose={() => setIsDialogOpen(false)}
+          onClose={() => {
+            setIsDialogOpen(false)
+            setCreateMode(null)
+          }}
           onGenerate={handleGenerate}
         />
       )}
+
+      {/* Manual Create Dialog */}
+      {isManualDialogOpen && createMode === 'manual' && (
+        <CreateManualSetDialog
+          isOpen={isManualDialogOpen}
+          onClose={() => {
+            setIsManualDialogOpen(false)
+            setCreateMode(null)
+          }}
+          onSuccess={(set) => {
+            setIsManualDialogOpen(false)
+            setCreateMode(null)
+            router.push(`/study/flashcards/${set.id}`)
+          }}
+        />
+      )}
+
+      {/* AI Chat Assistant */}
+      <FlashcardAIChat
+        onGenerateRequest={(noteIds, numCards, difficulty, title) => {
+          // Handle AI chat flashcard generation request
+          handleGenerate({
+            note_ids: noteIds,
+            num_cards: numCards,
+            difficulty: difficulty as 'easy' | 'medium' | 'hard',
+            set_title: title
+          })
+        }}
+      />
     </div>
   )
 }
