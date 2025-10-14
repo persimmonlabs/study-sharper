@@ -9,7 +9,7 @@ import { AddManualCardDialog } from '@/components/flashcards/AddManualCardDialog
 import { getFlashcardsInSet, recordFlashcardReview } from '@/lib/api/flashcards'
 
 interface PageProps {
-  params: Promise<{ setId: string }>
+  params: Promise<{ setId: string }> | { setId: string }
 }
 
 export default function FlashcardStudyPage({ params }: PageProps) {
@@ -28,9 +28,12 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   })
 
   useEffect(() => {
-    params.then(resolvedParams => {
+    // Handle both Promise and plain object params
+    const resolveParams = async () => {
+      const resolvedParams = params instanceof Promise ? await params : params
       setSetId(resolvedParams.setId)
-    })
+    }
+    resolveParams()
   }, [params])
 
   useEffect(() => {
