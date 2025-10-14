@@ -1,6 +1,7 @@
-import type { 
-  GenerateFlashcardsRequest, 
-  FlashcardSet, 
+import { supabase } from '@/lib/supabase'
+import type {
+  GenerateFlashcardsRequest,
+  FlashcardSet,
   Flashcard,
   RecordReviewRequest,
   SuggestedFlashcardSet,
@@ -9,13 +10,30 @@ import type {
   AIChatResponse
 } from '@/types/flashcards'
 
+async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+  const {
+    data: { session }
+  } = await supabase.auth.getSession()
+
+  const headers = new Headers(init.headers || {})
+
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`)
+  }
+
+  return fetch(input, {
+    ...init,
+    headers
+  })
+}
+
 /**
  * Generate flashcards from notes using AI
  */
 export async function generateFlashcards(
   request: GenerateFlashcardsRequest
 ): Promise<FlashcardSet> {
-  const response = await fetch('/api/flashcards/generate', {
+  const response = await fetchWithAuth('/api/flashcards/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +53,7 @@ export async function generateFlashcards(
  * Fetch all flashcard sets for the current user
  */
 export async function getFlashcardSets(): Promise<FlashcardSet[]> {
-  const response = await fetch('/api/flashcards/sets', {
+  const response = await fetchWithAuth('/api/flashcards/sets', {
     method: 'GET',
   })
 
@@ -51,7 +69,7 @@ export async function getFlashcardSets(): Promise<FlashcardSet[]> {
  * Fetch all flashcards in a specific set
  */
 export async function getFlashcardsInSet(setId: string): Promise<Flashcard[]> {
-  const response = await fetch(`/api/flashcards/sets/${setId}/cards`, {
+  const response = await fetchWithAuth(`/api/flashcards/sets/${setId}/cards`, {
     method: 'GET',
   })
 
@@ -69,7 +87,7 @@ export async function getFlashcardsInSet(setId: string): Promise<Flashcard[]> {
 export async function recordFlashcardReview(
   request: RecordReviewRequest
 ): Promise<Flashcard> {
-  const response = await fetch('/api/flashcards/review', {
+  const response = await fetchWithAuth('/api/flashcards/review', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -89,7 +107,7 @@ export async function recordFlashcardReview(
  * Trigger auto-generation of suggested flashcard sets
  */
 export async function generateSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
-  const response = await fetch('/api/flashcards/suggest', {
+  const response = await fetchWithAuth('/api/flashcards/suggest', {
     method: 'POST',
   })
 
@@ -105,7 +123,7 @@ export async function generateSuggestedFlashcards(): Promise<{ suggestions: Sugg
  * Fetch suggested flashcard sets
  */
 export async function getSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
-  const response = await fetch('/api/flashcards/suggest', {
+  const response = await fetchWithAuth('/api/flashcards/suggest', {
     method: 'GET',
   })
 
@@ -123,7 +141,7 @@ export async function getSuggestedFlashcards(): Promise<{ suggestions: Suggested
 export async function createBlankFlashcardSet(
   request: CreateFlashcardSetRequest
 ): Promise<{ success: boolean, set: FlashcardSet }> {
-  const response = await fetch('/api/flashcards/sets/create', {
+  const response = await fetchWithAuth('/api/flashcards/sets/create', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -145,7 +163,7 @@ export async function createBlankFlashcardSet(
 export async function sendFlashcardChatMessage(
   message: AIChatMessage
 ): Promise<AIChatResponse> {
-  const response = await fetch('/api/flashcards/chat', {
+  const response = await fetchWithAuth('/api/flashcards/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -170,7 +188,7 @@ export async function createManualFlashcard(
   back: string,
   explanation?: string
 ): Promise<Flashcard> {
-  const response = await fetch('/api/flashcards', {
+  const response = await fetchWithAuth('/api/flashcards', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
