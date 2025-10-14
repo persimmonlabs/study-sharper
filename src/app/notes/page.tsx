@@ -365,8 +365,7 @@ export default function Notes() {
   }, [router])
 
   // Load data when user is available
-  // Removed problematic auth event listener that was causing race conditions
-
+  // Optimized: Fetch notes and folders in parallel using Promise.all
   useEffect(() => {
     if (authLoading) {
       return
@@ -379,23 +378,18 @@ export default function Notes() {
 
     const loadData = async () => {
       try {
-        // Load notes and folders in parallel, but don't wait for both
-        // This allows notes to display immediately while folders load
-        console.log('[Notes] Starting data load...')
+        console.log('[Notes] Starting parallel data load...')
+        const startTime = Date.now()
         
-        fetchNotes(user).then(() => {
-          console.log('[Notes] Notes loaded')
-          // Set loading to false as soon as notes are loaded
-          setLoading(false)
-        }).catch(error => {
-          console.error('[Notes] Error loading notes:', error)
-          setLoading(false)
-        })
+        // Fetch notes and folders in parallel for faster loading
+        await Promise.all([
+          fetchNotes(user),
+          fetchFolders(user)
+        ])
         
-        // Load folders separately (won't block notes display)
-        fetchFolders(user).catch(error => {
-          console.error('[Notes] Error loading folders:', error)
-        })
+        const loadTime = Date.now() - startTime
+        console.log(`[Notes] Data loaded in ${loadTime}ms`)
+        setLoading(false)
       } catch (error) {
         console.error('[Notes] Error during data load:', error)
         setLoading(false)
@@ -407,8 +401,9 @@ export default function Notes() {
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
+      // Note: content field is not available in lightweight notes
+      // Search only by title and tags for performance
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (note.content && note.content.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
 
       const matchesTags = selectedTags.length === 0 ||

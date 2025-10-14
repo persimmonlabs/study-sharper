@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000'
 
+/**
+ * GET /api/notes/[id]
+ * Fetches full note data including content, extracted_text, and all fields.
+ * Used for lazy loading note content when user opens a note.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+    const authHeader = request.headers.get('authorization')
+
+    const response = await fetch(`${BACKEND_URL}/api/notes/${id}`, {
+      method: 'GET',
+      headers: {
+        ...(authHeader && { 'Authorization': authHeader }),
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return NextResponse.json(
+        { error: errorData.detail || 'Failed to fetch note' },
+        { status: response.status }
+      )
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Error in GET /api/notes/[id]:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }

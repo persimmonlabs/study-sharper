@@ -7,6 +7,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PdfViewer } from '@/components/documents/PdfViewer'
 import { DocxViewer } from '@/components/documents/DocxViewer'
+import { noteCache } from '@/lib/noteCache'
 
 interface Note {
   id: string
@@ -41,12 +42,14 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
   const [fileLoading, setFileLoading] = useState(false)
   const [isUpdatingFolder, setIsUpdatingFolder] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(note?.folder_id ?? null)
+  const [fullNote, setFullNote] = useState<Note | null>(note)
+  const [isLoadingFullNote, setIsLoadingFullNote] = useState(false)
   const { user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const extractedText = note?.extracted_text?.trim()?.length ? note?.extracted_text : (note?.content?.trim()?.length ? note?.content : null)
-  const isDocx = note?.file_path?.endsWith('.docx')
-  const isPdf = note?.file_path?.endsWith('.pdf')
+  const extractedText = fullNote?.extracted_text?.trim()?.length ? fullNote?.extracted_text : (fullNote?.content?.trim()?.length ? fullNote?.content : null)
+  const isDocx = fullNote?.file_path?.endsWith('.docx')
+  const isPdf = fullNote?.file_path?.endsWith('.pdf')
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -73,6 +76,69 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
     }
   }, [isOpen, onClose])
 
+  // Fetch full note content when modal opens
+  useEffect(() => {
+    if (!note || !isOpen) {
+      return
+    }
+
+    const loadFullNote = async () => {
+      // Check cache first
+      const cached = noteCache.get(note.id)
+      if (cached) {
+        console.log(`[NoteModal] Cache hit for note ${note.id}`)
+        setFullNote(cached)
+        return
+      }
+
+      // If note already has content, it's already full
+      if (note.content !== undefined || note.extracted_text !== undefined) {
+        setFullNote(note)
+        noteCache.set(note.id, note)
+        return
+      }
+
+      // Fetch full note from API
+      console.log(`[NoteModal] Fetching full note ${note.id}`)
+      setIsLoadingFullNote(true)
+
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError || !session?.access_token) {
+          console.error('[NoteModal] No session token')
+          setFullNote(note) // Fallback to lightweight note
+          setIsLoadingFullNote(false)
+          return
+        }
+
+        const response = await fetch(`/api/notes/${note.id}`, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        })
+
+        if (!response.ok) {
+          console.error('[NoteModal] Failed to fetch full note:', response.status)
+          setFullNote(note) // Fallback to lightweight note
+          setIsLoadingFullNote(false)
+          return
+        }
+
+        const data = await response.json()
+        setFullNote(data)
+        noteCache.set(note.id, data)
+        console.log(`[NoteModal] Full note loaded and cached`)
+      } catch (error) {
+        console.error('[NoteModal] Error fetching full note:', error)
+        setFullNote(note) // Fallback to lightweight note
+      } finally {
+        setIsLoadingFullNote(false)
+      }
+    }
+
+    loadFullNote()
+  }, [note, isOpen])
+
   useEffect(() => {
     setShowDeleteConfirm(false)
     setIsDeleting(false)
@@ -83,7 +149,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
     let isMounted = true
 
     const loadFile = async () => {
-      if (!note?.file_path) {
+      if (!fullNote?.file_path) {
         if (isMounted) {
           setFileUrl(null)
           setFileError(null)
@@ -100,7 +166,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
 
         const { data, error } = await supabase.storage
           .from('notes-pdfs')
-          .createSignedUrl(note.file_path, 60 * 60)
+          .createSignedUrl(fullNote.file_path, 60 * 60)
 
         if (!isMounted) return
 
@@ -128,7 +194,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
     return () => {
       isMounted = false
     }
-  }, [note])
+  }, [fullNote])
 
   const handleDeleteClick = () => {
     setShowDeleteConfirm(true)
@@ -271,7 +337,16 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-16">
-          {fileLoading && (
+          {isLoadingFullNote && (
+            <div className="h-96 flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-400 mb-2"></div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Loading note content...</p>
+              </div>
+            </div>
+          )}
+
+          {!isLoadingFullNote && fileLoading && (
             <div className="h-96 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
               <div className="text-sm text-gray-600 dark:text-gray-300">Loading preview…</div>
             </div>
