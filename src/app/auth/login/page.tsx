@@ -18,6 +18,7 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [debugInfo, setDebugInfo] = useState<string[]>([])
+  const [redirecting, setRedirecting] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
@@ -125,20 +126,21 @@ export default function Login() {
     handleOAuthCallback()
   }, [searchParams, addDebug, router])
 
-  // Check user authentication status and show appropriate message
+  // Auto-redirect authenticated users to dashboard
   useEffect(() => {
     addDebug(`[AUTH STATUS] authLoading: ${authLoading}, user: ${user ? 'present' : 'null'}, userId: ${user?.id}`)
     
     if (!authLoading && user) {
-      addDebug(`User already authenticated but staying on login page - user may want to switch accounts`)
-      // DON'T auto-redirect - let the user decide what they want to do
-      // They might want to log in with different credentials
+      addDebug(`User already authenticated, redirecting to dashboard...`)
+      setRedirecting(true)
+      const nextUrl = searchParams?.get('next') || '/dashboard'
+      router.replace(nextUrl)
     } else if (!authLoading && !user) {
       addDebug(`No user authenticated, ready for login`)
     } else {
       addDebug(`Auth still loading, waiting...`)
     }
-  }, [user, authLoading, addDebug])
+  }, [user, authLoading, addDebug, router, searchParams])
 
   useEffect(() => {
     addDebug('Login page mounted')
@@ -215,18 +217,13 @@ export default function Login() {
         } else {
           addDebug('✅ LOGIN SUCCESSFUL!')
           addDebug(`Response data: user=${!!response.data?.user}, session=${!!response.data?.session}`)
-          setSuccess('Login successful! Redirecting to dashboard...')
+          setRedirecting(true)
           setLoading(false)
           
-          // Redirect after successful login
+          // Redirect immediately after successful login
           const nextUrl = new URLSearchParams(window.location.search).get('next') || '/dashboard'
           addDebug(`Redirecting to: ${nextUrl} after successful login`)
-          
-          // Small delay to show success message, then redirect
-          setTimeout(() => {
-            addDebug('Executing post-login redirect...')
-            router.replace(nextUrl)
-          }, 1500)
+          router.replace(nextUrl)
         }
       }).catch(err => {
         addDebug(`❌ Login promise rejected: ${err}`)
@@ -361,6 +358,18 @@ export default function Login() {
     }
   }
 
+  // Show loading state when redirecting
+  if (redirecting || (!authLoading && user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mb-4"></div>
+          <p className="text-lg text-gray-700 dark:text-gray-300 font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -375,42 +384,6 @@ export default function Login() {
             </Link>
           </p>
         </div>
-        
-        {/* Show info if user is already logged in */}
-        {!authLoading && user && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-4 py-3 rounded mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">You&apos;re already signed in!</p>
-                <p className="text-xs mt-1 opacity-80">You can proceed to your dashboard or sign in with different credentials.</p>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    addDebug('User clicked Sign Out to use different credentials')
-                    await supabase.auth.signOut()
-                    // The auth state change will clear the user automatically
-                  }}
-                  className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded text-sm transition-colors"
-                >
-                  Sign Out
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = searchParams?.get('next') || '/dashboard'
-                    addDebug(`User chose to go to dashboard: ${next}`)
-                    router.replace(next)
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         
         {/* Google Sign-In Button */}
         <div className="mt-8">
