@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const DEFAULT_AVATAR = '👤'
 
@@ -18,15 +18,21 @@ export function Sidebar() {
   const { user, profile, loading, profileLoading } = useAuth()
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(true)
+  const pendingCollapseRef = useRef(false)
   
   const avatar = profile?.avatar_url ?? DEFAULT_AVATAR
   const displayAvatar = loading || profileLoading ? '⏳' : avatar || DEFAULT_AVATAR
   const firstName = profile?.first_name || 'User'
 
+  const handleNavClick = () => {
+    pendingCollapseRef.current = true
+  }
+
   useEffect(() => {
-    if (!isCollapsed) {
+    if (pendingCollapseRef.current && !isCollapsed) {
       setIsCollapsed(true)
     }
+    pendingCollapseRef.current = false
   }, [pathname, isCollapsed])
 
   // Navigation items
@@ -80,6 +86,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={handleNavClick}
                 className={getLinkClassName(item.href)}
               >
                 <span className="flex-1">{item.label}</span>
@@ -100,6 +107,7 @@ export function Sidebar() {
             {user && (
               <Link
                 href="/account"
+                onClick={handleNavClick}
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                   pathname === '/account'
                     ? 'bg-primary-100 dark:bg-primary-900/30 border border-primary-300 dark:border-primary-700'
@@ -158,6 +166,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={handleNavClick}
             className={getLinkClassName(item.href)}
           >
             <span className="flex-1">{item.label}</span>
@@ -176,6 +185,7 @@ export function Sidebar() {
         {user && (
           <Link
             href="/account"
+            onClick={handleNavClick}
             className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
               pathname === '/account'
                 ? 'bg-primary-100 dark:bg-primary-900/30 border border-primary-300 dark:border-primary-700'
