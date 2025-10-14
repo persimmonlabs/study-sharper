@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Flashcard } from '@/types/flashcards'
@@ -13,8 +13,8 @@ interface PageProps {
 }
 
 export default function FlashcardStudyPage({ params }: PageProps) {
-  const resolvedParams = use(params)
   const router = useRouter()
+  const [setId, setSetId] = useState<string | null>(null)
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
@@ -28,14 +28,24 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   })
 
   useEffect(() => {
-    fetchFlashcards()
+    params.then(resolvedParams => {
+      setSetId(resolvedParams.setId)
+    })
+  }, [params])
+
+  useEffect(() => {
+    if (setId) {
+      fetchFlashcards()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedParams.setId])
+  }, [setId])
 
   const fetchFlashcards = async () => {
+    if (!setId) return
+    
     try {
       setLoading(true)
-      const cards = await getFlashcardsInSet(resolvedParams.setId)
+      const cards = await getFlashcardsInSet(setId)
       
       // Filter based on study mode
       const filteredCards = studyMode === 'review' 
@@ -320,15 +330,17 @@ export default function FlashcardStudyPage({ params }: PageProps) {
         </div>
 
         {/* Add Manual Card Dialog */}
-        <AddManualCardDialog
-          isOpen={isAddCardDialogOpen}
-          setId={resolvedParams.setId}
-          onClose={() => setIsAddCardDialogOpen(false)}
-          onSuccess={(card) => {
-            // Add the new card to the list
-            setFlashcards(prev => [...prev, card])
-          }}
-        />
+        {setId && (
+          <AddManualCardDialog
+            isOpen={isAddCardDialogOpen}
+            setId={setId}
+            onClose={() => setIsAddCardDialogOpen(false)}
+            onSuccess={(card) => {
+              // Add the new card to the list
+              setFlashcards(prev => [...prev, card])
+            }}
+          />
+        )}
       </div>
     </div>
   )
