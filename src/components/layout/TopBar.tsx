@@ -188,7 +188,7 @@ export function TopBar() {
                   )}
                   {!notificationsLoading && !notificationsError && notifications.length === 0 && (
                     <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                      You're all caught up! No updates right now.
+                      You&apos;re all caught up! No updates right now.
                     </div>
                   )}
                   {!notificationsLoading && !notificationsError && notifications.length > 0 && (
