@@ -11,7 +11,7 @@ export async function GET(
     const { setId } = params
 
     // Forward request to backend with user's access token
-    const response = await fetch(`${BACKEND_URL}/api/flashcards/sets/${setId}/cards`, {
+    const response = await fetch(`${BACKEND_URL}/api/flashcards/${setId}/cards`, {
       method: 'GET',
       headers: {
         ...(authHeader && { 'Authorization': authHeader }),

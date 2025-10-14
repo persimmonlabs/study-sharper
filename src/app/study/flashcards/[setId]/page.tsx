@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Flashcard } from '@/types/flashcards'
-import { FlashcardViewer } from '@/components/flashcards/FlashcardViewer'
-import { AddManualCardDialog } from '@/components/flashcards/AddManualCardDialog'
 import { getFlashcardsInSet, recordFlashcardReview } from '@/lib/api/flashcards'
 
 interface PageProps {
@@ -17,13 +15,14 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   const [setId, setSetId] = useState<string | null>(null)
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isFlipped, setIsFlipped] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [studyMode, setStudyMode] = useState<'all' | 'review'>('all')
-  const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
+  const [userAnswer, setUserAnswer] = useState('')
+  const [showAnswer, setShowAnswer] = useState(false)
+  const [showHint, setShowHint] = useState(false)
+  const [attempts, setAttempts] = useState(0)
   const [sessionStats, setSessionStats] = useState({
     correct: 0,
-    incorrect: 0,
+    skipped: 0,
     total: 0
   })
 
@@ -50,22 +49,16 @@ export default function FlashcardStudyPage({ params }: PageProps) {
       setLoading(true)
       const cards = await getFlashcardsInSet(setId)
       
-      // Filter based on study mode
-      const filteredCards = studyMode === 'review' 
-        ? cards.filter(card => card.mastery_level < 3)
-        : cards
-      
-      if (filteredCards.length === 0) {
-        alert('No cards available for this mode!')
+      if (cards.length === 0) {
+        alert('No cards available in this set!')
         router.push('/study/flashcards')
         return
       }
       
       // Shuffle cards for varied practice
-      const shuffled = [...filteredCards].sort(() => Math.random() - 0.5)
+      const shuffled = [...cards].sort(() => Math.random() - 0.5)
       setFlashcards(shuffled)
       setCurrentIndex(0)
-      setIsFlipped(false)
     } catch (error) {
       console.error('Failed to fetch flashcards:', error)
       alert('Failed to load flashcards. Please try again.')
@@ -78,90 +71,102 @@ export default function FlashcardStudyPage({ params }: PageProps) {
   const currentCard = flashcards[currentIndex]
   const progress = flashcards.length > 0 ? ((currentIndex + 1) / flashcards.length) * 100 : 0
 
-  const handleFlip = () => {
-    setIsFlipped(!isFlipped)
+  const resetCardState = () => {
+    setUserAnswer('')
+    setShowAnswer(false)
+    setShowHint(false)
+    setAttempts(0)
   }
 
-  const handleNext = () => {
-    if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex(currentIndex + 1)
-      setIsFlipped(false)
+  const handleSubmitAnswer = () => {
+    if (!userAnswer.trim()) return
+
+    const correctAnswer = currentCard.back.toLowerCase().trim()
+    const userAnswerLower = userAnswer.toLowerCase().trim()
+
+    if (correctAnswer.includes(userAnswerLower) || userAnswerLower.includes(correctAnswer)) {
+      // Correct answer
+      handleCorrect()
+    } else {
+      // Incorrect - increment attempts
+      setAttempts(prev => prev + 1)
+      alert('❌ Not quite! Try again or use a hint.')
     }
   }
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1)
-      setIsFlipped(false)
-    }
-  }
-
-  const handleReview = async (correct: boolean) => {
-    if (!currentCard) return
-
+  const handleCorrect = async () => {
     try {
-      const updatedCard = await recordFlashcardReview({
+      await recordFlashcardReview({
         flashcard_id: currentCard.id,
-        correct
+        correct: true
       })
 
-      // Update the card in the list
-      setFlashcards(prev => prev.map(card => 
-        card.id === updatedCard.id ? updatedCard : card
-      ))
-
-      // Update session stats
       setSessionStats(prev => ({
         ...prev,
-        correct: correct ? prev.correct + 1 : prev.correct,
-        incorrect: !correct ? prev.incorrect + 1 : prev.incorrect,
+        correct: prev.correct + 1,
         total: prev.total + 1
       }))
 
-      // Auto-advance to next card
-      setTimeout(() => {
-        if (currentIndex < flashcards.length - 1) {
-          handleNext()
-        } else {
-          // Session complete
-          alert(`Session complete! 🎉\n\nCorrect: ${sessionStats.correct + (correct ? 1 : 0)}\nIncorrect: ${sessionStats.incorrect + (!correct ? 1 : 0)}`)
-        }
-      }, 500)
+      alert('✅ Correct!')
+      handleNextCard()
     } catch (error) {
       console.error('Failed to record review:', error)
-      alert('Failed to record your answer. Please try again.')
+    }
+  }
+
+  const handleSkip = async () => {
+    try {
+      await recordFlashcardReview({
+        flashcard_id: currentCard.id,
+        correct: false
+      })
+
+      setSessionStats(prev => ({
+        ...prev,
+        skipped: prev.skipped + 1,
+        total: prev.total + 1
+      }))
+
+      handleNextCard()
+    } catch (error) {
+      console.error('Failed to record review:', error)
+    }
+  }
+
+  const handleReveal = () => {
+    setShowAnswer(true)
+  }
+
+  const handleGetHint = () => {
+    setShowHint(true)
+  }
+
+  const handleNextCard = () => {
+    if (currentIndex < flashcards.length - 1) {
+      setCurrentIndex(currentIndex + 1)
+      resetCardState()
+    } else {
+      // Session complete
+      const accuracy = sessionStats.total > 0 
+        ? Math.round((sessionStats.correct / sessionStats.total) * 100)
+        : 0
+      alert(
+        `🎉 Session Complete!\n\n` +
+        `Correct: ${sessionStats.correct + 1}\n` +
+        `Skipped: ${sessionStats.skipped}\n` +
+        `Total: ${sessionStats.total + 1}\n` +
+        `Accuracy: ${accuracy}%`
+      )
+      router.push('/study/flashcards')
     }
   }
 
   const handleKeyPress = (event: KeyboardEvent) => {
     if (loading) return
     
-    switch (event.key) {
-      case ' ':
-      case 'Enter':
-        event.preventDefault()
-        handleFlip()
-        break
-      case 'ArrowLeft':
-        event.preventDefault()
-        handlePrevious()
-        break
-      case 'ArrowRight':
-        event.preventDefault()
-        handleNext()
-        break
-      case '1':
-        if (isFlipped) {
-          event.preventDefault()
-          handleReview(false)
-        }
-        break
-      case '2':
-        if (isFlipped) {
-          event.preventDefault()
-          handleReview(true)
-        }
-        break
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      handleSubmitAnswer()
     }
   }
 
@@ -169,7 +174,7 @@ export default function FlashcardStudyPage({ params }: PageProps) {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, isFlipped, loading])
+  }, [userAnswer, loading])
 
   if (loading) {
     return (
@@ -210,22 +215,13 @@ export default function FlashcardStudyPage({ params }: PageProps) {
             Back to Sets
           </Link>
 
-          {/* Session Stats & Add Card Button */}
+          {/* Session Stats */}
           <div className="flex items-center space-x-4 text-sm">
-            <button
-              onClick={() => setIsAddCardDialogOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Card
-            </button>
             <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
               ✓ {sessionStats.correct}
             </div>
-            <div className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full">
-              ✗ {sessionStats.incorrect}
+            <div className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+              ⏭️ {sessionStats.skipped}
             </div>
           </div>
         </div>
@@ -248,102 +244,96 @@ export default function FlashcardStudyPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Flashcard */}
-        <FlashcardViewer
-          card={currentCard}
-          isFlipped={isFlipped}
-          onFlip={handleFlip}
-        />
+        {/* Flashcard Question */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {currentCard.front}
+            </h2>
+            {attempts > 0 && (
+              <p className="text-sm text-orange-600 dark:text-orange-400">
+                Attempts: {attempts}
+              </p>
+            )}
+          </div>
 
-        {/* Navigation & Review Controls */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-          {!isFlipped ? (
-            /* Show Flip Button */
-            <div className="flex justify-center">
-              <button
-                onClick={handleFlip}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg shadow-md hover:shadow-lg"
-              >
-                🔄 Flip Card
-              </button>
-            </div>
-          ) : (
-            /* Show Review Buttons */
+          {/* Answer Input */}
+          {!showAnswer && (
             <div className="space-y-4">
-              <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
-                How well did you know this?
-              </div>
-              <div className="flex justify-center space-x-4">
+              <textarea
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder="Type your answer here..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmitAnswer()
+                  }
+                }}
+              />
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => handleReview(false)}
-                  className="flex-1 max-w-xs px-6 py-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors font-medium border-2 border-red-300 dark:border-red-800"
+                  onClick={handleSubmitAnswer}
+                  disabled={!userAnswer.trim()}
+                  className="flex-1 min-w-[120px] px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                 >
-                  <div className="text-2xl mb-1">😕</div>
-                  <div className="font-semibold">Didn&apos;t Know</div>
-                  <div className="text-xs mt-1 opacity-75">(Press 1)</div>
+                  ✓ Submit Answer
                 </button>
                 <button
-                  onClick={() => handleReview(true)}
-                  className="flex-1 max-w-xs px-6 py-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors font-medium border-2 border-green-300 dark:border-green-800"
+                  onClick={handleGetHint}
+                  className="px-6 py-3 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors font-medium"
                 >
-                  <div className="text-2xl mb-1">😊</div>
-                  <div className="font-semibold">Knew It!</div>
-                  <div className="text-xs mt-1 opacity-75">(Press 2)</div>
+                  💡 Get Hint
+                </button>
+                <button
+                  onClick={handleReveal}
+                  className="px-6 py-3 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors font-medium"
+                >
+                  👁️ Reveal Answer
+                </button>
+                <button
+                  onClick={handleSkip}
+                  className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
+                >
+                  ⏭️ Skip Card
                 </button>
               </div>
             </div>
           )}
 
-          {/* Navigation Arrows */}
-          <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-              className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Previous
-            </button>
+          {/* Show Hint */}
+          {showHint && !showAnswer && currentCard.explanation && (
+            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 mb-1">💡 Hint:</p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-300">{currentCard.explanation}</p>
+            </div>
+          )}
 
-            <button
-              onClick={handleNext}
-              disabled={currentIndex === flashcards.length - 1}
-              className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+          {/* Show Answer */}
+          {showAnswer && (
+            <div className="space-y-4">
+              <div className="p-6 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm font-semibold text-green-900 dark:text-green-200 mb-2">✅ Correct Answer:</p>
+                <p className="text-lg text-green-800 dark:text-green-300 font-medium">{currentCard.back}</p>
+                {currentCard.explanation && (
+                  <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-400">{currentCard.explanation}</p>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleNextCard}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
+              >
+                Continue to Next Card →
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Keyboard Shortcuts */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="text-sm text-blue-900 dark:text-blue-200">
-            <span className="font-semibold">⌨️ Keyboard Shortcuts:</span>
-            <span className="ml-4">Space/Enter = Flip</span>
-            <span className="ml-4">← = Previous</span>
-            <span className="ml-4">→ = Next</span>
-            <span className="ml-4">1 = Didn&apos;t Know</span>
-            <span className="ml-4">2 = Knew It</span>
-          </div>
-        </div>
-
-        {/* Add Manual Card Dialog */}
-        {setId && (
-          <AddManualCardDialog
-            isOpen={isAddCardDialogOpen}
-            setId={setId}
-            onClose={() => setIsAddCardDialogOpen(false)}
-            onSuccess={(card) => {
-              // Add the new card to the list
-              setFlashcards(prev => [...prev, card])
-            }}
-          />
-        )}
       </div>
     </div>
   )
