@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { FlashcardSet, GenerateFlashcardsRequest, SuggestedFlashcardSet } from '@/types/flashcards'
 import { GenerateFlashcardsDialog } from '@/components/notes/GenerateFlashcardsDialog'
-import { FlashcardAIChat } from '@/components/flashcards/FlashcardAIChat'
+import { UnifiedChatInterface } from '@/components/ai/UnifiedChatInterface'
 import { CreateManualSetDialog } from '@/components/flashcards/CreateManualSetDialog'
 import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards, deleteFlashcardSet } from '@/lib/api/flashcards'
 
@@ -339,15 +339,14 @@ export default function FlashcardsPage() {
       )}
 
       {/* AI Chat Assistant */}
-      <FlashcardAIChat
-        onGenerateRequest={(noteIds, numCards, difficulty, title) => {
-          // Handle AI chat flashcard generation request
-          handleGenerate({
-            note_ids: noteIds,
-            num_cards: numCards,
-            difficulty: difficulty as 'easy' | 'medium' | 'hard',
-            set_title: title
-          })
+      <UnifiedChatInterface
+        chatbotType="flashcard_assistant"
+        title="Flashcard AI Assistant"
+        icon="🎴"
+        placeholder="Ask me to create flashcards..."
+        onContentGenerated={(content) => {
+          // Refresh flashcard sets when new ones are generated
+          fetchFlashcardSets()
         }}
       />
     </div>
