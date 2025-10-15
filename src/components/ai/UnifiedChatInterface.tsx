@@ -13,7 +13,7 @@ interface ChatMessage {
 }
 
 interface UnifiedChatInterfaceProps {
-  chatbotType: 'flashcard_assistant' | 'quiz_generator' | 'summary_creator' | 'general_assistant'
+  chatbotType: 'flashcard_assistant' | 'quiz_generator' | 'summary_creator' | 'content_creator' | 'general_assistant'
   title: string
   icon?: string
   placeholder?: string

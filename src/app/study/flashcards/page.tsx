@@ -136,7 +136,7 @@ export default function FlashcardsPage() {
             Back to Study Hub
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            🎴 Flashcards
+            Flashcards
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             AI-generated flashcards with spaced repetition for optimal learning
@@ -341,8 +341,8 @@ export default function FlashcardsPage() {
       {/* AI Chat Assistant */}
       <UnifiedChatInterface
         chatbotType="flashcard_assistant"
-        title="Flashcard AI Assistant"
-        icon="🎴"
+        title="Flashcard Assistant"
+        icon="💬"
         placeholder="Ask me to create flashcards..."
         onContentGenerated={(content) => {
           // Refresh flashcard sets when new ones are generated
