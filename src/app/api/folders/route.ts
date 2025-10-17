@@ -1,33 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000'
+const BACKEND_TIMEOUT = 5000 // 5 second timeout
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     
-    const response = await fetch(`${BACKEND_URL}/api/folders`, {
-      method: 'GET',
-      headers: {
-        ...(authHeader && { 'Authorization': authHeader }),
-        'Content-Type': 'application/json',
-      },
-    })
+    // Add timeout to prevent hanging
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT)
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(
-        { error: errorData.detail || 'Failed to fetch folders' },
-        { status: response.status }
-      )
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/folders`, {
+        method: 'GET',
+        headers: {
+          ...(authHeader && { 'Authorization': authHeader }),
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      })
+      
+      clearTimeout(timeoutId)
+    
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return NextResponse.json(
+          { error: errorData.detail || 'Failed to fetch folders' },
+          { status: response.status }
+        )
+      }
+      
+      const data = await response.json()
+      return NextResponse.json(data)
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+      
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error('[API] Backend timeout fetching folders')
+        return NextResponse.json(
+          { error: 'Backend request timed out. Please try again.' },
+          { status: 504 }
+        )
+      }
+      throw fetchError
     }
-    
-    const data = await response.json()
-    return NextResponse.json(data)
   } catch (error) {
     console.error('Error in GET /api/folders:', error)
     return NextResponse.json(
-      { error: 'Failed to communicate with backend' },
+      { error: error instanceof Error ? error.message : 'Failed to communicate with backend' },
       { status: 500 }
     )
   }
