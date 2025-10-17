@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import type { FormEvent, MouseEvent, ChangeEvent } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -15,6 +16,8 @@ import { FileSizeWarningDialog } from '@/components/ui/FileSizeWarningDialog'
 import { FolderContextMenu } from '@/components/notes/FolderContextMenu'
 import { UploadFolderDialog } from '@/components/ui/UploadFolderDialog'
 import { AIChatPanel } from '@/components/ai/AIChatPanel'
+import { ErrorBanner } from '@/components/ui/ErrorBanner'
+import { Skeleton } from '@/components/ui/Skeleton'
 import type { User } from '@supabase/supabase-js'
 
 type Note = Database['public']['Tables']['notes']['Row'] & {
@@ -62,17 +65,32 @@ const generateMessageId = (): string => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-// Helper function to get session token
+// Helper function to get session token with caching
+let cachedToken: string | null = null
+let tokenExpiry: number = 0
+
 const getSessionToken = async (): Promise<string | null> => {
   try {
+    // Return cached token if still valid (cache for 5 minutes)
+    if (cachedToken && Date.now() < tokenExpiry) {
+      return cachedToken
+    }
+    
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) {
       console.error('[Notes] Session error:', error)
+      cachedToken = null
       return null
     }
-    return session?.access_token || null
+    
+    // Cache token for 5 minutes
+    cachedToken = session?.access_token || null
+    tokenExpiry = Date.now() + (5 * 60 * 1000)
+    
+    return cachedToken
   } catch (error) {
     console.error('[Notes] Failed to get session:', error)
+    cachedToken = null
     return null
   }
 }
@@ -82,6 +100,7 @@ export default function Notes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, 300) // Debounce search by 300ms
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [folders, setFolders] = useState<NoteFolder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
@@ -116,6 +135,11 @@ export default function Notes() {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([])
+  
+  // Error states for better UX
+  const [notesError, setNotesError] = useState<string | null>(null)
+  const [foldersError, setFoldersError] = useState<string | null>(null)
+  
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const renameInputRef = useRef<HTMLInputElement | null>(null)
@@ -131,15 +155,19 @@ export default function Notes() {
   // OCR file size limit (1MB = 1024 * 1024 bytes)
   const OCR_SIZE_LIMIT = 1024 * 1024
 
-  const fetchFolders = useCallback(async (currentUser: User): Promise<boolean> => {
+  const fetchFolders = useCallback(async (currentUser: User, signal?: AbortSignal): Promise<boolean> => {
     console.log('[fetchFolders] Starting folder fetch for user:', currentUser.id)
+    setFoldersError(null) // Clear previous errors
+    
     try {
       const accessToken = await getSessionToken()
       
       if (!accessToken) {
+        const errorMsg = 'Unable to authenticate. Please try logging in again.'
         console.warn('[fetchFolders] No session token available')
+        setFoldersError(errorMsg)
         setFolders([])
-        return true // Continue even without token - don't block the page
+        return false // Indicate failure
       }
       
       console.log('[fetchFolders] Making request to /api/folders')
@@ -148,16 +176,8 @@ export default function Notes() {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }).catch(err => {
-        console.warn('[fetchFolders] Fetch error:', err.message)
-        return null
+        signal, // Pass abort signal to fetch
       })
-      
-      if (!response) {
-        console.warn('[fetchFolders] No response - backend may be down')
-        setFolders([])
-        return true // Continue without folders
-      }
       
       console.log('[fetchFolders] Response status:', response.status)
       
@@ -168,14 +188,19 @@ export default function Notes() {
           return false
         }
         
-        console.warn('[fetchFolders] Non-OK response, using empty folders')
+        if (response.status >= 500) {
+          setFoldersError('Server error loading folders. Please try again.')
+        } else {
+          setFoldersError('Failed to load folders. Please check your connection.')
+        }
         setFolders([])
-        return true
+        return false // Indicate failure
       }
       
       const data = await response.json() as NoteFolder[]
       
       setFolders(data || [])
+      setFoldersError(null) // Clear error on success
       setSelectedFolderId(prev => {
         if (!prev) return prev
         return data?.some((folder: NoteFolder) => folder.id === prev) ? prev : null
@@ -186,9 +211,18 @@ export default function Notes() {
       }
       return true
     } catch (error) {
+      // Don't set error if request was aborted (user navigated away)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[fetchFolders] Request aborted')
+        return false
+      }
       console.error('[fetchFolders] Error:', error)
+      const errorMsg = error instanceof Error 
+        ? `Network error: ${error.message}` 
+        : 'Unable to connect to server. Please check your internet connection.'
+      setFoldersError(errorMsg)
       setFolders([])
-      return true // Always return true to prevent hanging
+      return false // Indicate failure
     }
   }, [router, folders.length])
 
@@ -296,17 +330,21 @@ export default function Notes() {
     }
   }
 
-  const fetchNotes = useCallback(async (currentUser: User): Promise<boolean> => {
+  const fetchNotes = useCallback(async (currentUser: User, signal?: AbortSignal): Promise<boolean> => {
     console.log('[fetchNotes] Starting notes fetch for user:', currentUser.id)
+    setNotesError(null) // Clear previous errors
+    
     try {
       const accessToken = await getSessionToken()
       
       if (!accessToken) {
+        const errorMsg = 'Unable to authenticate. Please try logging in again.'
         console.warn('[fetchNotes] No session token available')
+        setNotesError(errorMsg)
         setNotes([])
         setAvailableTags([])
         setSelectedNote(null)
-        return true // Continue even without token
+        return false // Indicate failure
       }
       
       console.log('[fetchNotes] Making request to /api/notes')
@@ -315,18 +353,8 @@ export default function Notes() {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }).catch(err => {
-        console.warn('[fetchNotes] Fetch error:', err.message)
-        return null
+        signal, // Pass abort signal to fetch
       })
-      
-      if (!response) {
-        console.warn('[fetchNotes] No response - backend may be down')
-        setNotes([])
-        setAvailableTags([])
-        setSelectedNote(null)
-        return true // Continue without notes
-      }
       
       console.log('[fetchNotes] Response status:', response.status)
       
@@ -337,16 +365,21 @@ export default function Notes() {
           return false
         }
         
-        console.warn('[fetchNotes] Non-OK response, using empty notes')
+        if (response.status >= 500) {
+          setNotesError('Server error loading notes. Please try again.')
+        } else {
+          setNotesError('Failed to load notes. Please check your connection.')
+        }
         setNotes([])
         setAvailableTags([])
         setSelectedNote(null)
-        return true
+        return false // Indicate failure
       }
       
       const data = await response.json() as Note[]
       
       setNotes(data || [])
+      setNotesError(null) // Clear error on success
       setSelectedNote(prev => (prev && data?.some(note => note.id === prev.id)) ? prev : (data?.[0] ?? null))
 
       const uniqueTags = new Set<string>()
@@ -356,11 +389,20 @@ export default function Notes() {
       setAvailableTags(Array.from(uniqueTags).sort())
       return true
     } catch (error) {
+      // Don't set error if request was aborted (user navigated away)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[fetchNotes] Request aborted')
+        return false
+      }
       console.error('[fetchNotes] Error:', error)
+      const errorMsg = error instanceof Error 
+        ? `Network error: ${error.message}` 
+        : 'Unable to connect to server. Please check your internet connection.'
+      setNotesError(errorMsg)
       setNotes([])
       setAvailableTags([])
       setSelectedNote(null)
-      return true // Always return true to prevent hanging
+      return false // Indicate failure
     }
   }, [router])
 
@@ -376,6 +418,10 @@ export default function Notes() {
       return
     }
 
+    // AbortController for cleanup - cancels requests on unmount
+    const abortController = new AbortController()
+    let isMounted = true
+
     const loadData = async () => {
       try {
         console.log('[Notes] Starting parallel data load...')
@@ -383,28 +429,42 @@ export default function Notes() {
         
         // Fetch notes and folders in parallel for faster loading
         await Promise.all([
-          fetchNotes(user),
-          fetchFolders(user)
+          fetchNotes(user, abortController.signal),
+          fetchFolders(user, abortController.signal)
         ])
+        
+        if (!isMounted) {
+          console.log('[Notes] Component unmounted, skipping state updates')
+          return
+        }
         
         const loadTime = Date.now() - startTime
         console.log(`[Notes] Data loaded in ${loadTime}ms`)
         setLoading(false)
       } catch (error) {
+        if (!isMounted) return
         console.error('[Notes] Error during data load:', error)
         setLoading(false)
       }
     }
 
     loadData()
+
+    // Cleanup function - cancels pending requests
+    return () => {
+      console.log('[Notes] Cleaning up - aborting pending requests')
+      isMounted = false
+      abortController.abort()
+    }
   }, [user, authLoading, fetchNotes, fetchFolders])
 
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       // Note: content field is not available in lightweight notes
       // Search only by title and tags for performance
-      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
+      const matchesSearch = debouncedSearchTerm === '' || 
+        note.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(debouncedSearchTerm.toLowerCase())))
 
       const matchesTags = selectedTags.length === 0 ||
         (note.tags && selectedTags.every(tag => note.tags?.includes(tag)))
@@ -413,7 +473,7 @@ export default function Notes() {
 
       return matchesSearch && matchesTags && matchesFolder
     })
-  }, [notes, searchTerm, selectedTags, selectedFolderId])
+  }, [notes, debouncedSearchTerm, selectedTags, selectedFolderId])
 
   useEffect(() => {
     if (!selectedFolderId) return
@@ -907,35 +967,47 @@ export default function Notes() {
   const handleConfirmDelete = async () => {
     if (!deleteConfirm.noteId || !user) return
 
+    const noteId = deleteConfirm.noteId
+    const previousNotes = [...notes]
+    const previousSelectedNote = selectedNote
+
     setIsDeleting(true)
+    
+    // Optimistic update - remove note immediately
+    setNotes(prev => prev.filter(n => n.id !== noteId))
+    if (selectedNote?.id === noteId) {
+      setSelectedNote(null)
+    }
+    if (modalNote?.id === noteId) {
+      setIsModalOpen(false)
+      setModalNote(null)
+    }
+    setDeleteConfirm({ isOpen: false, noteId: null, noteTitle: '' })
+    
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session?.access_token) {
+      const accessToken = await getSessionToken()
+      if (!accessToken) {
         throw new Error('Unauthorized')
       }
-      const response = await fetch(`/api/notes/${deleteConfirm.noteId}`, {
+      
+      const response = await fetch(`/api/notes/${noteId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         }
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Delete failed');
+        throw new Error('Delete failed')
       }
-
-      // Close modal if deleted note was open
-      if (modalNote?.id === deleteConfirm.noteId) {
-        setIsModalOpen(false)
-        setModalNote(null)
-      }
-
-      // Refresh notes
-      await fetchNotes(user)
-
-      setDeleteConfirm({ isOpen: false, noteId: null, noteTitle: '' })
+      
+      // Success - optimistic update was correct
+      console.log('[Notes] Note deleted successfully')
     } catch (error) {
       console.error('Delete failed:', error)
+      // Revert optimistic update on error
+      setNotes(previousNotes)
+      setSelectedNote(previousSelectedNote)
       alert('Failed to delete note. Please try again.')
     } finally {
       setIsDeleting(false)
@@ -1044,16 +1116,65 @@ export default function Notes() {
     }
   }
 
+  // Retry functions for error recovery
+  const retryFetchNotes = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    await fetchNotes(user)
+    setLoading(false)
+  }, [user, fetchNotes])
+
+  const retryFetchFolders = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    await fetchFolders(user)
+    setLoading(false)
+  }, [user, fetchFolders])
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-lg">Loading notes...</div>
+      <div className="space-y-8">
+        <div>
+          <Skeleton height={36} width="30%" className="mb-2" />
+          <Skeleton height={20} width="50%" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1 space-y-4">
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+          </div>
+          <div className="lg:col-span-3 space-y-3">
+            {[1, 2, 3, 4, 5].map(i => (
+              <Skeleton key={i} height={80} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
+      {/* Error Banners */}
+      {notesError && (
+        <ErrorBanner
+          title="Failed to Load Notes"
+          message={notesError}
+          onRetry={retryFetchNotes}
+          variant="error"
+        />
+      )}
+      {foldersError && (
+        <ErrorBanner
+          title="Failed to Load Folders"
+          message={foldersError}
+          onRetry={retryFetchFolders}
+          variant="warning"
+        />
+      )}
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -1271,13 +1392,31 @@ export default function Notes() {
           {/* Search */}
           {sidebarOpen && (
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <input
-                type="text"
-                placeholder="Search notes..."
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search notes..."
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm !== debouncedSearchTerm && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                  </div>
+                )}
+                {searchTerm && searchTerm === debouncedSearchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    aria-label="Clear search"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1285,12 +1424,22 @@ export default function Notes() {
           <div className={`flex-1 overflow-y-auto ${!sidebarOpen && 'hidden'}`}>
             {filteredNotes.length === 0 ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                {sidebarOpen ? (
+                {notesError ? (
+                  // Error state - already shown in banner above
+                  <div>
+                    <svg className="mx-auto h-8 w-8 mb-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-sm">Unable to load notes</p>
+                    <p className="text-xs mt-1">See error message above</p>
+                  </div>
+                ) : sidebarOpen ? (
                   <div>
                     <svg className="mx-auto h-8 w-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-sm">No notes yet</p>
+                    <p className="text-sm font-medium">No notes yet</p>
+                    <p className="text-xs mt-1">Upload a file or create a note to get started</p>
                   </div>
                 ) : (
                   <svg className="mx-auto h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

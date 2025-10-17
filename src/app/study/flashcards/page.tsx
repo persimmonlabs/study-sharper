@@ -7,6 +7,7 @@ import type { FlashcardSet, GenerateFlashcardsRequest, SuggestedFlashcardSet } f
 import { GenerateFlashcardsDialog } from '@/components/notes/GenerateFlashcardsDialog'
 import { UnifiedChatInterface } from '@/components/ai/UnifiedChatInterface'
 import { CreateManualSetDialog } from '@/components/flashcards/CreateManualSetDialog'
+import { ErrorBanner } from '@/components/ui/ErrorBanner'
 import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards, deleteFlashcardSet } from '@/lib/api/flashcards'
 
 export default function FlashcardsPage() {
@@ -19,32 +20,75 @@ export default function FlashcardsPage() {
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [createMode, setCreateMode] = useState<'ai' | 'manual' | null>(null)
+  
+  // Error states
+  const [setsError, setSetsError] = useState<string | null>(null)
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchFlashcardSets()
-    fetchSuggestedSets()
+    // AbortController for cleanup - cancels requests on unmount
+    const abortController = new AbortController()
+    let isMounted = true
+
+    const loadData = async () => {
+      await Promise.allSettled([
+        fetchFlashcardSets(abortController.signal),
+        fetchSuggestedSets(abortController.signal)
+      ])
+      
+      if (!isMounted) {
+        console.log('[Flashcards] Component unmounted, skipping state updates')
+      }
+    }
+
+    loadData()
+
+    // Cleanup function - prevents state updates after unmount
+    return () => {
+      console.log('[Flashcards] Cleaning up - aborting pending requests')
+      isMounted = false
+      abortController.abort()
+    }
   }, [])
 
-  const fetchFlashcardSets = async () => {
+  const fetchFlashcardSets = async (signal?: AbortSignal) => {
+    setSetsError(null)
     try {
       setLoading(true)
-      const sets = await getFlashcardSets()
+      const sets = await getFlashcardSets(signal)
       setFlashcardSets(sets)
+      setSetsError(null)
     } catch (error) {
+      // Don't set error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[Flashcards] Request aborted')
+        return
+      }
       console.error('Failed to fetch flashcard sets:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load flashcard sets'
+      setSetsError(errorMsg)
       setFlashcardSets([])
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchSuggestedSets = async () => {
+  const fetchSuggestedSets = async (signal?: AbortSignal) => {
+    setSuggestionsError(null)
     try {
       setLoadingSuggestions(true)
-      const result = await getSuggestedFlashcards()
+      const result = await getSuggestedFlashcards(signal)
       setSuggestedSets(result.suggestions)
+      setSuggestionsError(null)
     } catch (error) {
+      // Don't set error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[Flashcards] Suggestions request aborted')
+        return
+      }
       console.error('Failed to fetch suggestions:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load suggestions'
+      setSuggestionsError(errorMsg)
       setSuggestedSets([])
     } finally {
       setLoadingSuggestions(false)
@@ -123,6 +167,24 @@ export default function FlashcardsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Error Banners */}
+      {setsError && (
+        <ErrorBanner
+          title="Failed to Load Flashcards"
+          message={setsError}
+          onRetry={() => fetchFlashcardSets()}
+          variant="error"
+        />
+      )}
+      {suggestionsError && (
+        <ErrorBanner
+          title="Suggestions Error"
+          message={suggestionsError}
+          onRetry={() => fetchSuggestedSets()}
+          variant="warning"
+        />
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -218,6 +280,26 @@ export default function FlashcardsPage() {
       {loading ? (
         <div className="flex justify-center items-center py-16">
           <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-200 border-t-blue-600"></div>
+        </div>
+      ) : setsError ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-red-300 dark:border-red-800 p-12 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30">
+            <svg className="h-10 w-10 text-red-500 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+            Unable to Load Flashcards
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+            {setsError}
+          </p>
+          <button
+            onClick={() => fetchFlashcardSets()}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          >
+            Try Again
+          </button>
         </div>
       ) : flashcardSets.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 text-center">

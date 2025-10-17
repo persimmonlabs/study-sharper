@@ -10,6 +10,7 @@ import { NoteModal } from '@/components/notes/NoteModal'
 import { NoteContextMenu } from '@/components/notes/NoteContextMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WelcomeBanner, QuickActionCard, ProgressRing, StreakTracker, StatCard } from '@/components/dashboard'
+import { ErrorBanner } from '@/components/ui/ErrorBanner'
 
 interface DashboardStats {
   totalNotes: number
@@ -95,6 +96,13 @@ export default function Dashboard() {
   const [dailyGoalProgress, setDailyGoalProgress] = useState({ current: 0, target: 240 }) // minutes
   const [weeklyGoalProgress, setWeeklyGoalProgress] = useState({ current: 0, target: 1200 }) // minutes
   const [isFirstLogin, setIsFirstLogin] = useState(false)
+  
+  // Error states for each section
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [activityError, setActivityError] = useState<string | null>(null)
+  const [socialError, setSocialError] = useState<string | null>(null)
+  
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
 
@@ -130,15 +138,23 @@ export default function Dashboard() {
   }, [authLoading, user, router])
 
   const fetchUserProfile = useCallback(async (currentUser: User) => {
+    setProfileError(null)
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name, created_at')
+        .select('*')
         .eq('id', currentUser.id)
         .single()
 
+      if (error) {
+        throw error
+      }
+
       if (profile) {
-        setUserProfile(profile)
+        setUserProfile({
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+        })
         
         // Check if this is first login (created within last 5 minutes)
         const createdAt = new Date(profile.created_at)
@@ -155,6 +171,8 @@ export default function Dashboard() {
       return false
     } catch (error) {
       console.error('Error fetching user profile:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load profile'
+      setProfileError(errorMsg)
       // Set default values if profile fetch fails
       setUserProfile({ first_name: 'User', last_name: null })
       return false
@@ -162,6 +180,7 @@ export default function Dashboard() {
   }, [])
 
   const fetchStats = useCallback(async (currentUser: User) => {
+    setStatsError(null)
     try {
       const now = new Date()
       const nowIso = now.toISOString()
@@ -228,6 +247,8 @@ export default function Dashboard() {
       })
     } catch (error) {
       console.error('Error fetching stats:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load statistics'
+      setStatsError(errorMsg)
       // Set default values if stats fetch fails
       setStats({
         totalNotes: 0,
@@ -245,6 +266,7 @@ export default function Dashboard() {
   }, [])
 
   const loadRecentActivity = useCallback(async (currentUser: User) => {
+    setActivityError(null)
     try {
       // Get recent notes
       const { data: notesData } = await supabase
@@ -297,17 +319,22 @@ export default function Dashboard() {
       setRecentActivity(activityItems.slice(0, 5))
     } catch (error) {
       console.error('Error loading recent activity:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load recent activity'
+      setActivityError(errorMsg)
       setRecentActivity([])
     }
   }, [])
 
   const loadSocialData = useCallback(async (_currentUser: User) => {
+    setSocialError(null)
     try {
       // Placeholder for future social data.
       setTopFriends([])
       setAIRecommendations([])
     } catch (error) {
       console.error('Error loading social data:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load recommendations'
+      setSocialError(errorMsg)
       setTopFriends([])
       setAIRecommendations([])
     }
@@ -338,47 +365,48 @@ export default function Dashboard() {
       return
     }
 
+    // AbortController for cleanup - cancels requests on unmount
+    const abortController = new AbortController()
+    let isMounted = true
+
     const loadDashboard = async () => {
       console.log('[Dashboard] Loading dashboard data for user:', user.id)
       setLoading(true)
       
       try {
-        // Load data with timeout
-        const timeoutId = setTimeout(() => {
-          console.warn('[Dashboard] Load timeout - using fallback data')
-          setLoading(false)
-        }, 8000)
-        
-        // Load all data in parallel
+        // Load all data in parallel - no timeout, let each section handle its own errors
+        // This allows progressive loading - sections appear as they complete
         await Promise.allSettled([
-          fetchUserProfile(user).catch(err => {
-            console.warn('[Dashboard] Profile fetch failed:', err)
-            setUserProfile({
-              first_name: user.user_metadata?.first_name || 'User',
-              last_name: user.user_metadata?.last_name || null,
-            })
-          }),
-          fetchStats(user).catch(err => {
-            console.warn('[Dashboard] Stats fetch failed:', err)
-          }),
-          loadRecentActivity(user).catch(err => {
-            console.warn('[Dashboard] Activity fetch failed:', err)
-          }),
-          loadSocialData(user).catch(err => {
-            console.warn('[Dashboard] Social data fetch failed:', err)
-          }),
+          fetchUserProfile(user),
+          fetchStats(user),
+          loadRecentActivity(user),
+          loadSocialData(user),
         ])
         
-        clearTimeout(timeoutId)
+        if (!isMounted) {
+          console.log('[Dashboard] Component unmounted, skipping state updates')
+          return
+        }
+        
         console.log('[Dashboard] Dashboard data loaded')
       } catch (error) {
+        if (!isMounted) return
         console.error('[Dashboard] Unexpected error:', error)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadDashboard()
+
+    // Cleanup function - prevents state updates after unmount
+    return () => {
+      console.log('[Dashboard] Cleaning up - aborting pending requests')
+      isMounted = false
+      abortController.abort()
+    }
   }, [user, authLoading, fetchUserProfile, fetchStats, loadRecentActivity, loadSocialData])
 
   const handleViewNote = useCallback(async (noteId: string) => {
@@ -496,6 +524,27 @@ export default function Dashboard() {
     router.push('/auth/login')
   }
 
+  // Retry functions for error recovery
+  const retryProfile = useCallback(async () => {
+    if (!user) return
+    await fetchUserProfile(user)
+  }, [user, fetchUserProfile])
+
+  const retryStats = useCallback(async () => {
+    if (!user) return
+    await fetchStats(user)
+  }, [user, fetchStats])
+
+  const retryActivity = useCallback(async () => {
+    if (!user) return
+    await loadRecentActivity(user)
+  }, [user, loadRecentActivity])
+
+  const retrySocial = useCallback(async () => {
+    if (!user) return
+    await loadSocialData(user)
+  }, [user, loadSocialData])
+
   const firstName = userProfile.first_name || 'there'
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -508,6 +557,40 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Error Banners */}
+      {profileError && (
+        <ErrorBanner
+          title="Profile Error"
+          message={profileError}
+          onRetry={retryProfile}
+          variant="warning"
+        />
+      )}
+      {statsError && (
+        <ErrorBanner
+          title="Statistics Error"
+          message={statsError}
+          onRetry={retryStats}
+          variant="warning"
+        />
+      )}
+      {activityError && (
+        <ErrorBanner
+          title="Activity Error"
+          message={activityError}
+          onRetry={retryActivity}
+          variant="info"
+        />
+      )}
+      {socialError && (
+        <ErrorBanner
+          title="Recommendations Error"
+          message={socialError}
+          onRetry={retrySocial}
+          variant="info"
+        />
+      )}
+      
       {/* Welcome Banner */}
       <WelcomeBanner 
         firstName={firstName}

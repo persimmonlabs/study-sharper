@@ -24,7 +24,8 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
   return fetch(input, {
     ...init,
     headers,
-    credentials: 'include' // Include cookies for session-based auth
+    credentials: 'include', // Include cookies for session-based auth
+    signal: init.signal // Pass through abort signal
   })
 }
 
@@ -69,9 +70,10 @@ export async function deleteFlashcardSet(setId: string): Promise<{ success: bool
 /**
  * Fetch all flashcard sets for the current user
  */
-export async function getFlashcardSets(): Promise<FlashcardSet[]> {
+export async function getFlashcardSets(signal?: AbortSignal): Promise<FlashcardSet[]> {
   const response = await fetchWithAuth('/api/flashcards/sets', {
     method: 'GET',
+    signal,
   })
 
   if (!response.ok) {
@@ -139,9 +141,10 @@ export async function generateSuggestedFlashcards(): Promise<{ suggestions: Sugg
 /**
  * Fetch suggested flashcard sets
  */
-export async function getSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
+export async function getSuggestedFlashcards(signal?: AbortSignal): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
   const response = await fetchWithAuth('/api/flashcards/suggest', {
     method: 'GET',
+    signal,
   })
 
   if (!response.ok) {
