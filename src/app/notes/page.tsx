@@ -431,7 +431,7 @@ export default function Notes() {
       isMounted = false
       abortController.abort()
     }
-  }, [user, authLoading])
+  }, [user, authLoading, fetchNotes, fetchFolders])
 
   const filteredNotes = useMemo(() => {
     // Defensive: ensure notes is always an array

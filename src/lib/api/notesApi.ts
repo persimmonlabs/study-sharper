@@ -13,6 +13,9 @@ import {
   type ApiRetryOptions,
 } from '@/lib/utils/fetchHelpers'
 
+// Re-export ApiResult for convenience
+export type { ApiResult } from '@/lib/utils/fetchHelpers'
+
 // Token cache with proper invalidation
 let cachedToken: string | null = null
 let tokenExpiry: number = 0

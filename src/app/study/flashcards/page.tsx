@@ -53,7 +53,7 @@ export default function FlashcardsPage() {
       isMounted = false
       abortController.abort()
     }
-  }, [])
+  }, [fetchFlashcardSets, fetchSuggestedSets])
 
   const fetchFlashcardSets = useCallback(async (signal?: AbortSignal) => {
     setSetsError(null)
