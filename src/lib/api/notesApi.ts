@@ -4,7 +4,14 @@
  */
 
 import { supabase } from '@/lib/supabase'
-import { safeFetchJson, normalizeList, notesCache, type ApiResult } from '@/lib/utils/fetchHelpers'
+import {
+  safeFetchJson,
+  normalizeList,
+  notesCache,
+  retryApiCall,
+  type ApiResult,
+  type ApiRetryOptions,
+} from '@/lib/utils/fetchHelpers'
 
 // Token cache with proper invalidation
 let cachedToken: string | null = null
@@ -47,64 +54,86 @@ export function clearTokenCache() {
 /**
  * Fetch all notes (lightweight - no content)
  */
-export async function fetchNotesList(signal?: AbortSignal): Promise<ApiResult<any[]>> {
+export async function fetchNotesList(
+  signal?: AbortSignal,
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<any[]>> {
   const token = await getSessionToken()
   if (!token) {
     return { ok: false, status: 'auth_error', data: null, error: 'No authentication token' }
   }
-  
-  // Check cache first
+
   const cacheKey = 'notes:list'
   const cached = notesCache.get(cacheKey)
   if (cached) {
     console.debug('[notesApi] Using cached notes list')
-    return { ok: true, status: 200, data: cached }
   }
-  
-  const result = await safeFetchJson<any[]>('/api/notes', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    signal,
-  })
-  
-  // Cache successful results
+
+  const result = await retryApiCall(
+    () =>
+      safeFetchJson<any[]>(
+        '/api/notes',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          signal,
+        },
+        8000
+      ),
+    retryOptions
+  )
+
   if (result.ok && result.data) {
-    notesCache.set(cacheKey, result.data, 30000) // 30s cache
+    notesCache.set(cacheKey, result.data, 30000)
+  } else if (!result.ok && cached) {
+    console.warn('[notesApi] Returning cached notes due to fetch failure')
+    return { ok: true, status: 'cached', data: cached }
   }
-  
+
   return result
 }
 
 /**
  * Fetch all folders
  */
-export async function fetchFoldersList(signal?: AbortSignal): Promise<ApiResult<any[]>> {
+export async function fetchFoldersList(
+  signal?: AbortSignal,
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<any[]>> {
   const token = await getSessionToken()
   if (!token) {
     return { ok: false, status: 'auth_error', data: null, error: 'No authentication token' }
   }
-  
-  // Check cache first
+
   const cacheKey = 'folders:list'
   const cached = notesCache.get(cacheKey)
   if (cached) {
     console.debug('[notesApi] Using cached folders list')
-    return { ok: true, status: 200, data: cached }
   }
-  
-  const result = await safeFetchJson<any[]>('/api/folders', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    signal,
-  }, 5000) // Shorter timeout for folders
-  
-  // Cache successful results
+
+  const result = await retryApiCall(
+    () =>
+      safeFetchJson<any[]>(
+        '/api/folders',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          signal,
+        },
+        5000
+      ),
+    retryOptions
+  )
+
   if (result.ok && result.data) {
-    notesCache.set(cacheKey, result.data, 60000) // 60s cache (folders change less)
+    notesCache.set(cacheKey, result.data, 60000)
+  } else if (!result.ok && cached) {
+    console.warn('[notesApi] Returning cached folders due to fetch failure')
+    return { ok: true, status: 'cached', data: cached }
   }
-  
+
   return result
 }
 

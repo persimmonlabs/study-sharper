@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useAuth } from '@/components/auth/AuthProvider'
 import type { Database } from '@/lib/supabase'
 import { supabase } from '@/lib/supabase'
+import { fetchNotesList, fetchFoldersList, type ApiResult } from '@/lib/api/notesApi'
 import { NoteModal } from '@/components/notes/NoteModal'
 import { NoteContextMenu } from '@/components/notes/NoteContextMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -173,73 +174,39 @@ export default function Notes() {
 
   const fetchFolders = useCallback(async (currentUser: User, signal?: AbortSignal): Promise<boolean> => {
     console.log('[fetchFolders] Starting folder fetch for user:', currentUser.id)
-    setFoldersError(null) // Clear previous errors
+    setFoldersError(null)
     
-    try {
-      const accessToken = await getSessionToken()
-      
-      if (!accessToken) {
-        const errorMsg = 'Unable to authenticate. Please try logging in again.'
-        console.warn('[fetchFolders] No session token available')
-        setFoldersError(errorMsg)
-        setFolders([])
-        return false // Indicate failure
-      }
-      
-      console.log('[fetchFolders] Making request to /api/folders')
-      
-      const response = await fetch('/api/folders', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal, // Pass abort signal to fetch
-      })
-      
-      console.log('[fetchFolders] Response status:', response.status)
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.error('[Notes] Unauthorized - redirecting to login')
-          router.push('/auth/login?next=/notes')
-          return false
-        }
-        
-        if (response.status >= 500) {
-          setFoldersError('Server error loading folders. Please try again.')
-        } else {
-          setFoldersError('Failed to load folders. Please check your connection.')
-        }
-        setFolders([])
-        return false // Indicate failure
-      }
-      
-      const data = await response.json() as NoteFolder[]
-      
-      setFolders(data || [])
-      setFoldersError(null) // Clear error on success
+    const result = await fetchFoldersList(signal, { retries: 2, initialDelayMs: 500 })
+    
+    if (result.ok && result.data) {
+      setFolders(result.data)
+      setFoldersError(null)
       setSelectedFolderId(prev => {
         if (!prev) return prev
-        return data?.some((folder: NoteFolder) => folder.id === prev) ? prev : null
+        return result.data?.some((folder: NoteFolder) => folder.id === prev) ? prev : null
       })
-      
-      // Note: Removed folders.length check from here to prevent infinite loop
-      // The check is done in the component body instead
+      console.log('[fetchFolders] Success:', result.data.length, 'folders')
       return true
-    } catch (error) {
-      // Don't set error if request was aborted (user navigated away)
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[fetchFolders] Request aborted')
+    } else {
+      // Handle errors
+      if (result.status === 401 || result.status === 'auth_error') {
+        console.error('[Notes] Unauthorized - redirecting to login')
+        router.push('/auth/login?next=/notes')
         return false
       }
-      console.error('[fetchFolders] Error:', error)
-      const errorMsg = error instanceof Error 
-        ? `Network error: ${error.message}` 
-        : 'Unable to connect to server. Please check your internet connection.'
+      
+      const errorMsg = result.error || 'Failed to load folders'
+      console.warn('[fetchFolders] Failed:', errorMsg)
       setFoldersError(errorMsg)
-      setFolders([])
-      return false // Indicate failure
+      
+      // Keep existing folders on error (don't wipe state)
+      // Only clear if we have no data at all
+      if (folders.length === 0) {
+        setFolders([])
+      }
+      return false
     }
-  }, [router])
+  }, [router, folders.length])
 
   const handleFolderDelete = async (folder: NoteFolder) => {
     if (!user) return
@@ -347,79 +314,44 @@ export default function Notes() {
 
   const fetchNotes = useCallback(async (currentUser: User, signal?: AbortSignal): Promise<boolean> => {
     console.log('[fetchNotes] Starting notes fetch for user:', currentUser.id)
-    setNotesError(null) // Clear previous errors
+    setNotesError(null)
     
-    try {
-      const accessToken = await getSessionToken()
-      
-      if (!accessToken) {
-        const errorMsg = 'Unable to authenticate. Please try logging in again.'
-        console.warn('[fetchNotes] No session token available')
-        setNotesError(errorMsg)
-        setNotes([])
-        setAvailableTags([])
-        setSelectedNote(null)
-        return false // Indicate failure
-      }
-      
-      console.log('[fetchNotes] Making request to /api/notes')
-      
-      const response = await fetch('/api/notes', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal, // Pass abort signal to fetch
-      })
-      
-      console.log('[fetchNotes] Response status:', response.status)
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.error('[Notes] Unauthorized - redirecting to login')
-          router.push('/auth/login?next=/notes')
-          return false
-        }
-        
-        if (response.status >= 500) {
-          setNotesError('Server error loading notes. Please try again.')
-        } else {
-          setNotesError('Failed to load notes. Please check your connection.')
-        }
-        setNotes([])
-        setAvailableTags([])
-        setSelectedNote(null)
-        return false // Indicate failure
-      }
-      
-      const data = await response.json() as Note[]
-      
-      setNotes(data || [])
-      setNotesError(null) // Clear error on success
-      setSelectedNote(prev => (prev && data?.some(note => note.id === prev.id)) ? prev : (data?.[0] ?? null))
+    const result = await fetchNotesList(signal, { retries: 2, initialDelayMs: 500 })
+    
+    if (result.ok && result.data) {
+      setNotes(result.data)
+      setNotesError(null)
+      setSelectedNote(prev => (prev && result.data?.some(note => note.id === prev.id)) ? prev : (result.data?.[0] ?? null))
 
       const uniqueTags = new Set<string>()
-      data?.forEach((note: Note) => {
+      result.data?.forEach((note: Note) => {
         note.tags?.forEach((tag: string) => uniqueTags.add(tag))
       })
       setAvailableTags(Array.from(uniqueTags).sort())
+      console.log('[fetchNotes] Success:', result.data.length, 'notes')
       return true
-    } catch (error) {
-      // Don't set error if request was aborted (user navigated away)
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[fetchNotes] Request aborted')
+    } else {
+      // Handle errors
+      if (result.status === 401 || result.status === 'auth_error') {
+        console.error('[Notes] Unauthorized - redirecting to login')
+        router.push('/auth/login?next=/notes')
         return false
       }
-      console.error('[fetchNotes] Error:', error)
-      const errorMsg = error instanceof Error 
-        ? `Network error: ${error.message}` 
-        : 'Unable to connect to server. Please check your internet connection.'
+      
+      const errorMsg = result.error || 'Failed to load notes'
+      console.warn('[fetchNotes] Failed:', errorMsg)
       setNotesError(errorMsg)
-      setNotes([])
-      setAvailableTags([])
-      setSelectedNote(null)
-      return false // Indicate failure
+      
+      // Keep existing notes on error (don't wipe state)
+      // Only clear if we have no data at all
+      if (notes.length === 0) {
+        setNotes([])
+        setAvailableTags([])
+        setSelectedNote(null)
+      }
+      return false
     }
-  }, [router])
+  }, [router, notes.length])
 
   // Load data when user is available
   // CRITICAL FIX: Use Promise.allSettled instead of Promise.all

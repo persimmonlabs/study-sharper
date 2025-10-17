@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { retryApiCall, type ApiResult, type ApiRetryOptions } from '@/lib/utils/fetchHelpers'
 import type {
   GenerateFlashcardsRequest,
   FlashcardSet,
@@ -33,22 +34,34 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
  * Generate flashcards from notes using AI
  */
 export async function generateFlashcards(
-  request: GenerateFlashcardsRequest
-): Promise<FlashcardSet> {
-  const response = await fetchWithAuth('/api/flashcards/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  request: GenerateFlashcardsRequest,
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<FlashcardSet>> {
+  return retryApiCall(
+    async () => {
+      const response = await fetchWithAuth('/api/flashcards/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: error?.error || 'Failed to generate flashcards',
+        }
+      }
+
+      const data = await response.json()
+      return { ok: true, status: response.status, data }
     },
-    body: JSON.stringify(request),
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to generate flashcards')
-  }
-
-  return response.json()
+    retryOptions
+  )
 }
 
 /**
@@ -70,18 +83,32 @@ export async function deleteFlashcardSet(setId: string): Promise<{ success: bool
 /**
  * Fetch all flashcard sets for the current user
  */
-export async function getFlashcardSets(signal?: AbortSignal): Promise<FlashcardSet[]> {
-  const response = await fetchWithAuth('/api/flashcards/sets', {
-    method: 'GET',
-    signal,
-  })
+export async function getFlashcardSets(
+  signal?: AbortSignal,
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<FlashcardSet[]>> {
+  return retryApiCall(
+    async () => {
+      const response = await fetchWithAuth('/api/flashcards/sets', {
+        method: 'GET',
+        signal,
+      })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch flashcard sets')
-  }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: error?.error || 'Failed to fetch flashcard sets',
+        }
+      }
 
-  return response.json()
+      const data = await response.json()
+      return { ok: true, status: response.status, data }
+    },
+    retryOptions
+  )
 }
 
 /**
@@ -125,34 +152,61 @@ export async function recordFlashcardReview(
 /**
  * Trigger auto-generation of suggested flashcard sets
  */
-export async function generateSuggestedFlashcards(): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
-  const response = await fetchWithAuth('/api/flashcards/suggest', {
-    method: 'POST',
-  })
+export async function generateSuggestedFlashcards(
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<{ suggestions: SuggestedFlashcardSet[]; count: number }>> {
+  return retryApiCall(
+    async () => {
+      const response = await fetchWithAuth('/api/flashcards/suggest', {
+        method: 'POST',
+      })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to generate suggestions')
-  }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: error?.error || 'Failed to generate suggestions',
+        }
+      }
 
-  return response.json()
+      const data = await response.json()
+      return { ok: true, status: response.status, data }
+    },
+    retryOptions
+  )
 }
 
 /**
  * Fetch suggested flashcard sets
  */
-export async function getSuggestedFlashcards(signal?: AbortSignal): Promise<{ suggestions: SuggestedFlashcardSet[], count: number }> {
-  const response = await fetchWithAuth('/api/flashcards/suggest', {
-    method: 'GET',
-    signal,
-  })
+export async function getSuggestedFlashcards(
+  signal?: AbortSignal,
+  retryOptions?: ApiRetryOptions
+): Promise<ApiResult<{ suggestions: SuggestedFlashcardSet[]; count: number }>> {
+  return retryApiCall(
+    async () => {
+      const response = await fetchWithAuth('/api/flashcards/suggest', {
+        method: 'GET',
+        signal,
+      })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch suggestions')
-  }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: error?.error || 'Failed to fetch suggestions',
+        }
+      }
 
-  return response.json()
+      const data = await response.json()
+      return { ok: true, status: response.status, data }
+    },
+    retryOptions
+  )
 }
 
 /**

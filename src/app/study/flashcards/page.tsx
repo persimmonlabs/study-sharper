@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { FlashcardSet, GenerateFlashcardsRequest, SuggestedFlashcardSet } from '@/types/flashcards'
@@ -55,101 +55,101 @@ export default function FlashcardsPage() {
     }
   }, [])
 
-  const fetchFlashcardSets = async (signal?: AbortSignal) => {
+  const fetchFlashcardSets = useCallback(async (signal?: AbortSignal) => {
     setSetsError(null)
-    try {
-      setLoading(true)
-      const sets = await getFlashcardSets(signal)
-      setFlashcardSets(sets)
+    setLoading(true)
+    
+    const result = await getFlashcardSets(signal, { retries: 2, initialDelayMs: 500 })
+    
+    if (result.ok && result.data) {
+      setFlashcardSets(result.data)
       setSetsError(null)
-    } catch (error) {
-      // Don't set error if request was aborted
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[Flashcards] Request aborted')
-        return
-      }
-      console.error('Failed to fetch flashcard sets:', error)
-      const errorMsg = error instanceof Error ? error.message : 'Failed to load flashcard sets'
+      console.log('[Flashcards] Success:', result.data.length, 'sets')
+    } else {
+      const errorMsg = result.error || 'Failed to load flashcard sets'
+      console.warn('[Flashcards] Failed:', errorMsg)
       setSetsError(errorMsg)
-      setFlashcardSets([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchSuggestedSets = async (signal?: AbortSignal) => {
-    setSuggestionsError(null)
-    try {
-      setLoadingSuggestions(true)
-      const result = await getSuggestedFlashcards(signal)
-      setSuggestedSets(result.suggestions)
-      setSuggestionsError(null)
-    } catch (error) {
-      // Don't set error if request was aborted
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[Flashcards] Suggestions request aborted')
-        return
+      
+      // Keep existing sets on error (don't wipe state)
+      if (flashcardSets.length === 0) {
+        setFlashcardSets([])
       }
-      console.error('Failed to fetch suggestions:', error)
-      const errorMsg = error instanceof Error ? error.message : 'Failed to load suggestions'
+    }
+    
+    setLoading(false)
+  }, [flashcardSets.length])
+
+  const fetchSuggestedSets = useCallback(async (signal?: AbortSignal) => {
+    setSuggestionsError(null)
+    setLoadingSuggestions(true)
+    
+    const result = await getSuggestedFlashcards(signal, { retries: 1, initialDelayMs: 300 })
+    
+    if (result.ok && result.data) {
+      setSuggestedSets(result.data.suggestions)
+      setSuggestionsError(null)
+      console.log('[Flashcards] Suggestions:', result.data.suggestions.length)
+    } else {
+      const errorMsg = result.error || 'Failed to load suggestions'
+      console.warn('[Flashcards] Suggestions failed:', errorMsg)
       setSuggestionsError(errorMsg)
       setSuggestedSets([])
-    } finally {
-      setLoadingSuggestions(false)
     }
-  }
+    
+    setLoadingSuggestions(false)
+  }, [])
 
-  const handleGenerateSuggestions = async () => {
-    try {
-      setLoadingSuggestions(true)
-      await generateSuggestedFlashcards()
+  const handleGenerateSuggestions = useCallback(async () => {
+    setLoadingSuggestions(true)
+    
+    const result = await generateSuggestedFlashcards({ retries: 1 })
+    
+    if (result.ok) {
       await fetchSuggestedSets()
       setToast({
         message: '✨ Suggestions refreshed!',
         type: 'success'
       })
-    } catch (error) {
-      console.error('Failed to generate suggestions:', error)
+    } else {
       setToast({
-        message: 'Failed to generate suggestions. Please try again.',
+        message: result.error || 'Failed to generate suggestions. Please try again.',
         type: 'error'
       })
-    } finally {
-      setLoadingSuggestions(false)
     }
-  }
+    
+    setLoadingSuggestions(false)
+  }, [fetchSuggestedSets])
 
-  const handleGenerate = async (request: GenerateFlashcardsRequest) => {
-    try {
-      setIsGenerating(true)
-      setSetsError(null) // Clear any previous errors
-      
-      const newSet = await generateFlashcards(request)
-      
+  const handleGenerate = useCallback(async (request: GenerateFlashcardsRequest) => {
+    setIsGenerating(true)
+    setSetsError(null)
+    
+    const result = await generateFlashcards(request, { retries: 1, initialDelayMs: 1000 })
+    
+    if (result.ok && result.data) {
       // Show success toast
       setToast({
-        message: `✨ Successfully generated ${newSet.total_cards} flashcards!`,
+        message: `✨ Successfully generated ${result.data.total_cards} flashcards!`,
         type: 'success'
       })
       
       // Add the new set to the list immediately (optimistic update)
-      setFlashcardSets(prev => [newSet, ...prev])
+      setFlashcardSets(prev => [result.data!, ...prev])
       
       // Navigate to the new set after a brief delay to show toast
       setTimeout(() => {
-        router.push(`/study/flashcards/${newSet.id}`)
+        router.push(`/study/flashcards/${result.data!.id}`)
       }, 1500)
-    } catch (error) {
-      console.error('Failed to generate flashcards:', error)
-      const message = error instanceof Error ? error.message : 'Failed to generate flashcards'
+    } else {
+      const message = result.error || 'Failed to generate flashcards'
       setToast({
         message: `❌ ${message}. Please try again.`,
         type: 'error'
       })
-    } finally {
-      setIsGenerating(false)
     }
-  }
+    
+    setIsGenerating(false)
+  }, [router])
 
   const handleDelete = async (setId: string) => {
     if (!confirm('Are you sure you want to delete this flashcard set?')) {

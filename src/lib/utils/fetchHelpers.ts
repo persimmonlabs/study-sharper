@@ -154,3 +154,61 @@ class SimpleCache<T> {
 }
 
 export const notesCache = new SimpleCache<any>()
+
+export interface ApiRetryOptions {
+  /**
+   * Number of retry attempts after the initial call fails.
+   * Total attempts = retries + 1 (initial try + retries)
+   */
+  retries?: number
+  /** Initial delay in milliseconds before the first retry. */
+  initialDelayMs?: number
+  /** Multiplier applied to the delay after each retry (exponential backoff). */
+  backoffMultiplier?: number
+  /**
+   * Optional predicate to control whether a given failure should trigger a retry.
+   * Defaults to retrying on network errors, parse errors, and 5xx HTTP responses.
+   */
+  shouldRetry?: <T>(result: ApiResult<T>) => boolean
+}
+
+export async function retryApiCall<T>(
+  operation: () => Promise<ApiResult<T>>,
+  options: ApiRetryOptions = {}
+): Promise<ApiResult<T>> {
+  const {
+    retries = 2,
+    initialDelayMs = 500,
+    backoffMultiplier = 2,
+    shouldRetry = (result: ApiResult<T>) => {
+      if (result.ok) return false
+      if (result.status === 'network_error' || result.status === 'parse_error') {
+        return true
+      }
+      if (typeof result.status === 'number') {
+        return result.status >= 500
+      }
+      return false
+    }
+  } = options
+
+  let attempt = 0
+  let delay = initialDelayMs
+  let lastResult: ApiResult<T> | null = null
+
+  while (attempt <= retries) {
+    const result = await operation()
+
+    if (result.ok || !shouldRetry(result) || attempt === retries) {
+      return result
+    }
+
+    lastResult = result
+    await new Promise<void>((resolve) => setTimeout(resolve, Math.max(delay, 0)))
+    delay *= backoffMultiplier
+    attempt += 1
+  }
+
+  // If we exit the loop without returning, provide the last recorded result or a fallback network error.
+  return lastResult ?? { ok: false, status: 'network_error', data: null, error: 'Request failed' }
+}
