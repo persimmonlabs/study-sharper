@@ -215,26 +215,51 @@ export default function FlashcardsPage() {
       )}
 
       {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      {loading ? (
+        <div className="flex justify-center items-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-200 border-t-blue-600"></div>
         </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && flashcardSets.length === 0 && (
+      ) : flashcardSets.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 text-center">
-          <svg className="w-20 h-20 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Flashcard Sets Yet
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30">
+            <svg className="h-10 w-10 text-blue-500 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+            You don’t have any flashcards yet
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-            Create your first flashcard set from your notes. AI will generate intelligent Q&A pairs to help you master the material.
+          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+            Kickstart your study journey by generating flashcards from your notes or creating a set manually. We’ll track your progress and help you stay consistent.
           </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              onClick={() => {
+                setCreateMode('ai')
+                setIsDialogOpen(true)
+              }}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              AI Generate Flashcards
+            </button>
+            <button
+              onClick={() => {
+                setCreateMode('manual')
+                setIsManualDialogOpen(true)
+              }}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-9 8h10a2 2 0 002-2V6a2 2 0 00-2-2H9l-3 3v13a2 2 0 002 2z" />
+              </svg>
+              Create Set Manually
+            </button>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {/* Flashcard Sets Grid */}
       {!loading && flashcardSets.length > 0 && (
