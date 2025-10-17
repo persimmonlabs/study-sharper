@@ -8,6 +8,7 @@ import { GenerateFlashcardsDialog } from '@/components/notes/GenerateFlashcardsD
 import { UnifiedChatInterface } from '@/components/ai/UnifiedChatInterface'
 import { CreateManualSetDialog } from '@/components/flashcards/CreateManualSetDialog'
 import { ErrorBanner } from '@/components/ui/ErrorBanner'
+import { Toast } from '@/components/ui/Toast'
 import { generateFlashcards, getFlashcardSets, getSuggestedFlashcards, generateSuggestedFlashcards, deleteFlashcardSet } from '@/lib/api/flashcards'
 
 export default function FlashcardsPage() {
@@ -24,6 +25,9 @@ export default function FlashcardsPage() {
   // Error states
   const [setsError, setSetsError] = useState<string | null>(null)
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   useEffect(() => {
     // AbortController for cleanup - cancels requests on unmount
@@ -100,9 +104,16 @@ export default function FlashcardsPage() {
       setLoadingSuggestions(true)
       await generateSuggestedFlashcards()
       await fetchSuggestedSets()
+      setToast({
+        message: '✨ Suggestions refreshed!',
+        type: 'success'
+      })
     } catch (error) {
       console.error('Failed to generate suggestions:', error)
-      alert('Failed to generate suggestions. Please try again.')
+      setToast({
+        message: 'Failed to generate suggestions. Please try again.',
+        type: 'error'
+      })
     } finally {
       setLoadingSuggestions(false)
     }
@@ -111,21 +122,30 @@ export default function FlashcardsPage() {
   const handleGenerate = async (request: GenerateFlashcardsRequest) => {
     try {
       setIsGenerating(true)
+      setSetsError(null) // Clear any previous errors
       
       const newSet = await generateFlashcards(request)
       
-      // Show success message
-      alert(`✨ Successfully generated ${newSet.total_cards} flashcards!`)
+      // Show success toast
+      setToast({
+        message: `✨ Successfully generated ${newSet.total_cards} flashcards!`,
+        type: 'success'
+      })
       
-      // Refresh list
-      await fetchFlashcardSets()
+      // Add the new set to the list immediately (optimistic update)
+      setFlashcardSets(prev => [newSet, ...prev])
       
-      // Navigate to the new set
-      router.push(`/study/flashcards/${newSet.id}`)
+      // Navigate to the new set after a brief delay to show toast
+      setTimeout(() => {
+        router.push(`/study/flashcards/${newSet.id}`)
+      }, 1500)
     } catch (error) {
       console.error('Failed to generate flashcards:', error)
       const message = error instanceof Error ? error.message : 'Failed to generate flashcards'
-      alert(`❌ ${message}. Please try again.`)
+      setToast({
+        message: `❌ ${message}. Please try again.`,
+        type: 'error'
+      })
     } finally {
       setIsGenerating(false)
     }
@@ -167,6 +187,15 @@ export default function FlashcardsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      
       {/* Error Banners */}
       {setsError && (
         <ErrorBanner
