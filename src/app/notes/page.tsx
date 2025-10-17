@@ -155,6 +155,13 @@ export default function Notes() {
   const safeFolders = normalizeList(folders)
 
   const canCreateMoreFolders = safeFolders.length < FOLDER_LIMIT
+  
+  // Close create folder dialog if limit reached
+  useEffect(() => {
+    if (safeFolders.length >= FOLDER_LIMIT && isCreateFolderOpen) {
+      setIsCreateFolderOpen(false)
+    }
+  }, [safeFolders.length, isCreateFolderOpen])
 
   const activeFolder = useMemo(() => {
     if (!selectedFolderId) return null
@@ -215,9 +222,8 @@ export default function Notes() {
         return data?.some((folder: NoteFolder) => folder.id === prev) ? prev : null
       })
       
-      if (folders.length >= FOLDER_LIMIT) {
-        setIsCreateFolderOpen(false)
-      }
+      // Note: Removed folders.length check from here to prevent infinite loop
+      // The check is done in the component body instead
       return true
     } catch (error) {
       // Don't set error if request was aborted (user navigated away)
@@ -233,7 +239,7 @@ export default function Notes() {
       setFolders([])
       return false // Indicate failure
     }
-  }, [router, folders.length])
+  }, [router])
 
   const handleFolderDelete = async (folder: NoteFolder) => {
     if (!user) return
@@ -422,45 +428,66 @@ export default function Notes() {
     console.debug('[Notes] useEffect triggered', { authLoading, hasUser: !!user })
     
     if (authLoading) {
+      console.debug('[Notes] Still auth loading, waiting...')
       return
     }
 
     if (!user) {
+      console.debug('[Notes] No user, setting loading to false')
       setLoading(false)
       return
     }
 
+    console.log('[Notes] User available, starting data load')
+    
     // AbortController for cleanup - cancels requests on unmount
     const abortController = new AbortController()
     let isMounted = true
+    
+    // Safety timeout - force loading to false after 10 seconds
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[Notes] Safety timeout triggered - forcing loading to false')
+        setLoading(false)
+      }
+    }, 10000)
 
     const loadData = async () => {
       console.log('[Notes] Starting parallel data load...')
       const startTime = Date.now()
       
-      // CRITICAL: Use allSettled so folders can load even if notes fail (or vice versa)
-      const results = await Promise.allSettled([
-        fetchNotes(user, abortController.signal),
-        fetchFolders(user, abortController.signal)
-      ])
-      
-      if (!isMounted) {
-        console.log('[Notes] Component unmounted, skipping state updates')
-        return
+      try {
+        // CRITICAL: Use allSettled so folders can load even if notes fail (or vice versa)
+        const results = await Promise.allSettled([
+          fetchNotes(user, abortController.signal),
+          fetchFolders(user, abortController.signal)
+        ])
+        
+        if (!isMounted) {
+          console.log('[Notes] Component unmounted, skipping state updates')
+          return
+        }
+        
+        const loadTime = Date.now() - startTime
+        
+        // Log results for debugging
+        const [notesResult, foldersResult] = results
+        console.log('[Notes] Load results:', {
+          notes: notesResult.status,
+          folders: foldersResult.status,
+          timeMs: loadTime
+        })
+        
+        // Always set loading to false - show partial data if available
+        console.log('[Notes] Setting loading to FALSE')
+        setLoading(false)
+      } catch (error) {
+        console.error('[Notes] Unexpected error in loadData:', error)
+        if (isMounted) {
+          console.log('[Notes] Error occurred, setting loading to FALSE anyway')
+          setLoading(false)
+        }
       }
-      
-      const loadTime = Date.now() - startTime
-      
-      // Log results for debugging
-      const [notesResult, foldersResult] = results
-      console.log('[Notes] Load results:', {
-        notes: notesResult.status,
-        folders: foldersResult.status,
-        timeMs: loadTime
-      })
-      
-      // Always set loading to false - show partial data if available
-      setLoading(false)
     }
 
     loadData()
@@ -468,10 +495,11 @@ export default function Notes() {
     // Cleanup function - cancels pending requests
     return () => {
       console.log('[Notes] Cleaning up - aborting pending requests')
+      clearTimeout(safetyTimeout)
       isMounted = false
       abortController.abort()
     }
-  }, [user, authLoading, fetchNotes, fetchFolders])
+  }, [user, authLoading])
 
   const filteredNotes = useMemo(() => {
     // Defensive: ensure notes is always an array
