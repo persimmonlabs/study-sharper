@@ -65,6 +65,12 @@ const generateMessageId = (): string => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+// Defensive utility to ensure arrays are never null/undefined
+function normalizeList<T>(value: T[] | null | undefined): T[] {
+  if (!Array.isArray(value)) return []
+  return value
+}
+
 // Helper function to get session token with caching
 let cachedToken: string | null = null
 let tokenExpiry: number = 0
@@ -145,12 +151,15 @@ export default function Notes() {
   const renameInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const canCreateMoreFolders = folders.length < FOLDER_LIMIT
+  // Defensive: ensure folders is always an array for rendering
+  const safeFolders = normalizeList(folders)
+
+  const canCreateMoreFolders = safeFolders.length < FOLDER_LIMIT
 
   const activeFolder = useMemo(() => {
     if (!selectedFolderId) return null
-    return folders.find(folder => folder.id === selectedFolderId) ?? null
-  }, [folders, selectedFolderId])
+    return safeFolders.find(folder => folder.id === selectedFolderId) ?? null
+  }, [safeFolders, selectedFolderId])
 
   // OCR file size limit (1MB = 1024 * 1024 bytes)
   const OCR_SIZE_LIMIT = 1024 * 1024
@@ -407,8 +416,11 @@ export default function Notes() {
   }, [router])
 
   // Load data when user is available
-  // Optimized: Fetch notes and folders in parallel using Promise.all
+  // CRITICAL FIX: Use Promise.allSettled instead of Promise.all
+  // This ensures one failure doesn't block the other from displaying
   useEffect(() => {
+    console.debug('[Notes] useEffect triggered', { authLoading, hasUser: !!user })
+    
     if (authLoading) {
       return
     }
@@ -423,29 +435,32 @@ export default function Notes() {
     let isMounted = true
 
     const loadData = async () => {
-      try {
-        console.log('[Notes] Starting parallel data load...')
-        const startTime = Date.now()
-        
-        // Fetch notes and folders in parallel for faster loading
-        await Promise.all([
-          fetchNotes(user, abortController.signal),
-          fetchFolders(user, abortController.signal)
-        ])
-        
-        if (!isMounted) {
-          console.log('[Notes] Component unmounted, skipping state updates')
-          return
-        }
-        
-        const loadTime = Date.now() - startTime
-        console.log(`[Notes] Data loaded in ${loadTime}ms`)
-        setLoading(false)
-      } catch (error) {
-        if (!isMounted) return
-        console.error('[Notes] Error during data load:', error)
-        setLoading(false)
+      console.log('[Notes] Starting parallel data load...')
+      const startTime = Date.now()
+      
+      // CRITICAL: Use allSettled so folders can load even if notes fail (or vice versa)
+      const results = await Promise.allSettled([
+        fetchNotes(user, abortController.signal),
+        fetchFolders(user, abortController.signal)
+      ])
+      
+      if (!isMounted) {
+        console.log('[Notes] Component unmounted, skipping state updates')
+        return
       }
+      
+      const loadTime = Date.now() - startTime
+      
+      // Log results for debugging
+      const [notesResult, foldersResult] = results
+      console.log('[Notes] Load results:', {
+        notes: notesResult.status,
+        folders: foldersResult.status,
+        timeMs: loadTime
+      })
+      
+      // Always set loading to false - show partial data if available
+      setLoading(false)
     }
 
     loadData()
@@ -459,7 +474,9 @@ export default function Notes() {
   }, [user, authLoading, fetchNotes, fetchFolders])
 
   const filteredNotes = useMemo(() => {
-    return notes.filter(note => {
+    // Defensive: ensure notes is always an array
+    const safeNotes = normalizeList(notes)
+    return safeNotes.filter(note => {
       // Note: content field is not available in lightweight notes
       // Search only by title and tags for performance
       const matchesSearch = debouncedSearchTerm === '' || 
@@ -1451,7 +1468,7 @@ export default function Notes() {
               <div className="p-2">
                 {filteredNotes.map((note) => {
                   const folderColor = note.folder_id
-                    ? folders.find(folder => folder.id === note.folder_id)?.color ?? '#9ca3af'
+                    ? safeFolders.find(folder => folder.id === note.folder_id)?.color ?? '#9ca3af'
                     : null
 
                   return (
