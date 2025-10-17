@@ -21,11 +21,13 @@ export default function Study() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const flashcardSets = await getFlashcardSets()
-        setStats(prev => ({
-          ...prev,
-          flashcardSets: flashcardSets.length
-        }))
+        const result = await getFlashcardSets()
+        if (result.ok && result.data) {
+          setStats(prev => ({
+            ...prev,
+            flashcardSets: result.data?.length || 0
+          }))
+        }
       } catch (error) {
         console.error('Failed to fetch study stats:', error)
       } finally {
