@@ -29,32 +29,6 @@ export default function FlashcardsPage() {
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
-  useEffect(() => {
-    // AbortController for cleanup - cancels requests on unmount
-    const abortController = new AbortController()
-    let isMounted = true
-
-    const loadData = async () => {
-      await Promise.allSettled([
-        fetchFlashcardSets(abortController.signal),
-        fetchSuggestedSets(abortController.signal)
-      ])
-      
-      if (!isMounted) {
-        console.log('[Flashcards] Component unmounted, skipping state updates')
-      }
-    }
-
-    loadData()
-
-    // Cleanup function - prevents state updates after unmount
-    return () => {
-      console.log('[Flashcards] Cleaning up - aborting pending requests')
-      isMounted = false
-      abortController.abort()
-    }
-  }, [fetchFlashcardSets, fetchSuggestedSets])
-
   const fetchFlashcardSets = useCallback(async (signal?: AbortSignal) => {
     setSetsError(null)
     setLoading(true)
@@ -184,6 +158,33 @@ export default function FlashcardsPage() {
     if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`
     return date.toLocaleDateString()
   }
+
+  // Load data on mount
+  useEffect(() => {
+    // AbortController for cleanup - cancels requests on unmount
+    const abortController = new AbortController()
+    let isMounted = true
+
+    const loadData = async () => {
+      await Promise.allSettled([
+        fetchFlashcardSets(abortController.signal),
+        fetchSuggestedSets(abortController.signal)
+      ])
+      
+      if (!isMounted) {
+        console.log('[Flashcards] Component unmounted, skipping state updates')
+      }
+    }
+
+    loadData()
+
+    // Cleanup function - prevents state updates after unmount
+    return () => {
+      console.log('[Flashcards] Cleaning up - aborting pending requests')
+      isMounted = false
+      abortController.abort()
+    }
+  }, [fetchFlashcardSets, fetchSuggestedSets])
 
   return (
     <div className="space-y-6">
