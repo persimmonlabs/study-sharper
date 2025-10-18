@@ -31,6 +31,7 @@ type Note = Database['public']['Tables']['notes']['Row'] & {
   error_message?: string
   original_filename?: string
   ocr_processed?: boolean
+  edited_manually?: boolean
   highlights?: Array<{
     id: string
     text: string
