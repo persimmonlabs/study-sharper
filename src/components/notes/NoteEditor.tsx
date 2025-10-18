@@ -11,6 +11,12 @@ const MDEditor = dynamic(
   { ssr: false }
 )
 
+// Dynamically import the markdown preview component
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-markdown-preview').then((mod) => mod.default),
+  { ssr: false }
+)
+
 interface NoteEditorProps {
   noteId: string
   initialText: string
@@ -227,7 +233,7 @@ export function NoteEditor({
       <div className="flex-1 overflow-hidden">
         {showPreview ? (
           <div className="h-full overflow-auto p-6 prose dark:prose-invert max-w-none">
-            <MDEditor.Markdown source={text} />
+            <MarkdownPreview source={text} />
           </div>
         ) : (
           <div className="h-full" data-color-mode="light">
