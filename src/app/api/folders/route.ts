@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000'
-const BACKEND_TIMEOUT = 5000 // 5 second timeout
+const BACKEND_TIMEOUT = 30000 // 30 second timeout - backend may need time for large datasets
 
 export async function GET(request: NextRequest) {
   try {

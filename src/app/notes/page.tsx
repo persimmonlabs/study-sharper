@@ -376,13 +376,13 @@ export default function Notes() {
     const abortController = new AbortController()
     let isMounted = true
     
-    // Safety timeout - force loading to false after 10 seconds
+    // Safety timeout - force loading to false after 35 seconds (matches backend timeout)
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
         console.warn('[Notes] Safety timeout triggered - forcing loading to false')
         setLoading(false)
       }
-    }, 10000)
+    }, 35000)
 
     const loadData = async () => {
       console.log('[Notes] Starting parallel data load...')
@@ -402,17 +402,29 @@ export default function Notes() {
         
         const loadTime = Date.now() - startTime
         
-        // Log results for debugging
+        // Check if at least one succeeded
         const [notesResult, foldersResult] = results
+        const notesSuccess = notesResult.status === 'fulfilled' && notesResult.value === true
+        const foldersSuccess = foldersResult.status === 'fulfilled' && foldersResult.value === true
+        
         console.log('[Notes] Load results:', {
           notes: notesResult.status,
+          notesSuccess,
           folders: foldersResult.status,
+          foldersSuccess,
           timeMs: loadTime
         })
         
-        // Always set loading to false - show partial data if available
-        console.log('[Notes] Setting loading to FALSE')
-        setLoading(false)
+        // CRITICAL FIX: Only hide loading if at least one data source loaded successfully
+        // This prevents showing empty state when backend is slow but working
+        if (notesSuccess || foldersSuccess) {
+          console.log('[Notes] At least one data source loaded - setting loading to FALSE')
+          setLoading(false)
+        } else {
+          console.warn('[Notes] Both data sources failed - keeping loading state visible')
+          // Keep loading=true so user sees spinner instead of empty state
+          // Errors will be shown via ErrorBanner components
+        }
       } catch (error) {
         console.error('[Notes] Unexpected error in loadData:', error)
         if (isMounted) {

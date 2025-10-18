@@ -82,7 +82,7 @@ export async function fetchNotesList(
           },
           signal,
         },
-        8000
+        25000 // 25s timeout - backend has 30s limit
       ),
     retryOptions
   )
@@ -125,7 +125,7 @@ export async function fetchFoldersList(
           },
           signal,
         },
-        5000
+        20000 // 20s timeout - backend has 30s limit
       ),
     retryOptions
   )
