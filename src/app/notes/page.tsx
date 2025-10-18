@@ -26,6 +26,11 @@ type Note = Database['public']['Tables']['notes']['Row'] & {
   tags?: string[]
   file_type?: string
   transcription?: string
+  processing_status?: 'pending' | 'processing' | 'completed' | 'failed'
+  extraction_method?: string
+  error_message?: string
+  original_filename?: string
+  ocr_processed?: boolean
   highlights?: Array<{
     id: string
     text: string
@@ -146,6 +151,10 @@ export default function Notes() {
   // Error states for better UX
   const [notesError, setNotesError] = useState<string | null>(null)
   const [foldersError, setFoldersError] = useState<string | null>(null)
+  
+  // Polling state for processing notes
+  const [pollingNoteIds, setPollingNoteIds] = useState<Set<string>>(new Set())
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -352,6 +361,136 @@ export default function Notes() {
       return false
     }
   }, [router, notes.length])
+
+  // Poll note status for processing notes
+  const pollNoteStatus = useCallback(async (noteId: string) => {
+    try {
+      const accessToken = await getSessionToken()
+      if (!accessToken) return
+
+      const response = await fetch(`/api/notes/${noteId}/status`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!response.ok) {
+        console.error(`[pollNoteStatus] Failed to get status for note ${noteId}`)
+        return
+      }
+
+      const status = await response.json()
+      
+      // Update note in state
+      setNotes(prev => prev.map(note => 
+        note.id === noteId 
+          ? { ...note, processing_status: status.processing_status, extraction_method: status.extraction_method, error_message: status.error_message }
+          : note
+      ))
+
+      // If completed or failed, stop polling this note
+      if (status.processing_status === 'completed' || status.processing_status === 'failed') {
+        setPollingNoteIds(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(noteId)
+          return newSet
+        })
+        
+        // Show toast notification for failed processing
+        if (status.processing_status === 'failed' && status.error_message) {
+          console.error(`[Note Processing] Failed for ${noteId}: ${status.error_message}`)
+          // Could add a toast notification here
+        }
+        
+        // Refresh full note data if completed
+        if (status.processing_status === 'completed' && user) {
+          await fetchNotes(user)
+        }
+      }
+    } catch (error) {
+      console.error(`[pollNoteStatus] Error polling note ${noteId}:`, error)
+    }
+  }, [user, fetchNotes])
+
+  // Retry processing for a failed note
+  const retryNoteProcessing = useCallback(async (noteId: string) => {
+    try {
+      const accessToken = await getSessionToken()
+      if (!accessToken) return
+
+      const response = await fetch(`/api/notes/${noteId}/process`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to retry processing')
+      }
+
+      // Add to polling set
+      setPollingNoteIds(prev => new Set(prev).add(noteId))
+      
+      // Update status to pending
+      setNotes(prev => prev.map(note => 
+        note.id === noteId 
+          ? { ...note, processing_status: 'pending' as const, error_message: undefined }
+          : note
+      ))
+      
+      console.log(`[retryNoteProcessing] Retry queued for note ${noteId}`)
+    } catch (error) {
+      console.error(`[retryNoteProcessing] Error:`, error)
+      alert('Failed to retry processing. Please try again.')
+    }
+  }, [])
+
+  // Effect to start polling for processing notes
+  useEffect(() => {
+    // Find notes that are pending or processing
+    const processingNotes = notes.filter(note => 
+      note.processing_status === 'pending' || note.processing_status === 'processing'
+    )
+    
+    // Add them to polling set
+    if (processingNotes.length > 0) {
+      setPollingNoteIds(prev => {
+        const newSet = new Set(prev)
+        processingNotes.forEach(note => newSet.add(note.id))
+        return newSet
+      })
+    }
+  }, [notes])
+
+  // Effect to manage polling interval
+  useEffect(() => {
+    if (pollingNoteIds.size === 0) {
+      // Clear interval if no notes to poll
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+      return
+    }
+
+    // Start polling every 2 seconds
+    if (!pollingIntervalRef.current) {
+      pollingIntervalRef.current = setInterval(() => {
+        pollingNoteIds.forEach(noteId => {
+          pollNoteStatus(noteId)
+        })
+      }, 2000)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [pollingNoteIds, pollNoteStatus])
 
   // Load data when user is available
   // CRITICAL FIX: Use Promise.allSettled instead of Promise.all
@@ -1442,16 +1581,24 @@ export default function Notes() {
                   const folderColor = note.folder_id
                     ? safeFolders.find(folder => folder.id === note.folder_id)?.color ?? '#9ca3af'
                     : null
+                  
+                  const isProcessing = note.processing_status === 'pending' || note.processing_status === 'processing'
+                  const isFailed = note.processing_status === 'failed'
+                  const isClickable = !isProcessing
 
                   return (
                     <div
                       key={note.id}
-                      onClick={() => handleViewNote(note)}
+                      onClick={() => isClickable && handleViewNote(note)}
                       onContextMenu={(e) => handleContextMenu(e, note.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 mb-2 ${
-                        selectedNote?.id === note.id
-                          ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 shadow-sm'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 hover:shadow-sm'
+                      className={`p-3 rounded-lg transition-all duration-200 mb-2 ${
+                        isProcessing
+                          ? 'opacity-60 cursor-wait bg-gray-100 dark:bg-gray-700/50'
+                          : isFailed
+                          ? 'cursor-pointer border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
+                          : selectedNote?.id === note.id
+                          ? 'cursor-pointer bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 shadow-sm'
+                          : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 hover:shadow-sm'
                       }`}
                     >
                       <div className="flex items-center space-x-2">
@@ -1462,15 +1609,48 @@ export default function Notes() {
                             aria-hidden
                           />
                         )}
+                        {isProcessing && (
+                          <svg className="animate-spin h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        )}
+                        {isFailed && (
+                          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
                         <h3 className={`font-medium text-gray-900 dark:text-gray-100 line-clamp-1 ${!sidebarOpen && 'hidden'}`}>
                           {note.title}
                         </h3>
                       </div>
-                      <p className={`text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1 ${!sidebarOpen && 'hidden'}`}>
-                        {note.content}
-                      </p>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        {formatDate(note.updated_at)}
+                      {isProcessing && (
+                        <p className={`text-xs text-blue-600 dark:text-blue-400 mt-1 ${!sidebarOpen && 'hidden'}`}>
+                          Processing file...
+                        </p>
+                      )}
+                      {isFailed && (
+                        <p className={`text-xs text-red-600 dark:text-red-400 mt-1 ${!sidebarOpen && 'hidden'}`}>
+                          ⚠️ Processing failed
+                        </p>
+                      )}
+                      {!isProcessing && !isFailed && (
+                        <p className={`text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1 ${!sidebarOpen && 'hidden'}`}>
+                          {note.content}
+                        </p>
+                      )}
+                      <div className={`flex items-center justify-between mt-2 ${!sidebarOpen && 'hidden'}`}>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(note.updated_at)}
+                        </div>
+                        {note.ocr_processed && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Scanned
+                          </span>
+                        )}
                       </div>
                     </div>
                   )
@@ -1486,25 +1666,66 @@ export default function Notes() {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Files</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredNotes.slice(0, 4).map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer"
-                    onClick={() => handleViewNote(note)}
-                    onContextMenu={(e) => handleContextMenu(e, note.id)}
-                  >
-                    <div className="flex items-center mb-2">
-                      <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <h3 className="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{note.title}</h3>
+                {filteredNotes.slice(0, 4).map((note) => {
+                  const isProcessing = note.processing_status === 'pending' || note.processing_status === 'processing'
+                  const isFailed = note.processing_status === 'failed'
+                  const isClickable = !isProcessing
+                  
+                  return (
+                    <div
+                      key={note.id}
+                      className={`p-4 border rounded-lg transition-all duration-200 ${
+                        isProcessing
+                          ? 'opacity-60 cursor-wait border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30'
+                          : isFailed
+                          ? 'cursor-pointer border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 hover:shadow-md hover:-translate-y-1'
+                          : 'cursor-pointer border-gray-200 dark:border-gray-600 hover:shadow-md hover:-translate-y-1'
+                      }`}
+                      onClick={() => isClickable && handleViewNote(note)}
+                      onContextMenu={(e) => handleContextMenu(e, note.id)}
+                    >
+                      <div className="flex items-center mb-2">
+                        {isProcessing ? (
+                          <svg className="animate-spin w-5 h-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : isFailed ? (
+                          <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                        <h3 className="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{note.title}</h3>
+                      </div>
+                      {isProcessing && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Processing file...</p>
+                      )}
+                      {isFailed && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mb-2">⚠️ Processing failed</p>
+                      )}
+                      {!isProcessing && !isFailed && (
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{note.content}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(note.updated_at)}
+                        </div>
+                        {note.ocr_processed && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Scanned
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{note.content}</p>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {formatDate(note.updated_at)}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {filteredNotes.length === 0 && (
                   <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400">
                     <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1724,17 +1945,22 @@ export default function Notes() {
       />
 
       {/* Context Menu */}
-      {contextMenu && (
-        <NoteContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onDelete={() => handleDeleteClick(contextMenu.noteId)}
-          onClose={() => setContextMenu(null)}
-          folders={folders}
-          currentFolderId={notes.find(note => note.id === contextMenu.noteId)?.folder_id ?? null}
-          onMove={(folderId) => handleMoveNote(contextMenu.noteId, folderId)}
-        />
-      )}
+      {contextMenu && (() => {
+        const note = notes.find(n => n.id === contextMenu.noteId)
+        return (
+          <NoteContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onDelete={() => handleDeleteClick(contextMenu.noteId)}
+            onClose={() => setContextMenu(null)}
+            folders={folders}
+            currentFolderId={note?.folder_id ?? null}
+            onMove={(folderId) => handleMoveNote(contextMenu.noteId, folderId)}
+            processingStatus={note?.processing_status}
+            onRetry={() => retryNoteProcessing(contextMenu.noteId)}
+          />
+        )
+      })()}
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}

@@ -16,9 +16,11 @@ interface NoteContextMenuProps {
   folders?: FolderOption[]
   currentFolderId?: string | null
   onMove?: (folderId: string | null) => void
+  processingStatus?: 'pending' | 'processing' | 'completed' | 'failed'
+  onRetry?: () => void
 }
 
-export function NoteContextMenu({ x, y, onDelete, onClose, folders = [], currentFolderId = null, onMove }: NoteContextMenuProps) {
+export function NoteContextMenu({ x, y, onDelete, onClose, folders = [], currentFolderId = null, onMove, processingStatus, onRetry }: NoteContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -79,6 +81,24 @@ export function NoteContextMenu({ x, y, onDelete, onClose, folders = [], current
       )}
 
       <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+
+      {processingStatus === 'failed' && onRetry && (
+        <>
+          <button
+            onClick={() => {
+              onRetry()
+              onClose()
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Retry Processing</span>
+          </button>
+          <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+        </>
+      )}
 
       <button
         onClick={() => {
