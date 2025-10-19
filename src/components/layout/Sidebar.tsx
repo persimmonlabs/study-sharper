@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Folder } from 'lucide-react'
 
 const DEFAULT_AVATAR = '👤'
 
 interface NavItem {
   href: string
-  icon: string
+  icon?: ReactNode
   label: string
   badge?: number
 }
@@ -37,11 +38,12 @@ export function Sidebar() {
 
   // Navigation items
   const navItems: NavItem[] = [
-    { href: '/dashboard', icon: '', label: 'Dashboard' },
-    { href: '/notes', icon: '', label: 'Notes' },
-    { href: '/study', icon: '', label: 'Study' },
-    { href: '/calendar', icon: '', label: 'Calendar' },
-    { href: '/social', icon: '', label: 'Social' },
+    { href: '/dashboard', label: 'Dashboard' },
+    { href: '/files', label: 'Files', icon: <Folder className="w-5 h-5" /> },
+    { href: '/notes', label: 'Notes' },
+    { href: '/study', label: 'Study' },
+    { href: '/calendar', label: 'Calendar' },
+    { href: '/social', label: 'Social' },
   ]
 
   const getLinkClassName = (href: string) => {
@@ -89,7 +91,10 @@ export function Sidebar() {
                 onClick={handleNavClick}
                 className={getLinkClassName(item.href)}
               >
-                <span className="flex-1">{item.label}</span>
+                <span className="flex items-center gap-2 flex-1">
+                  {item.icon && <span className="text-gray-500 dark:text-gray-300">{item.icon}</span>}
+                  <span className="flex-1">{item.label}</span>
+                </span>
                 {item.badge && (
                   <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300">
                     {item.badge}
