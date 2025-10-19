@@ -154,6 +154,42 @@ export async function createFolder(name: string, color: string, parentFolderId?:
   return response.json();
 }
 
+export async function createMarkdownFile(
+  title: string,
+  content: string,
+  folderId?: string
+): Promise<FileItem> {
+  const token = await getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/api/files`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title,
+      file_type: 'md',
+      content,
+      folder_id: folderId ?? undefined
+    })
+  });
+
+  let data: any = null;
+  try {
+    data = await response.json();
+  } catch (err) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message = data?.detail || data?.message || 'Failed to create note';
+    throw new Error(message);
+  }
+
+  return data?.file ?? data;
+}
+
 export async function updateFolder(folderId: string, updates: { name?: string; color?: string }): Promise<FileFolder> {
   const token = await getAuthToken();
   
@@ -206,6 +242,44 @@ export async function uploadFile(
   
   const data = await response.json();
   return data.file;
+}
+
+export interface FolderStructure {
+  folders: string[];
+  files: Array<{
+    index: number;
+    folder_path: string;
+    title: string;
+  }>;
+}
+
+export async function uploadFolder(
+  files: File[],
+  structure: FolderStructure,
+  parentFolderId?: string
+): Promise<{ success: boolean; message: string }> {
+  const token = await getAuthToken();
+  
+  const formData = new FormData();
+  formData.append('structure', JSON.stringify(structure));
+  if (parentFolderId) formData.append('parent_folder_id', parentFolderId);
+  
+  files.forEach((file, index) => {
+    formData.append(`file_${index}`, file);
+  });
+  
+  const response = await fetch(`${API_BASE_URL}/api/upload-folder`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Folder upload failed');
+  }
+  
+  return response.json();
 }
 
 // Quota API
