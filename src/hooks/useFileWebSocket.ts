@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { WebSocketMessage } from '@/types/files';
+import { supabase } from '@/lib/supabase';
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://study-sharper-backend.onrender.com';
 
@@ -17,37 +18,18 @@ export function useFileWebSocket(options: UseFileWebSocketOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!enabled) return;
 
-    // Get auth token from Supabase session
-    const keys = Object.keys(localStorage);
-    const supabaseKey = keys.find(key => key.startsWith('sb-') && key.includes('-auth-token'));
-
-    if (!supabaseKey) {
-      console.warn('No auth token found, WebSocket not connected');
+    // Get auth token from Supabase
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error || !session?.access_token) {
+      console.warn('[WebSocket] No auth token found, WebSocket not connected');
       return;
     }
 
-    const sessionData = localStorage.getItem(supabaseKey);
-    if (!sessionData) {
-      console.warn('No session data found, WebSocket not connected');
-      return;
-    }
-
-    let token;
-    try {
-      const parsed = JSON.parse(sessionData);
-      token = parsed.access_token;
-    } catch (e) {
-      console.warn('Failed to parse session data:', e);
-      return;
-    }
-
-    if (!token) {
-      console.warn('No access token in session, WebSocket not connected');
-      return;
-    }
+    const token = session.access_token;
 
     try {
       const ws = new WebSocket(`${WS_BASE_URL}/ws/files?token=${token}`);
@@ -65,6 +47,11 @@ export function useFileWebSocket(options: UseFileWebSocketOptions = {}) {
       };
 
       ws.onmessage = (event) => {
+        // Handle heartbeat pong response
+        if (event.data === 'pong') {
+          return; // Ignore pong messages
+        }
+
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
 
@@ -74,7 +61,7 @@ export function useFileWebSocket(options: UseFileWebSocketOptions = {}) {
             onBulkUpdate?.(message.updates);
           }
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('[WebSocket] Failed to parse message:', error, 'Data:', event.data);
         }
       };
 
