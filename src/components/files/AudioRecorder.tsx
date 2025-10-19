@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { uploadFile } from '@/lib/api/filesApi';
 import type { FileItem } from '@/types/files';
 
@@ -198,7 +198,7 @@ export function AudioRecorder({ folderId, onUploaded, onError }: AudioRecorderPr
     setLevel(0);
   }
 
-  function cleanupRecorder() {
+  const cleanupRecorder = useCallback(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
@@ -232,7 +232,7 @@ export function AudioRecorder({ folderId, onUploaded, onError }: AudioRecorderPr
     }
 
     stopVisualization();
-  }
+  }, []);
 
   function formatTime(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);

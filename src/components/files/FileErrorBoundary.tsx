@@ -68,7 +68,7 @@ export class FileErrorBoundary extends Component<Props, State> {
             </h2>
             
             <p className="mb-6 text-center text-sm text-gray-600">
-              We encountered an error while loading your files. Don't worry, your data is safe.
+              We encountered an error while loading your files. Don&apos;t worry, your data is safe.
             </p>
 
             {this.state.error && (

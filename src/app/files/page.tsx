@@ -329,7 +329,7 @@ export default function FilesPage() {
   };
 
   // Handle file delete
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = useCallback(async (fileId: string) => {
     if (!confirm('Are you sure you want to delete this file?')) return;
     
     try {
@@ -341,7 +341,7 @@ export default function FilesPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete file');
     }
-  };
+  }, [selectedFile]);
 
   // Handle retry
   const handleRetry = async (fileId: string) => {
