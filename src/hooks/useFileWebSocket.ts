@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { WebSocketMessage } from '@/types/files';
 
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000';
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://study-sharper-backend.onrender.com';
 
 interface UseFileWebSocketOptions {
   onFileUpdate?: (fileId: string, data: any) => void;

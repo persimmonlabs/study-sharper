@@ -2,7 +2,7 @@
 
 import { FileItem, FileFolder, UserQuota } from '@/types/files';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend.onrender.com';
 
 // Helper to get auth token from Supabase
 async function getAuthToken(): Promise<string> {

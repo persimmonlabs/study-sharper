@@ -448,7 +448,7 @@ export default function FilesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/embeddings/search`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend.onrender.com'}/api/embeddings/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
