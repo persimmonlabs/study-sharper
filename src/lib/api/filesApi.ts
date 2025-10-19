@@ -1,51 +1,52 @@
 // src/lib/api/filesApi.ts
 
 import { FileItem, FileFolder, UserQuota } from '@/types/files';
+import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend.onrender.com';
 
 // Helper to get auth token from Supabase
 async function getAuthToken(): Promise<string> {
-  // Try to get token from Supabase session
-  if (typeof window === 'undefined') {
-    throw new Error('Cannot get auth token on server side');
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  if (error) {
+    console.error('[filesApi] Session error:', error);
+    throw new Error('Authentication error');
   }
-
-  // Check localStorage for Supabase session
-  const keys = Object.keys(localStorage);
-  const supabaseKey = keys.find(key => key.startsWith('sb-') && key.includes('-auth-token'));
-
-  if (supabaseKey) {
-    const sessionData = localStorage.getItem(supabaseKey);
-    if (sessionData) {
-      try {
-        const parsed = JSON.parse(sessionData);
-        if (parsed.access_token) {
-          return parsed.access_token;
-        }
-      } catch (e) {
-        console.error('Failed to parse Supabase token:', e);
-      }
-    }
+  
+  if (!session?.access_token) {
+    throw new Error('Not authenticated - please log in');
   }
-
-  throw new Error('Not authenticated - please log in');
+  
+  return session.access_token;
 }
 
 // Files API
 export async function fetchFiles(folderId?: string | null): Promise<FileItem[]> {
-  const token = await getAuthToken();
-  const url = new URL(`${API_BASE_URL}/api/files`);
-  if (folderId) url.searchParams.set('folder_id', folderId);
-  
-  const response = await fetch(url.toString(), {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (!response.ok) throw new Error('Failed to fetch files');
-  
-  const data = await response.json();
-  return data.files;
+  try {
+    const token = await getAuthToken();
+    const url = new URL(`${API_BASE_URL}/api/files`);
+    if (folderId) url.searchParams.set('folder_id', folderId);
+    
+    console.log('[filesApi] Fetching files from:', url.toString());
+    
+    const response = await fetch(url.toString(), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[filesApi] Fetch files failed:', response.status, errorText);
+      throw new Error(`Failed to fetch files: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('[filesApi] Files fetched successfully:', data.files?.length || 0);
+    return data.files || [];
+  } catch (error) {
+    console.error('[filesApi] fetchFiles error:', error);
+    throw error;
+  }
 }
 
 export async function fetchFile(fileId: string): Promise<FileItem> {
@@ -126,32 +127,58 @@ export async function uploadYoutubeTranscript(
 
 // Folders API
 export async function fetchFolders(): Promise<FileFolder[]> {
-  const token = await getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/api/folders`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (!response.ok) throw new Error('Failed to fetch folders');
-  
-  const data = await response.json();
-  return data.folders;
+  try {
+    const token = await getAuthToken();
+    
+    console.log('[filesApi] Fetching folders from:', `${API_BASE_URL}/api/folders`);
+    
+    const response = await fetch(`${API_BASE_URL}/api/folders`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[filesApi] Fetch folders failed:', response.status, errorText);
+      throw new Error(`Failed to fetch folders: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('[filesApi] Folders fetched successfully:', data.folders?.length || 0);
+    return data.folders || [];
+  } catch (error) {
+    console.error('[filesApi] fetchFolders error:', error);
+    throw error;
+  }
 }
 
 export async function createFolder(name: string, color: string, parentFolderId?: string): Promise<FileFolder> {
-  const token = await getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/api/folders`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ name, color, parent_folder_id: parentFolderId })
-  });
-  
-  if (!response.ok) throw new Error('Failed to create folder');
-  return response.json();
+  try {
+    const token = await getAuthToken();
+    
+    console.log('[filesApi] Creating folder:', { name, color, parentFolderId });
+    
+    const response = await fetch(`${API_BASE_URL}/api/folders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, color, parent_folder_id: parentFolderId })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[filesApi] Create folder failed:', response.status, errorText);
+      throw new Error(`Failed to create folder: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('[filesApi] Folder created successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[filesApi] createFolder error:', error);
+    throw error;
+  }
 }
 
 export async function createMarkdownFile(
@@ -159,35 +186,45 @@ export async function createMarkdownFile(
   content: string,
   folderId?: string
 ): Promise<FileItem> {
-  const token = await getAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}/api/files`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      title,
-      file_type: 'md',
-      content,
-      folder_id: folderId ?? undefined
-    })
-  });
-
-  let data: any = null;
   try {
-    data = await response.json();
-  } catch (err) {
-    data = null;
-  }
+    const token = await getAuthToken();
+    
+    console.log('[filesApi] Creating markdown file:', { title, folderId, contentLength: content.length });
 
-  if (!response.ok) {
-    const message = data?.detail || data?.message || 'Failed to create note';
-    throw new Error(message);
-  }
+    const response = await fetch(`${API_BASE_URL}/api/files`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title,
+        file_type: 'md',
+        content,
+        folder_id: folderId ?? undefined
+      })
+    });
 
-  return data?.file ?? data;
+    let data: any = null;
+    try {
+      data = await response.json();
+    } catch (err) {
+      console.error('[filesApi] Failed to parse response:', err);
+      data = null;
+    }
+
+    if (!response.ok) {
+      const message = data?.detail || data?.message || 'Failed to create note';
+      console.error('[filesApi] Create markdown file failed:', response.status, message);
+      throw new Error(message);
+    }
+
+    console.log('[filesApi] Markdown file created successfully:', data);
+    return data?.file ?? data;
+  } catch (error) {
+    console.error('[filesApi] createMarkdownFile error:', error);
+    throw error;
+  }
 }
 
 export async function updateFolder(folderId: string, updates: { name?: string; color?: string }): Promise<FileFolder> {
