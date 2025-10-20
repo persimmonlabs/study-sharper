@@ -217,7 +217,8 @@ export default function FilesPage() {
     showCreateNote,
     showYouTubeDialog,
     showAudioRecorder,
-    showAiChat
+    showAiChat,
+    handleDeleteFile
   ]);
 
   // WebSocket for real-time updates
@@ -847,7 +848,7 @@ export default function FilesPage() {
           {/* Action buttons */}
           <button
             onClick={() => setShowCreateNote(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Create Markdown Note"
           >
             <FileEdit className="w-4 h-4" />
@@ -856,7 +857,7 @@ export default function FilesPage() {
 
           <button
             onClick={() => setShowYouTubeDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Upload YouTube Transcript"
           >
             <Youtube className="w-4 h-4" />
@@ -865,7 +866,7 @@ export default function FilesPage() {
 
           <button
             onClick={() => setShowAudioRecorder(!showAudioRecorder)}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Record Audio"
           >
             <Mic className="w-4 h-4" />
@@ -873,7 +874,7 @@ export default function FilesPage() {
           </button>
 
           {/* Upload buttons */}
-          <label className={`flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg transition ${
+          <label className={`flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg transition ${
             isUploading
               ? 'opacity-50 cursor-not-allowed'
               : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -909,7 +910,7 @@ export default function FilesPage() {
           {/* AI Chat toggle */}
           <button
             onClick={() => setShowAiChat(!showAiChat)}
-            className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
           >
             <MessageSquare className="w-5 h-5" />
           </button>
@@ -983,7 +984,7 @@ export default function FilesPage() {
                           e.stopPropagation();
                           handleFolderContextMenu(e, folder);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
                       >
                         <MoreVertical className="w-3 h-3" />
                       </button>

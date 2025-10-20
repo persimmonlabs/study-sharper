@@ -34,6 +34,7 @@ export function AudioRecorder({ folderId, onUploaded, onError }: AudioRecorderPr
     return () => {
       cleanupRecorder();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
