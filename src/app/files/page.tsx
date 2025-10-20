@@ -85,26 +85,21 @@ export default function FilesPage() {
       setLoading(true);
       setError(null);
       
-      // Try to load files and folders separately to handle partial failures
-      const filesPromise = fetchFiles(selectedFolderId).catch(err => {
+      // Load files and folders - don't replace state on error
+      try {
+        const filesData = await fetchFiles(selectedFolderId);
+        setFiles(filesData);
+      } catch (err) {
         console.error('[Files] Failed to load files:', err);
-        return []; // Return empty array on error
-      });
+        // Don't replace files state - keep existing files
+      }
       
-      const foldersPromise = fetchFolders().catch(err => {
+      try {
+        const foldersData = await fetchFolders();
+        setFolders(foldersData);
+      } catch (err) {
         console.error('[Files] Failed to load folders:', err);
-        return []; // Return empty array on error
-      });
-      
-      const [filesData, foldersData] = await Promise.all([filesPromise, foldersPromise]);
-      
-      setFiles(filesData);
-      setFolders(foldersData);
-      
-      // Only show error if BOTH failed
-      if (filesData.length === 0 && foldersData.length === 0) {
-        console.warn('[Files] No data loaded - backend may be deploying');
-        // Don't set error state - just log it
+        // Don't replace folders state - keep existing folders
       }
     } catch (err) {
       console.error('[Files] Critical error loading data:', err);
