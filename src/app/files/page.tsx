@@ -796,10 +796,10 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       {/* Header */}
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Files</h1>
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
         
         <div className="flex items-center gap-4">
           {/* Search */}
@@ -847,7 +847,7 @@ export default function FilesPage() {
           {/* Action buttons */}
           <button
             onClick={() => setShowCreateNote(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Create Markdown Note"
           >
             <FileEdit className="w-4 h-4" />
@@ -856,7 +856,7 @@ export default function FilesPage() {
 
           <button
             onClick={() => setShowYouTubeDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Upload YouTube Transcript"
           >
             <Youtube className="w-4 h-4" />
@@ -865,7 +865,7 @@ export default function FilesPage() {
 
           <button
             onClick={() => setShowAudioRecorder(!showAudioRecorder)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
             title="Record Audio"
           >
             <Mic className="w-4 h-4" />
@@ -873,10 +873,10 @@ export default function FilesPage() {
           </button>
 
           {/* Upload buttons */}
-          <label className={`flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg transition ${
+          <label className={`flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg transition ${
             isUploading
               ? 'opacity-50 cursor-not-allowed'
-              : 'cursor-pointer hover:bg-gray-50'
+              : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800'
           }`}>
             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4" />}
             Upload Folder
@@ -889,10 +889,10 @@ export default function FilesPage() {
             />
           </label>
 
-          <label className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg transition ${
+          <label className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white dark:bg-blue-500 rounded-lg transition ${
             isUploading
               ? 'opacity-50 cursor-not-allowed'
-              : 'cursor-pointer hover:bg-blue-700'
+              : 'cursor-pointer hover:bg-blue-700 dark:hover:bg-blue-600'
           }`}>
             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             Upload Files
@@ -909,7 +909,7 @@ export default function FilesPage() {
           {/* AI Chat toggle */}
           <button
             onClick={() => setShowAiChat(!showAiChat)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition"
+            className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
           >
             <MessageSquare className="w-5 h-5" />
           </button>
@@ -919,14 +919,14 @@ export default function FilesPage() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar - File explorer */}
-        <aside className="w-64 bg-white border-r flex flex-col overflow-hidden">
-          <div className="p-4 border-b">
+        <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
             <button
               onClick={() => setSelectedFolderId(null)}
               className={`w-full text-left px-3 py-2 rounded-lg transition ${
                 selectedFolderId === null
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'hover:bg-gray-50'
+                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               All Files
@@ -935,9 +935,9 @@ export default function FilesPage() {
 
           <div className="flex-1 overflow-y-auto p-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-600">Folders</h3>
+              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Folders</h3>
               <button 
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                 onClick={() => setShowCreateFolder(true)}
                 title="Create Folder"
               >
@@ -949,13 +949,13 @@ export default function FilesPage() {
               <div className="space-y-2">
                 {[1, 2, 3].map(i => (
                   <div key={i} className="animate-pulse flex items-center gap-2 px-3 py-2">
-                    <div className="w-4 h-4 bg-gray-200 rounded" />
-                    <div className="flex-1 h-4 bg-gray-200 rounded" />
+                    <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                 ))}
               </div>
             ) : folders.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No folders yet</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No folders yet</p>
             ) : (
               <div className="space-y-1">
                 {folders.map(folder => (
@@ -970,10 +970,10 @@ export default function FilesPage() {
                       onContextMenu={(e) => handleFolderContextMenu(e, folder)}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition ${
                         selectedFolderIds.has(folder.id)
-                          ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200 ring-2 ring-blue-400 dark:ring-blue-500/60'
                           : selectedFolderId === folder.id
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                       }`}
                     >
                       <Folder className="w-4 h-4" style={{ color: folder.color }} />
@@ -983,7 +983,7 @@ export default function FilesPage() {
                           e.stopPropagation();
                           handleFolderContextMenu(e, folder);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition"
                       >
                         <MoreVertical className="w-3 h-3" />
                       </button>
@@ -1022,25 +1022,25 @@ export default function FilesPage() {
           {/* Drag and drop overlay */}
           {isDraggingOver && (
             <div className="absolute inset-0 z-40 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center border-4 border-dashed border-blue-500">
-              <div className="bg-white rounded-lg shadow-2xl p-8 text-center">
-                <Upload className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Drop files here to upload</h3>
-                <p className="text-gray-500">Release to upload files to {selectedFolderId ? 'the selected folder' : 'your library'}</p>
+              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl p-8 text-center">
+                <Upload className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Drop files here to upload</h3>
+                <p className="text-gray-500 dark:text-gray-400">Release to upload files to {selectedFolderId ? 'the selected folder' : 'your library'}</p>
               </div>
             </div>
           )}
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-600" />
             </div>
           ) : error ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <p className="text-red-600">{error}</p>
+                <p className="text-red-600 dark:text-red-400">{error}</p>
                 <button
                   onClick={loadData}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
                   Retry
                 </button>
@@ -1050,16 +1050,16 @@ export default function FilesPage() {
             <div className="flex-1 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                  <div key={i} className="border rounded-lg p-4 bg-white animate-pulse">
+                  <div key={i} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-gray-900 animate-pulse">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-gray-200 rounded" />
-                        <div className="w-12 h-3 bg-gray-200 rounded" />
+                        <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="w-12 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
                       </div>
-                      <div className="w-4 h-4 bg-gray-200 rounded" />
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
                     </div>
-                    <div className="h-5 bg-gray-200 rounded mb-1" />
-                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
                   </div>
                 ))}
               </div>
@@ -1070,7 +1070,7 @@ export default function FilesPage() {
                 <div className="flex items-center justify-between mb-4">
                   <button
                     onClick={() => setSelectedFile(null)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                   >
                     <X className="w-4 h-4" />
                     Close
@@ -1084,19 +1084,19 @@ export default function FilesPage() {
                     onError={(err) => console.error('File save error:', err)}
                   />
                 ) : selectedFile.content ? (
-                  <div className="bg-white rounded-lg border border-slate-200 p-6">
-                    <h2 className="text-2xl font-bold mb-4">{selectedFile.title}</h2>
-                    <div className="prose max-w-none">
-                      <pre className="whitespace-pre-wrap bg-gray-50 p-6 rounded-lg">
+                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">{selectedFile.title}</h2>
+                    <div className="prose max-w-none text-gray-700 dark:text-gray-200">
+                      <pre className="whitespace-pre-wrap bg-gray-100 dark:bg-gray-900/60 text-gray-800 dark:text-gray-200 p-6 rounded-lg">
                         {selectedFile.content}
                       </pre>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg border border-slate-200 p-12 text-center text-gray-400">
+                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-12 text-center text-gray-400 dark:text-gray-500">
                     {selectedFile.processing_status === 'pending' || selectedFile.processing_status === 'processing' ? (
                       <>
-                        <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
+                        <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600 dark:text-blue-400" />
                         <p>Processing file...</p>
                       </>
                     ) : (
@@ -1111,8 +1111,8 @@ export default function FilesPage() {
               {filteredFiles.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">
+                    <FileText className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">
                       {searchQuery ? 'No files match your search' : 'No files yet'}
                     </p>
                   </div>
@@ -1124,14 +1124,14 @@ export default function FilesPage() {
                       key={file.id}
                       ref={el => { fileRefs.current[file.id] = el; }}
                       data-selectable="file"
-                      className={`border rounded-lg p-4 hover:shadow-md transition cursor-pointer group relative ${
+                      className={`border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:shadow-md hover:shadow-blue-500/20 dark:hover:shadow-blue-500/10 transition cursor-pointer group relative ${
                         selectedFileIds.has(file.id)
-                          ? 'ring-2 ring-blue-400 bg-blue-50'
+                          ? 'ring-2 ring-blue-400 dark:ring-blue-500/60 bg-blue-50 dark:bg-blue-500/10'
                           : file.processing_status === 'pending' || file.processing_status === 'processing'
-                          ? 'opacity-75 cursor-wait'
+                          ? 'opacity-75 cursor-wait bg-white dark:bg-gray-900'
                           : file.processing_status === 'failed'
-                          ? 'border-red-300 bg-red-50'
-                          : 'bg-white'
+                          ? 'border-red-300 dark:border-red-500/60 bg-red-50 dark:bg-red-500/10'
+                          : 'bg-white dark:bg-gray-900'
                       }`}
                       onClick={() => file.processing_status === 'completed' && setSelectedFile(file)}
                       onContextMenu={(e) => handleFileContextMenu(e, file)}
@@ -1139,11 +1139,11 @@ export default function FilesPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           {file.processing_status === 'pending' || file.processing_status === 'processing' ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
                           ) : (
                             getFileIcon(file.file_type)
                           )}
-                          <span className="text-xs text-gray-500 uppercase">{file.file_type}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">{file.file_type}</span>
                         </div>
                         
                         <button
@@ -1151,19 +1151,19 @@ export default function FilesPage() {
                             e.stopPropagation();
                             handleFileContextMenu(e, file);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition"
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <h3 className="font-medium mb-1 truncate">{file.title}</h3>
-                      <p className="text-xs text-gray-500 truncate mb-2">{file.original_filename}</p>
+                      <h3 className="font-medium mb-1 truncate text-gray-900 dark:text-gray-100">{file.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mb-2">{file.original_filename}</p>
                       
                       <div className="flex items-center gap-2">
                         {getStatusBadge(file)}
                         {getSimilarityScore(file.id) !== null && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-500/10 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
                             <Sparkles className="w-3 h-3" />
                             {Math.round(getSimilarityScore(file.id)! * 100)}% match
                           </span>
@@ -1171,7 +1171,7 @@ export default function FilesPage() {
                       </div>
 
                       {file.error_message && (
-                        <p className="text-xs text-red-600 mt-2">{file.error_message}</p>
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">{file.error_message}</p>
                       )}
                     </div>
                   ))}
@@ -1184,27 +1184,27 @@ export default function FilesPage() {
 
       {/* Upload progress bar (bottom) */}
       {uploadProgress.length > 0 && (
-        <div className="bg-white border-t p-4">
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4">
           <div className="max-w-4xl mx-auto space-y-2">
             {uploadProgress.map(progress => (
               <div key={progress.file_id} className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-gray-400" />
-                <span className="flex-1 text-sm truncate">{progress.filename}</span>
+                <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <span className="flex-1 text-sm truncate text-gray-700 dark:text-gray-200">{progress.filename}</span>
                 {progress.status === 'uploading' && (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
                 )}
                 {progress.status === 'processing' && (
-                  <span className="text-xs text-blue-600">Processing...</span>
+                  <span className="text-xs text-blue-600 dark:text-blue-400">Processing...</span>
                 )}
                 {progress.status === 'completed' && (
-                  <span className="text-xs text-green-600">✓ Complete</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">✓ Complete</span>
                 )}
                 {progress.status === 'failed' && (
-                  <span className="text-xs text-red-600">✗ Failed</span>
+                  <span className="text-xs text-red-600 dark:text-red-400">✗ Failed</span>
                 )}
                 <button
                   onClick={() => setUploadProgress(prev => prev.filter(p => p.file_id !== progress.file_id))}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1216,17 +1216,17 @@ export default function FilesPage() {
 
       {/* Audio Recorder overlay */}
       {showAudioRecorder && (
-        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-2xl border">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold">Audio Recorder</h3>
+        <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Audio Recorder</h3>
             <button
               onClick={() => setShowAudioRecorder(false)}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-          <div className="p-4">
+          <div className="p-4 text-gray-700 dark:text-gray-200">
             <AudioRecorder
               folderId={selectedFolderId || undefined}
               onUploaded={(file) => {
@@ -1241,7 +1241,7 @@ export default function FilesPage() {
 
       {/* AI Chat panel */}
       {showAiChat && (
-        <div className="fixed bottom-4 right-4 w-96 h-[600px] bg-white rounded-lg shadow-2xl border overflow-hidden">
+        <div className="fixed bottom-4 right-4 w-96 h-[600px] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
           <AIChatPanel
             selectedFile={selectedFile}
             onClose={() => setShowAiChat(false)}
@@ -1307,25 +1307,25 @@ export default function FilesPage() {
       {/* Bulk Context Menu */}
       {bulkContextMenu && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed z-50 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+          className="fixed z-50 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 shadow-xl"
           style={{ left: bulkContextMenu.x, top: bulkContextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-md border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 px-3 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-300">
             {selectedFileIds.size + selectedFolderIds.size} Items Selected
           </div>
           
-          <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+          <div className="mt-2 rounded-md border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-3 py-2">
             <button
               type="button"
-              className="flex w-full items-center justify-between text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+              className="flex w-full items-center justify-between text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
               onClick={handleBulkDelete}
               disabled={isProcessingBulkDelete}
             >
               <span>{isProcessingBulkDelete ? 'Deleting...' : 'Delete Selected'}</span>
               <Trash2 className="w-4 h-4" />
             </button>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-gray-600">
               {selectedFolderIds.size > 0 && `${selectedFolderIds.size} folder${selectedFolderIds.size > 1 ? 's' : ''}`}
               {selectedFolderIds.size > 0 && selectedFileIds.size > 0 && ', '}
               {selectedFileIds.size > 0 && `${selectedFileIds.size} file${selectedFileIds.size > 1 ? 's' : ''}`}
@@ -1334,7 +1334,7 @@ export default function FilesPage() {
 
           <button
             type="button"
-            className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            className="mt-2 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
             onClick={() => setBulkContextMenu(null)}
           >
             Cancel
