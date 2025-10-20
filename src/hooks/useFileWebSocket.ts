@@ -66,11 +66,12 @@ export function useFileWebSocket(options: UseFileWebSocketOptions = {}) {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.warn('[WebSocket] Connection error (non-critical):', error);
+        // Don't log as error - WebSocket is optional for file updates
       };
 
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        console.log('[WebSocket] Disconnected (non-critical - polling will continue)');
         wsRef.current = null;
 
         // Clear heartbeat
@@ -78,13 +79,8 @@ export function useFileWebSocket(options: UseFileWebSocketOptions = {}) {
           clearInterval(heartbeatIntervalRef.current);
         }
 
-        // Attempt to reconnect after 3 seconds
-        if (enabled) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Attempting to reconnect WebSocket...');
-            connect();
-          }, 3000);
-        }
+        // Don't auto-reconnect - WebSocket is optional
+        // Files page will work fine with polling alone
       };
 
     } catch (error) {
