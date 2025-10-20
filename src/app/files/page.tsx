@@ -81,13 +81,16 @@ export default function FilesPage() {
 
   // Load initial data
   const loadData = useCallback(async () => {
+    console.log('[Files Page] 🔄 loadData called, selectedFolderId:', selectedFolderId);
     try {
       setLoading(true);
       setError(null);
       
       // Load files and folders - don't replace state on error
       try {
+        console.log('[Files Page] 📁 Fetching files...');
         const filesData = await fetchFiles(selectedFolderId);
+        console.log('[Files Page] ✅ Files fetched:', filesData.length, 'files');
         setFiles(filesData);
       } catch (err) {
         console.error('[Files] Failed to load files:', err);
@@ -95,8 +98,12 @@ export default function FilesPage() {
       }
       
       try {
+        console.log('[Files Page] 📂 Fetching folders...');
         const foldersData = await fetchFolders();
+        console.log('[Files Page] ✅ Folders fetched:', foldersData.length, 'folders');
+        console.log('[Files Page] 📋 Folder data:', foldersData);
         setFolders(foldersData);
+        console.log('[Files Page] 💾 Folders state updated');
       } catch (err) {
         console.error('[Files] Failed to load folders:', err);
         // Don't replace folders state - keep existing folders
@@ -106,12 +113,19 @@ export default function FilesPage() {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+      console.log('[Files Page] ✅ Loading complete');
     }
   }, [selectedFolderId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Debug: Log folders state changes
+  useEffect(() => {
+    console.log('[Files Page] 🔍 Folders state changed:', folders.length, 'folders');
+    console.log('[Files Page] 🔍 Current folders:', folders);
+  }, [folders]);
 
   // Keyboard shortcuts
   useEffect(() => {
