@@ -5,6 +5,50 @@ import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend.onrender.com';
 
+// Retry helper for handling cold starts and transient errors
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  initialDelay = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[fetchWithRetry] Attempt ${attempt + 1}/${maxRetries + 1} for ${url}`);
+      
+      const response = await fetch(url, options);
+      
+      // If we get a 502/503/504 (backend cold start), retry
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        if (attempt < maxRetries) {
+          const delay = initialDelay * Math.pow(2, attempt); // Exponential backoff
+          console.log(`[fetchWithRetry] Got ${response.status}, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      
+      // For other responses (including errors), return immediately
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Network errors (CORS, connection refused) - retry
+      if (attempt < maxRetries) {
+        const delay = initialDelay * Math.pow(2, attempt);
+        console.log(`[fetchWithRetry] Network error, retrying in ${delay}ms:`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+  
+  // All retries exhausted
+  throw lastError || new Error('Request failed after retries');
+}
+
 // Helper to get auth token from Supabase
 async function getAuthToken(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
@@ -30,7 +74,7 @@ export async function fetchFiles(folderId?: string | null): Promise<FileItem[]> 
     
     console.log('[filesApi] Fetching files from:', url.toString());
     
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -132,7 +176,7 @@ export async function fetchFolders(): Promise<FileFolder[]> {
     
     console.log('[filesApi] Fetching folders from:', `${API_BASE_URL}/api/folders`);
     
-    const response = await fetch(`${API_BASE_URL}/api/folders`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/api/folders`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -156,7 +200,7 @@ export async function createFolder(name: string, color: string, parentFolderId?:
   
   console.log('[filesApi] Creating folder:', { name, color, parentFolderId });
   
-  const response = await fetch(`${API_BASE_URL}/api/folders`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/folders`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -192,7 +236,7 @@ export async function createMarkdownFile(
   
   console.log('[filesApi] Creating markdown file:', { title, folderId, contentLength: content.length });
 
-  const response = await fetch(`${API_BASE_URL}/api/files`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/files`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
