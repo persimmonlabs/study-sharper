@@ -187,8 +187,13 @@ export async function fetchFolders(): Promise<FileFolder[]> {
     }
     
     const data = await response.json();
-    console.log('[filesApi] Folders fetched successfully:', data.folders?.length || 0);
-    return data.folders || [];
+    console.log('[filesApi] 📦 Raw response data:', data);
+    console.log('[filesApi] 📦 data.folders exists?', 'folders' in data);
+    console.log('[filesApi] 📦 data.folders value:', data.folders);
+    console.log('[filesApi] ✅ Folders fetched successfully:', data.folders?.length || 0);
+    const folders = data.folders || [];
+    console.log('[filesApi] 📤 Returning folders array:', folders);
+    return folders;
   } catch (error) {
     console.error('[filesApi] fetchFolders error:', error);
     throw error;
