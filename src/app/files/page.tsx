@@ -142,6 +142,21 @@ export default function FilesPage() {
     console.log('[Files Page] 🔍 Current folders:', folders);
   }, [folders]);
 
+  // Handle file delete
+  const handleDeleteFile = useCallback(async (fileId: string) => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+    
+    try {
+      await deleteFile(fileId);
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+      if (selectedFile?.id === fileId) {
+        setSelectedFile(null);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete file');
+    }
+  }, [selectedFile]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -369,21 +384,6 @@ export default function FilesPage() {
       setIsUploading(false);
     }
   };
-
-  // Handle file delete
-  const handleDeleteFile = useCallback(async (fileId: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
-    
-    try {
-      await deleteFile(fileId);
-      setFiles(prev => prev.filter(f => f.id !== fileId));
-      if (selectedFile?.id === fileId) {
-        setSelectedFile(null);
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete file');
-    }
-  }, [selectedFile]);
 
   // Handle retry
   const handleRetry = async (fileId: string) => {
