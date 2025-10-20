@@ -152,33 +152,35 @@ export async function fetchFolders(): Promise<FileFolder[]> {
 }
 
 export async function createFolder(name: string, color: string, parentFolderId?: string): Promise<FileFolder> {
-  try {
-    const token = await getAuthToken();
-    
-    console.log('[filesApi] Creating folder:', { name, color, parentFolderId });
-    
-    const response = await fetch(`${API_BASE_URL}/api/folders`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ name, color, parent_folder_id: parentFolderId })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[filesApi] Create folder failed:', response.status, errorText);
-      throw new Error(`Failed to create folder: ${response.status}`);
+  const token = await getAuthToken();
+  
+  console.log('[filesApi] Creating folder:', { name, color, parentFolderId });
+  
+  const response = await fetch(`${API_BASE_URL}/api/folders`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name, color, parent_folder_id: parentFolderId })
+  });
+  
+  if (!response.ok) {
+    let errorMessage = `Failed to create folder: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorData.message || errorMessage;
+    } catch {
+      // If JSON parsing fails, use status text
+      errorMessage = `Failed to create folder: ${response.statusText}`;
     }
-    
-    const data = await response.json();
-    console.log('[filesApi] Folder created successfully:', data);
-    return data;
-  } catch (error) {
-    console.error('[filesApi] createFolder error:', error);
-    throw error;
+    console.error('[filesApi] Create folder failed:', response.status, errorMessage);
+    throw new Error(errorMessage);
   }
+  
+  const data = await response.json();
+  console.log('[filesApi] Folder created successfully:', data);
+  return data;
 }
 
 export async function createMarkdownFile(
@@ -186,45 +188,41 @@ export async function createMarkdownFile(
   content: string,
   folderId?: string
 ): Promise<FileItem> {
-  try {
-    const token = await getAuthToken();
-    
-    console.log('[filesApi] Creating markdown file:', { title, folderId, contentLength: content.length });
+  const token = await getAuthToken();
+  
+  console.log('[filesApi] Creating markdown file:', { title, folderId, contentLength: content.length });
 
-    const response = await fetch(`${API_BASE_URL}/api/files`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title,
-        file_type: 'md',
-        content,
-        folder_id: folderId ?? undefined
-      })
-    });
+  const response = await fetch(`${API_BASE_URL}/api/files`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title,
+      file_type: 'md',
+      content,
+      folder_id: folderId ?? undefined
+    })
+  });
 
-    let data: any = null;
+  if (!response.ok) {
+    let errorMessage = 'Failed to create note';
     try {
-      data = await response.json();
-    } catch (err) {
-      console.error('[filesApi] Failed to parse response:', err);
-      data = null;
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorData.message || errorMessage;
+    } catch {
+      errorMessage = `Failed to create note: ${response.statusText}`;
     }
-
-    if (!response.ok) {
-      const message = data?.detail || data?.message || 'Failed to create note';
-      console.error('[filesApi] Create markdown file failed:', response.status, message);
-      throw new Error(message);
-    }
-
-    console.log('[filesApi] Markdown file created successfully:', data);
-    return data?.file ?? data;
-  } catch (error) {
-    console.error('[filesApi] createMarkdownFile error:', error);
-    throw error;
+    console.error('[filesApi] Create markdown file failed:', response.status, errorMessage);
+    throw new Error(errorMessage);
   }
+
+  const data = await response.json();
+  console.log('[filesApi] Markdown file created successfully:', data);
+  
+  // Backend returns the file directly, not wrapped
+  return data;
 }
 
 export async function updateFolder(folderId: string, updates: { name?: string; color?: string }): Promise<FileFolder> {
