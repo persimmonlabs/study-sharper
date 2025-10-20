@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { FileItem, FileFolder, UploadProgress } from '@/types/files';
 import {
@@ -51,6 +52,8 @@ export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'text' | 'semantic'>('text');
   const [semanticResults, setSemanticResults] = useState<Array<{ file_id: string; similarity: number }>>([]);
@@ -61,6 +64,9 @@ export default function FilesPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [showAiChat, setShowAiChat] = useState(false);
+  const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [bulkContextMenu, setBulkContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isProcessingBulkDelete, setIsProcessingBulkDelete] = useState(false);
   
   // Dialog states
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -71,13 +77,22 @@ export default function FilesPage() {
   // Context menu states
   const [folderContextMenu, setFolderContextMenu] = useState<{ folder: FileFolder; x: number; y: number } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ file: FileItem; x: number; y: number } | null>(null);
-  
+
   // Drag and drop state
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  
+
   // Refs for keyboard shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectionContainerRef = useRef<HTMLDivElement>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionContextRef = useRef<{
+    containerRect: DOMRect;
+    baseFileIds: Set<string>;
+    baseFolderIds: Set<string>;
+  } | null>(null);
+  const folderRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -436,6 +451,206 @@ export default function FilesPage() {
     setFileContextMenu({ file, x: e.clientX, y: e.clientY });
   };
 
+  // Multi-selection handlers
+  const handleSelectionMouseDown = (e: React.MouseEvent) => {
+    // Only start selection on left click in empty space
+    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-selectable]')) {
+      return;
+    }
+
+    const container = selectionContainerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    selectionStartRef.current = {
+      x: e.clientX - containerRect.left,
+      y: e.clientY - containerRect.top
+    };
+
+    // Store base selections if Shift is held
+    selectionContextRef.current = {
+      containerRect,
+      baseFileIds: e.shiftKey ? new Set(selectedFileIds) : new Set(),
+      baseFolderIds: e.shiftKey ? new Set(selectedFolderIds) : new Set()
+    };
+
+    // Clear selections if not holding Shift
+    if (!e.shiftKey) {
+      setSelectedFileIds(new Set());
+      setSelectedFolderIds(new Set());
+    }
+  };
+
+  const handleSelectionMouseMove = (e: React.MouseEvent) => {
+    if (!selectionStartRef.current || !selectionContextRef.current) return;
+
+    const container = selectionContainerRef.current;
+    if (!container) return;
+
+    const containerRect = selectionContextRef.current.containerRect;
+    const currentX = e.clientX - containerRect.left;
+    const currentY = e.clientY - containerRect.top;
+    const startX = selectionStartRef.current.x;
+    const startY = selectionStartRef.current.y;
+
+    // Calculate selection rectangle
+    const left = Math.min(startX, currentX);
+    const top = Math.min(startY, currentY);
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
+
+    setSelectionRect({ left, top, width, height });
+
+    // Calculate which items intersect with selection rectangle
+    const selectionBounds = {
+      left: containerRect.left + left,
+      top: containerRect.top + top,
+      right: containerRect.left + left + width,
+      bottom: containerRect.top + top + height
+    };
+
+    const newFileIds = new Set(selectionContextRef.current.baseFileIds);
+    const newFolderIds = new Set(selectionContextRef.current.baseFolderIds);
+
+    // Check folder intersections
+    folders.forEach(folder => {
+      const folderEl = folderRefs.current[folder.id];
+      if (folderEl) {
+        const rect = folderEl.getBoundingClientRect();
+        if (intersects(selectionBounds, rect)) {
+          newFolderIds.add(folder.id);
+        }
+      }
+    });
+
+    // Check file intersections
+    filteredFiles.forEach(file => {
+      const fileEl = fileRefs.current[file.id];
+      if (fileEl) {
+        const rect = fileEl.getBoundingClientRect();
+        if (intersects(selectionBounds, rect)) {
+          newFileIds.add(file.id);
+        }
+      }
+    });
+
+    setSelectedFileIds(newFileIds);
+    setSelectedFolderIds(newFolderIds);
+  };
+
+  const handleSelectionMouseUp = () => {
+    selectionStartRef.current = null;
+    selectionContextRef.current = null;
+    setSelectionRect(null);
+  };
+
+  // Helper function to check rectangle intersection
+  const intersects = (a: { left: number; top: number; right: number; bottom: number }, b: DOMRect) => {
+    return !(
+      a.right < b.left ||
+      a.left > b.right ||
+      a.bottom < b.top ||
+      a.top > b.bottom
+    );
+  };
+
+  // Handle bulk context menu
+  const handleBulkContextMenu = (e: React.MouseEvent) => {
+    if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setBulkContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    const fileCount = selectedFileIds.size;
+    const folderCount = selectedFolderIds.size;
+    const totalCount = fileCount + folderCount;
+
+    if (totalCount === 0) return;
+
+    const message = `Are you sure you want to delete ${totalCount} item${totalCount > 1 ? 's' : ''}?\n\n` +
+      (folderCount > 0 ? `• ${folderCount} folder${folderCount > 1 ? 's' : ''} (files inside will remain but be ungrouped)\n` : '') +
+      (fileCount > 0 ? `• ${fileCount} file${fileCount > 1 ? 's' : ''}` : '');
+
+    if (!confirm(message)) return;
+
+    setIsProcessingBulkDelete(true);
+    setBulkContextMenu(null);
+
+    const errors: string[] = [];
+
+    try {
+      // Delete folders first
+      const folderPromises = Array.from(selectedFolderIds).map(async folderId => {
+        try {
+          await deleteFolder(folderId);
+          return { success: true, id: folderId, type: 'folder' };
+        } catch (err) {
+          errors.push(`Folder: ${folders.find(f => f.id === folderId)?.name || folderId}`);
+          return { success: false, id: folderId, type: 'folder' };
+        }
+      });
+
+      // Delete files
+      const filePromises = Array.from(selectedFileIds).map(async fileId => {
+        try {
+          await deleteFile(fileId);
+          return { success: true, id: fileId, type: 'file' };
+        } catch (err) {
+          errors.push(`File: ${files.find(f => f.id === fileId)?.title || fileId}`);
+          return { success: false, id: fileId, type: 'file' };
+        }
+      });
+
+      const results = await Promise.allSettled([...folderPromises, ...filePromises]);
+
+      // Update state with successful deletions
+      const successfulFolderIds = new Set<string>();
+      const successfulFileIds = new Set<string>();
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          if (result.value.type === 'folder') {
+            successfulFolderIds.add(result.value.id);
+          } else {
+            successfulFileIds.add(result.value.id);
+          }
+        }
+      });
+
+      // Remove deleted items from state
+      setFolders(prev => prev.filter(f => !successfulFolderIds.has(f.id)));
+      setFiles(prev => prev.filter(f => !successfulFileIds.has(f.id)));
+
+      // Clear selections
+      setSelectedFileIds(new Set());
+      setSelectedFolderIds(new Set());
+
+      // Show errors if any
+      if (errors.length > 0) {
+        alert(`Failed to delete ${errors.length} item(s):\n\n${errors.join('\n')}`);
+      }
+    } catch (err) {
+      alert('An unexpected error occurred during bulk deletion');
+    } finally {
+      setIsProcessingBulkDelete(false);
+    }
+  };
+
+  // Clear selections on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (selectedFileIds.size > 0 || selectedFolderIds.size > 0)) {
+        setSelectedFileIds(new Set());
+        setSelectedFolderIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedFileIds.size, selectedFolderIds.size]);
+
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -744,12 +959,19 @@ export default function FilesPage() {
             ) : (
               <div className="space-y-1">
                 {folders.map(folder => (
-                  <div key={folder.id} className="relative group">
+                  <div 
+                    key={folder.id} 
+                    className="relative group"
+                    ref={el => { folderRefs.current[folder.id] = el; }}
+                    data-selectable="folder"
+                  >
                     <button
                       onClick={() => setSelectedFolderId(folder.id)}
                       onContextMenu={(e) => handleFolderContextMenu(e, folder)}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition ${
-                        selectedFolderId === folder.id
+                        selectedFolderIds.has(folder.id)
+                          ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400'
+                          : selectedFolderId === folder.id
                           ? 'bg-blue-50 text-blue-600'
                           : 'hover:bg-gray-50'
                       }`}
@@ -775,11 +997,28 @@ export default function FilesPage() {
 
         {/* Main viewer area */}
         <main 
+          ref={selectionContainerRef}
           className="flex-1 flex flex-col overflow-hidden relative"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onMouseDown={handleSelectionMouseDown}
+          onMouseMove={handleSelectionMouseMove}
+          onMouseUp={handleSelectionMouseUp}
+          onContextMenu={handleBulkContextMenu}
         >
+          {/* Selection rectangle overlay */}
+          {selectionRect && (
+            <div
+              className="absolute z-30 border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
+              style={{
+                left: `${selectionRect.left}px`,
+                top: `${selectionRect.top}px`,
+                width: `${selectionRect.width}px`,
+                height: `${selectionRect.height}px`
+              }}
+            />
+          )}
           {/* Drag and drop overlay */}
           {isDraggingOver && (
             <div className="absolute inset-0 z-40 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center border-4 border-dashed border-blue-500">
@@ -883,8 +1122,12 @@ export default function FilesPage() {
                   {filteredFiles.map(file => (
                     <div
                       key={file.id}
+                      ref={el => { fileRefs.current[file.id] = el; }}
+                      data-selectable="file"
                       className={`border rounded-lg p-4 hover:shadow-md transition cursor-pointer group relative ${
-                        file.processing_status === 'pending' || file.processing_status === 'processing'
+                        selectedFileIds.has(file.id)
+                          ? 'ring-2 ring-blue-400 bg-blue-50'
+                          : file.processing_status === 'pending' || file.processing_status === 'processing'
                           ? 'opacity-75 cursor-wait'
                           : file.processing_status === 'failed'
                           ? 'border-red-300 bg-red-50'
@@ -1059,6 +1302,45 @@ export default function FilesPage() {
           onFileDeleted={handleFileDeletedFromMenu}
           onRetry={handleRetry}
         />
+      )}
+
+      {/* Bulk Context Menu */}
+      {bulkContextMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed z-50 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+          style={{ left: bulkContextMenu.x, top: bulkContextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {selectedFileIds.size + selectedFolderIds.size} Items Selected
+          </div>
+          
+          <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+              onClick={handleBulkDelete}
+              disabled={isProcessingBulkDelete}
+            >
+              <span>{isProcessingBulkDelete ? 'Deleting...' : 'Delete Selected'}</span>
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <p className="mt-2 text-xs text-slate-600">
+              {selectedFolderIds.size > 0 && `${selectedFolderIds.size} folder${selectedFolderIds.size > 1 ? 's' : ''}`}
+              {selectedFolderIds.size > 0 && selectedFileIds.size > 0 && ', '}
+              {selectedFileIds.size > 0 && `${selectedFileIds.size} file${selectedFileIds.size > 1 ? 's' : ''}`}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            onClick={() => setBulkContextMenu(null)}
+          >
+            Cancel
+          </button>
+        </div>,
+        document.body
       )}
       </div>
     </FileErrorBoundary>
