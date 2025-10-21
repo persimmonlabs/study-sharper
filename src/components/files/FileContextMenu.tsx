@@ -167,7 +167,7 @@ export function FileContextMenu({
       onFileDeleted?.(file.id)
       onClose()
     } catch (error) {
-      setDeleteState('error')
+      setDeleteState('confirming')
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete file.')
     }
   }
