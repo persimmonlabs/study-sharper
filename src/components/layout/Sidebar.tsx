@@ -40,7 +40,6 @@ export function Sidebar() {
   const navItems: NavItem[] = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/files', label: 'Files', icon: <Folder className="w-5 h-5" /> },
-    { href: '/notes', label: 'Notes' },
     { href: '/study', label: 'Study' },
     { href: '/calendar', label: 'Calendar' },
     { href: '/social', label: 'Social' },

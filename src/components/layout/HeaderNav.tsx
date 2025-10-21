@@ -36,8 +36,8 @@ export function HeaderNav() {
       <Link href="/dashboard" className={getLinkClassName('/dashboard')}>
         Dashboard
       </Link>
-      <Link href="/notes" className={getLinkClassName('/notes')}>
-        Notes
+      <Link href="/files" className={getLinkClassName('/files')}>
+        Files
       </Link>
       <Link href="/calendar" className={getLinkClassName('/calendar')}>
         Calendar
