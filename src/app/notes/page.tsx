@@ -19,6 +19,7 @@ import { UploadFolderDialog } from '@/components/ui/UploadFolderDialog'
 import { AIChatPanel } from '@/components/ai/AIChatPanel'
 import { ErrorBanner } from '@/components/ui/ErrorBanner'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { OcrPremiumDialog } from '@/components/ui/OcrPremiumDialog'
 import type { User } from '@supabase/supabase-js'
 
 type Note = Database['public']['Tables']['notes']['Row'] & {
@@ -148,6 +149,7 @@ export default function Notes() {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([])
+  const [ocrWarning, setOcrWarning] = useState<{ isOpen: boolean; file: File | null; pendingUpload: (() => void) | null }>({ isOpen: false, file: null, pendingUpload: null })
   
   // Error states for better UX
   const [notesError, setNotesError] = useState<string | null>(null)
@@ -750,6 +752,33 @@ export default function Notes() {
     event.target.value = ''
   }
 
+  // Check if file needs OCR
+  const checkOcrRequirement = async (file: File, accessToken: string): Promise<boolean> => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/notes/check-ocr', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        console.error('OCR check failed, assuming no OCR needed')
+        return false
+      }
+
+      const data = await response.json()
+      return data.needs_ocr || false
+    } catch (error) {
+      console.error('Error checking OCR requirement:', error)
+      return false // Default to no OCR if check fails
+    }
+  }
+
   const handleFileUpload = async (files: File[], folderOverride?: string | null) => {
     if (files.length === 0) return
 
@@ -806,7 +835,28 @@ export default function Notes() {
         continue
       }
 
-      // File is within size limit, proceed normally
+      // Check if file needs OCR (only for PDFs)
+      if (file.type === 'application/pdf') {
+        const needsOcr = await checkOcrRequirement(file, accessToken)
+        
+        if (needsOcr) {
+          // Show premium gate dialog
+          await new Promise<void>((resolve) => {
+            setOcrWarning({
+              isOpen: true,
+              file,
+              pendingUpload: () => {
+                setOcrWarning({ isOpen: false, file: null, pendingUpload: null })
+                uploadFile(file, accessToken, i, true, targetFolderId) // skipAI = true (limited extraction)
+                resolve()
+              }
+            })
+          })
+          continue
+        }
+      }
+
+      // File is within size limit and doesn't need OCR, proceed normally
       await uploadFile(file, accessToken, i, false, targetFolderId)
     }
   }
@@ -900,6 +950,16 @@ export default function Notes() {
   const handleFileSizeWarningConfirm = () => {
     if (fileSizeWarning.pendingUpload) {
       fileSizeWarning.pendingUpload()
+    }
+  }
+
+  const handleOcrWarningCancel = () => {
+    setOcrWarning({ isOpen: false, file: null, pendingUpload: null })
+  }
+
+  const handleOcrWarningProceed = () => {
+    if (ocrWarning.pendingUpload) {
+      ocrWarning.pendingUpload()
     }
   }
 
@@ -1982,6 +2042,14 @@ export default function Notes() {
         maxSize={OCR_SIZE_LIMIT}
         onConfirm={handleFileSizeWarningConfirm}
         onCancel={handleFileSizeWarningCancel}
+      />
+
+      {/* OCR Premium Gate */}
+      <OcrPremiumDialog
+        isOpen={ocrWarning.isOpen}
+        fileName={ocrWarning.file?.name ?? ''}
+        onClose={handleOcrWarningCancel}
+        onProceed={handleOcrWarningProceed}
       />
     </div>
   )

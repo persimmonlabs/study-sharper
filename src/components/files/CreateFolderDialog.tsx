@@ -107,16 +107,16 @@ export function CreateFolderDialog({
   }
 
   const dialogContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">Create New Folder</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-lg bg-white dark:bg-gray-800 shadow-xl">
+        <div className="border-b border-slate-200 dark:border-gray-700 px-6 py-4">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Create New Folder</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-4">
           <div className="space-y-4">
             <div>
-              <label htmlFor="folder-name" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="folder-name" className="block text-sm font-medium text-slate-700 dark:text-gray-300">
                 Folder Name
               </label>
               <input
@@ -126,14 +126,14 @@ export function CreateFolderDialog({
                 onChange={(e) => setName(e.target.value)}
                 maxLength={100}
                 required
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded-md border border-slate-300 dark:border-gray-600 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 placeholder="Enter folder name"
               />
-              <p className="mt-1 text-xs text-slate-500">Maximum 100 characters.</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">Maximum 100 characters.</p>
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-slate-700">Color</span>
+              <span className="block text-sm font-medium text-slate-700 dark:text-gray-300">Color</span>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {COLORS.map((colorOption) => (
                   <button
@@ -143,7 +143,7 @@ export function CreateFolderDialog({
                     className={`flex items-center rounded-md border px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
                       color === colorOption.value
                         ? COLOR_ACTIVE_CLASSES[colorOption.value]
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                        : 'border-slate-200 dark:border-gray-600 text-slate-600 dark:text-gray-300 hover:border-slate-300 dark:hover:border-gray-500 hover:bg-slate-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <span
@@ -156,14 +156,14 @@ export function CreateFolderDialog({
             </div>
 
             <div>
-              <label htmlFor="parent-folder" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="parent-folder" className="block text-sm font-medium text-slate-700 dark:text-gray-300">
                 Parent Folder (optional)
               </label>
               <select
                 id="parent-folder"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded-md border border-slate-300 dark:border-gray-600 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="">No parent folder</option>
                 {options.map((folder) => (
@@ -174,14 +174,14 @@ export function CreateFolderDialog({
               </select>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           </div>
 
-          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-gray-700 pt-4">
             <button
               type="button"
               onClick={handleCancel}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="rounded-md border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 hover:border-slate-300 dark:hover:border-gray-500 hover:bg-slate-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               disabled={isSubmitting}
             >
               Cancel
