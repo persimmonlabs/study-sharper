@@ -9,9 +9,15 @@ export interface FileItem {
   file_type: 'pdf' | 'docx' | 'txt' | 'md' | 'audio' | 'youtube';
   file_size_bytes: number;
   content?: string;
+  extracted_text?: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   extraction_method?: string;
   error_message?: string;
+  processing_message?: string;
+  embedding_status?: 'pending' | 'processing' | 'generated' | 'failed';
+  processing_duration_ms?: number;
+  word_count?: number;
+  page_count?: number;
   has_images: boolean;
   original_preview_path?: string;
   created_at: string;

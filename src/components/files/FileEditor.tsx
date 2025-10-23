@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState, KeyboardEvent } from 'react'
+import type { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import '@uiw/react-md-editor/markdown-editor.css'
 import '@uiw/react-markdown-preview/markdown.css'
 import { updateFile } from '@/lib/api/filesApi'
 import type { FileItem } from '@/types/files'
+import { formatDistanceToNow } from 'date-fns'
+import { MessageSquare, BarChart2, Sparkles, FileText, Hash, Timer } from 'lucide-react'
 
 const MDEditor = dynamic(
   () => import('@uiw/react-md-editor').then((mod) => mod.default),
@@ -16,11 +19,12 @@ interface FileEditorProps {
   file: FileItem
   onSaved?: (file: FileItem) => void
   onError?: (error: Error) => void
+  onAskAboutFile?: (file: FileItem) => void
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export function FileEditor({ file, onSaved, onError }: FileEditorProps) {
+export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEditorProps) {
   const [title, setTitle] = useState(file.title)
   const [content, setContent] = useState(file.content ?? '')
   const [savedTitle, setSavedTitle] = useState(file.title)
@@ -31,6 +35,8 @@ export function FileEditor({ file, onSaved, onError }: FileEditorProps) {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
     file.updated_at ? new Date(file.updated_at) : null
   )
+
+  const [showMetadata, setShowMetadata] = useState(true)
 
   useEffect(() => {
     setTitle(file.title)
@@ -118,74 +124,256 @@ export function FileEditor({ file, onSaved, onError }: FileEditorProps) {
     return lastSavedAt.toLocaleTimeString()
   }
 
+  const fileStats = useMemo(() => {
+    const text = file.extracted_text || file.content || ''
+    const words = text ? text.trim().split(/\s+/).filter(Boolean).length : 0
+    const chars = text.length
+    const minutes = Math.max(1, Math.ceil(words / 200))
+    const pages = Math.max(1, Math.ceil(words / 500))
+
+    return {
+      words,
+      chars,
+      estimatedMinutes: minutes,
+      pages
+    }
+  }, [file.extracted_text, file.content])
+
+  const metadataItems = useMemo(() => {
+    const items: Array<{ label: string; value: string | number; icon: ReactNode }> = []
+
+    if (file.extraction_method) {
+      items.push({
+        label: 'Extraction Method',
+        value: file.extraction_method.toUpperCase(),
+        icon: <Sparkles className="w-4 h-4 text-violet-500" />
+      })
+    }
+
+    if (file.processing_status) {
+      items.push({
+        label: 'Status',
+        value: file.processing_status,
+        icon: <FileText className="w-4 h-4 text-slate-500" />
+      })
+    }
+
+    const words = file.word_count ?? fileStats.words
+    if (words) {
+      items.push({
+        label: 'Word Count',
+        value: words,
+        icon: <Hash className="w-4 h-4 text-blue-500" />
+      })
+    }
+
+    const pages = file.page_count ?? fileStats.pages
+    if (pages) {
+      items.push({
+        label: 'Approx. Pages',
+        value: pages,
+        icon: <FileText className="w-4 h-4 text-orange-500" />
+      })
+    }
+
+    if (fileStats.estimatedMinutes) {
+      items.push({
+        label: 'Read Time',
+        value: `${fileStats.estimatedMinutes} min`,
+        icon: <Timer className="w-4 h-4 text-emerald-500" />
+      })
+    }
+
+    if (file.processing_duration_ms) {
+      items.push({
+        label: 'Extraction Time',
+        value: `${(file.processing_duration_ms / 1000).toFixed(1)} s`,
+        icon: <Timer className="w-4 h-4 text-amber-500" />
+      })
+    }
+
+    return items
+  }, [file.processing_status, file.extraction_method, fileStats, file.word_count, file.page_count, file.processing_duration_ms])
+
+  const embeddingStatus = useMemo(() => {
+    if (file.embedding_status === 'generated') {
+      return 'Embeddings generated.'
+    }
+
+    if (file.embedding_status === 'processing') {
+      return 'Generating embeddings...'
+    }
+
+    if (file.embedding_status === 'failed') {
+      return 'Embedding generation failed.'
+    }
+
+    if (file.processing_status === 'failed') {
+      return 'Embeddings unavailable due to processing failure.'
+    }
+
+    if (file.processing_status === 'completed') {
+      return 'Embeddings generated.'
+    }
+
+    return 'Embeddings pending processing completion.'
+  }, [file.embedding_status, file.processing_status])
+
   return (
-    <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <div className="flex flex-col">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Markdown File
-          </span>
-          {isEditingTitle ? (
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              onBlur={() => setIsEditingTitle(false)}
-              onKeyDown={handleTitleKeyDown}
-              autoFocus
-              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-lg font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsEditingTitle(true)}
-              className="mt-1 max-w-xl text-left text-2xl font-semibold text-slate-900 hover:text-blue-600"
-              title="Click to edit title"
-            >
-              {title || 'Untitled file'}
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-slate-500">
-            Last saved: <span className="font-medium text-slate-700">{formatLastSaved()}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!hasChanges || saveStatus === 'saving'}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-blue-400"
-          >
-            {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-
-      <div className="border-b border-slate-200 bg-slate-50 px-6 py-2 text-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {saveStatus === 'saving' && <span className="text-blue-600">Saving...</span>}
-            {saveStatus === 'saved' && !hasChanges && <span className="text-green-600">Saved</span>}
-            {saveStatus === 'error' && <span className="text-red-600">Error saving changes</span>}
-            {!hasChanges && saveStatus === 'idle' && <span className="text-slate-500">No changes</span>}
-            {hasChanges && saveStatus !== 'saving' && (
-              <span className="text-orange-600">Unsaved changes</span>
+    <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="flex flex-col">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Markdown File
+            </span>
+            {isEditingTitle ? (
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                onBlur={() => setIsEditingTitle(false)}
+                onKeyDown={handleTitleKeyDown}
+                autoFocus
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-lg font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingTitle(true)}
+                className="mt-1 max-w-xl text-left text-2xl font-semibold text-slate-900 hover:text-blue-600"
+                title="Click to edit title"
+              >
+                {title || 'Untitled file'}
+              </button>
             )}
           </div>
-          {error && <span className="text-sm text-red-600">{error}</span>}
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-hidden" data-color-mode="light">
-        <MDEditor
-          value={content}
-          onChange={(value) => setContent(value ?? '')}
-          preview="edit"
-          hideToolbar={false}
-          height="100%"
-          visibleDragbar={false}
-          className="h-full"
-        />
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-slate-500">
+              Last saved: <span className="font-medium text-slate-700">{formatLastSaved()}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!hasChanges || saveStatus === 'saving'}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-blue-400"
+            >
+              {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-2 text-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {saveStatus === 'saving' && <span className="text-blue-600">Saving...</span>}
+              {saveStatus === 'saved' && !hasChanges && <span className="text-green-600">Saved</span>}
+              {saveStatus === 'error' && <span className="text-red-600">Error saving changes</span>}
+              {!hasChanges && saveStatus === 'idle' && <span className="text-slate-500">No changes</span>}
+              {hasChanges && saveStatus !== 'saving' && (
+                <span className="text-orange-600">Unsaved changes</span>
+              )}
+            </div>
+            {error && <span className="text-sm text-red-600">{error}</span>}
+          </div>
+        </div>
+
+        <div className="flex flex-1 gap-4 overflow-hidden">
+          <div className="flex-1 overflow-hidden" data-color-mode="light">
+            <MDEditor
+              value={content}
+              onChange={(value) => setContent(value ?? '')}
+              preview="edit"
+              hideToolbar={false}
+              height="100%"
+              visibleDragbar={false}
+              className="h-full"
+            />
+          </div>
+
+          <div className="w-80 flex-shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowMetadata(!showMetadata)}
+                className="text-sm font-semibold text-slate-700 hover:text-blue-600"
+              >
+                File Details
+              </button>
+
+              {onAskAboutFile && (
+                <button
+                  type="button"
+                  onClick={() => onAskAboutFile(file)}
+                  className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Ask about this file
+                </button>
+              )}
+            </div>
+
+            {showMetadata && (
+              <div className="space-y-6 px-4 py-4">
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Extraction</h3>
+                  <ul className="space-y-2">
+                    {metadataItems.map((item) => (
+                      <li key={item.label} className="flex items-center gap-2 text-sm text-slate-700">
+                        {item.icon}
+                        <span className="font-medium text-slate-500">{item.label}:</span>
+                        <span className="text-slate-900">{item.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <BarChart2 className="w-4 h-4" />
+                    Stats
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                    <div>
+                      <p className="text-xs text-slate-500">Word Count</p>
+                      <p className="text-base font-semibold text-slate-900">{fileStats.words}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Characters</p>
+                      <p className="text-base font-semibold text-slate-900">{fileStats.chars}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Read Time</p>
+                      <p className="text-base font-semibold text-slate-900">{fileStats.estimatedMinutes} min</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Updated</p>
+                      <p className="text-base font-semibold text-slate-900">
+                        {file.updated_at ? formatDistanceToNow(new Date(file.updated_at), { addSuffix: true }) : 'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Embedding Status</h3>
+                  <p className="text-sm text-slate-600">{embeddingStatus}</p>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Extracted Text</h3>
+                  <div className="max-h-48 overflow-y-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                    {file.extracted_text ? (
+                      <pre className="whitespace-pre-wrap">{file.extracted_text}</pre>
+                    ) : (
+                      <p className="text-slate-500">No extracted text available yet.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

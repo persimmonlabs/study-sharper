@@ -15,11 +15,12 @@ import {
   retryFileProcessing,
   type FolderStructure
 } from '@/lib/api/filesApi';
+import { useToast } from '@/components/ui/use-toast';
 import { useFileWebSocket } from '@/hooks/useFileWebSocket';
-import { 
-  FileText, 
-  Folder, 
-  Upload, 
+import {
+  FileText,
+  Folder,
+  Upload,
   Search,
   Plus,
   Trash2,
@@ -34,7 +35,10 @@ import {
   FileEdit,
   Mic,
   Youtube,
-  Sparkles
+  Sparkles,
+  FileAudio,
+  FileImage,
+  FileType
 } from 'lucide-react';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
@@ -67,6 +71,8 @@ export default function FilesPage() {
   const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [bulkContextMenu, setBulkContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isProcessingBulkDelete, setIsProcessingBulkDelete] = useState(false);
+  const processingMapRef = useRef<Map<string, string>>(new Map());
+  const { toast, ToastViewport } = useToast();
   
   // Dialog states
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -239,18 +245,47 @@ export default function FilesPage() {
   // WebSocket for real-time updates
   useFileWebSocket({
     onFileUpdate: (fileId, data) => {
-      setFiles(prev => prev.map(f => 
-        f.id === fileId 
-          ? { ...f, processing_status: data.status, error_message: data.message }
+      setFiles(prev => prev.map(f =>
+        f.id === fileId
+          ? {
+              ...f,
+              processing_status: data.status,
+              error_message: data.error,
+              processing_message: data.message || f.processing_message
+            }
           : f
       ));
 
-      // Update upload progress
       setUploadProgress(prev => prev.map(p =>
         p.file_id === fileId
-          ? { ...p, status: data.status, message: data.message }
+          ? {
+              ...p,
+              status: data.status,
+              message: data.message,
+              progress: data.status === 'completed' ? 100 : p.progress
+            }
           : p
       ));
+
+      if (data.status === 'completed') {
+        const message = data.message || 'Processing completed successfully';
+        if (toast) {
+          toast({ title: 'File processed', description: message });
+        }
+        setUploadProgress(prev => prev.filter(p => p.file_id !== fileId));
+        processingMapRef.current.delete(fileId);
+      } else if (data.status === 'failed') {
+        const errorMsg = data.error || 'Processing failed';
+        if (toast) {
+          toast({ title: 'Processing failed', description: errorMsg, variant: 'destructive' });
+        }
+        setUploadProgress(prev => prev.map(p =>
+          p.file_id === fileId
+            ? { ...p, status: 'failed', message: errorMsg, progress: 100 }
+            : p
+        ));
+        processingMapRef.current.delete(fileId);
+      }
     },
     enabled: true
   });
@@ -258,12 +293,15 @@ export default function FilesPage() {
   // Handle file upload
   const handleFileUpload = async (fileList: FileList) => {
     const filesArray = Array.from(fileList);
+    if (filesArray.length === 0) {
+      return;
+    }
+
     setIsUploading(true);
-    
+
     for (const file of filesArray) {
-      const tempId = `temp-${Date.now()}-${Math.random()}`;
-      
-      // Optimistic update - add placeholder file immediately
+      const tempId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
       const optimisticFile: FileItem = {
         id: tempId,
         user_id: '',
@@ -272,45 +310,80 @@ export default function FilesPage() {
         original_filename: file.name,
         file_type: file.name.split('.').pop() as any || 'txt',
         file_size_bytes: file.size,
-        processing_status: 'pending',
+        processing_status: 'processing',
+        processing_message: 'Uploading file...',
         has_images: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+
       setFiles(prev => [optimisticFile, ...prev]);
-      
-      // Add to upload progress
-      setUploadProgress(prev => [...prev, {
-        file_id: tempId,
-        filename: file.name,
-        progress: 0,
-        status: 'uploading'
-      }]);
+
+      setUploadProgress(prev => [
+        ...prev,
+        {
+          file_id: tempId,
+          filename: file.name,
+          progress: 5,
+          status: 'uploading',
+          message: 'Uploading file...'
+        }
+      ]);
 
       try {
         const uploadedFile = await uploadFile(file, selectedFolderId || undefined);
-        
-        // Update progress with real file ID
+
+        processingMapRef.current.set(uploadedFile.id, uploadedFile.processing_job_id || '');
+
         setUploadProgress(prev => prev.map(p =>
           p.file_id === tempId
-            ? { ...p, file_id: uploadedFile.id, status: 'processing', progress: 100 }
+            ? {
+                ...p,
+                file_id: uploadedFile.id,
+                status: 'processing',
+                progress: 25,
+                message: 'Queued for processing'
+              }
             : p
         ));
 
-        // Replace optimistic file with real data
-        setFiles(prev => prev.map(f => f.id === tempId ? uploadedFile : f));
+        setFiles(prev => prev.map(f =>
+          f.id === tempId
+            ? {
+                ...uploadedFile,
+                processing_status: 'processing',
+                processing_message: 'Processing started...'
+              }
+            : f
+        ));
+
+        if (toast) {
+          toast({
+            title: 'Upload succeeded',
+            description: `${uploadedFile.title} added to processing queue.`
+          });
+        }
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Upload failed';
+
         setUploadProgress(prev => prev.map(p =>
           p.file_id === tempId
-            ? { ...p, status: 'failed', message: err instanceof Error ? err.message : 'Upload failed' }
+            ? { ...p, status: 'failed', message, progress: 100 }
             : p
         ));
-        
-        // Remove optimistic file on error
+
         setFiles(prev => prev.filter(f => f.id !== tempId));
+
+        if (toast) {
+          toast({
+            title: 'Upload failed',
+            description: message,
+            variant: 'destructive'
+          });
+        }
       }
     }
-    
+
     setIsUploading(false);
   };
 
@@ -767,37 +840,67 @@ export default function FilesPage() {
       }
       return next;
     });
-  };
+};
 
-  // Get file icon
-  const getFileIcon = (fileType: string) => {
-    return <FileText className="w-4 h-4" />;
-  };
+// Get file icon
+const getFileIcon = (fileType: string) => {
+  switch (fileType) {
+    case 'pdf':
+      return <FileText className="w-4 h-4 text-red-500" />;
+    case 'docx':
+      return <FileType className="w-4 h-4 text-sky-500" />;
+    case 'txt':
+    case 'md':
+      return <FileText className="w-4 h-4 text-gray-500" />;
+    case 'audio':
+      return <FileAudio className="w-4 h-4 text-purple-500" />;
+    case 'youtube':
+      return <Youtube className="w-4 h-4 text-red-500" />;
+    default:
+      return <FileImage className="w-4 h-4 text-amber-500" />;
+  }
+};
 
-  // Get status badge
-  const getStatusBadge = (file: FileItem) => {
-    if (file.processing_status === 'pending' || file.processing_status === 'processing') {
+const getStatusBadge = (file: FileItem) => {
+  const commonClasses = 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium';
+
+  switch (file.processing_status) {
+    case 'pending':
       return (
-        <span className="flex items-center gap-1 text-xs text-blue-600">
+        <span className={`${commonClasses} bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300`}>
           <Loader2 className="w-3 h-3 animate-spin" />
-          Processing...
+          Pending...
         </span>
       );
-    }
-    if (file.processing_status === 'failed') {
+    case 'processing':
       return (
-        <span className="flex items-center gap-1 text-xs text-red-600">
+        <span className={`${commonClasses} bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300`}>
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Processing
+        </span>
+      );
+    case 'completed':
+      return (
+        <span className={`${commonClasses} bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300`}>
+          ✓ Completed
+        </span>
+      );
+    case 'failed':
+      return (
+        <span className={`${commonClasses} bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300`}>
           <AlertCircle className="w-3 h-3" />
           Failed
         </span>
       );
-    }
-    return null;
-  };
+    default:
+      return null;
+  }
+};
 
-  return (
-    <FileErrorBoundary>
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+return (
+  <FileErrorBoundary>
+    <ToastViewport />
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
@@ -1083,6 +1186,10 @@ export default function FilesPage() {
                     file={selectedFile}
                     onSaved={handleFileUpdated}
                     onError={(err) => console.error('File save error:', err)}
+                    onAskAboutFile={(file) => {
+                      setShowAiChat(true)
+                      setSelectedFile(file)
+                    }}
                   />
                 ) : selectedFile.content ? (
                   <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
@@ -1161,8 +1268,21 @@ export default function FilesPage() {
                       <h3 className="font-medium mb-1 truncate text-gray-900 dark:text-gray-100">{file.title}</h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate mb-2">{file.original_filename}</p>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {getStatusBadge(file)}
+
+                        {file.processing_status === 'processing' && file.processing_message && (
+                          <span className="text-xs text-blue-600 dark:text-blue-300">
+                            {file.processing_message}
+                          </span>
+                        )}
+
+                        {file.processing_status === 'completed' && file.extraction_method && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-500/10 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
+                            Method: {file.extraction_method.toUpperCase()}
+                          </span>
+                        )}
+
                         {getSimilarityScore(file.id) !== null && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-500/10 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
                             <Sparkles className="w-3 h-3" />
@@ -1172,7 +1292,21 @@ export default function FilesPage() {
                       </div>
 
                       {file.error_message && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">{file.error_message}</p>
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            {file.error_message}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetry(file.id);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Retry Processing
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
