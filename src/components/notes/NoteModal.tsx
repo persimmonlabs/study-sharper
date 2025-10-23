@@ -111,7 +111,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
           return
         }
 
-        const response = await fetch(`/api/notes/${note.id}`, {
+        const response = await fetch(`/api/files/${note.id}`, {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
@@ -400,7 +400,7 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
               Close
             </button>
             <a
-              href={`/notes/${note.id}`}
+              href={`/files/${note.id}`}
               className="px-4 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors inline-block"
             >
               Edit Note

@@ -610,10 +610,10 @@ export default function Dashboard() {
           color="blue"
         />
         <QuickActionCard 
-          title="Upload Notes"
-          description="Add new study materials"
-          icon="📝"
-          href="/notes"
+          title="Create Notes"
+          description="Write new study notes"
+          icon="✏️"
+          href="/files"
           color="green"
         />
         <QuickActionCard 
@@ -683,7 +683,7 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h3>
-              <Link href="/notes" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
+              <Link href="/files" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
                 View All →
               </Link>
             </div>
@@ -694,7 +694,7 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p className="text-sm">No recent notes</p>
-                  <Link href="/notes" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-2 inline-block">
+                  <Link href="/files" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium mt-2 inline-block">
                     Create your first note
                   </Link>
                 </div>

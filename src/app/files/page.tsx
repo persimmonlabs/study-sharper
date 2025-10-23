@@ -3,47 +3,28 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '@/lib/supabase';
-import { FileItem, FileFolder, UploadProgress } from '@/types/files';
+import { FileItem, FileFolder } from '@/types/files';
 import {
   fetchFiles,
   fetchFolders,
   deleteFile,
-  deleteFolder,
-  uploadFile,
-  uploadFolder,
-  retryFileProcessing,
-  type FolderStructure
+  deleteFolder
 } from '@/lib/api/filesApi';
 import { useToast } from '@/components/ui/use-toast';
-import { useFileWebSocket } from '@/hooks/useFileWebSocket';
 import {
   FileText,
   Folder,
-  Upload,
   Search,
   Plus,
-  Trash2,
-  RefreshCw,
   AlertCircle,
   Loader2,
   MessageSquare,
   X,
-  ChevronRight,
-  ChevronDown,
   MoreVertical,
-  FileEdit,
-  Mic,
-  Youtube,
-  Sparkles,
-  FileAudio,
-  FileImage,
-  FileType
+  FileEdit
 } from 'lucide-react';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
-import { AudioRecorder } from '@/components/files/AudioRecorder';
-import { YouTubeDialog } from '@/components/files/YouTubeDialog';
 import { FileEditor } from '@/components/files/FileEditor';
 import { FolderContextMenu } from '@/components/files/FolderContextMenu';
 import { FileContextMenu } from '@/components/files/FileContextMenu';
@@ -56,47 +37,23 @@ export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState<'text' | 'semantic'>('text');
-  const [semanticResults, setSemanticResults] = useState<Array<{ file_id: string; similarity: number }>>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [showAiChat, setShowAiChat] = useState(false);
-  const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
-  const [bulkContextMenu, setBulkContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const [isProcessingBulkDelete, setIsProcessingBulkDelete] = useState(false);
-  const processingMapRef = useRef<Map<string, string>>(new Map());
   const { toast, ToastViewport } = useToast();
   
   // Dialog states
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showCreateNote, setShowCreateNote] = useState(false);
-  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
-  const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
   
   // Context menu states
   const [folderContextMenu, setFolderContextMenu] = useState<{ folder: FileFolder; x: number; y: number } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{ file: FileItem; x: number; y: number } | null>(null);
 
-  // Drag and drop state
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-
   // Refs for keyboard shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectionContainerRef = useRef<HTMLDivElement>(null);
-  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
-  const selectionContextRef = useRef<{
-    containerRect: DOMRect;
-    baseFileIds: Set<string>;
-    baseFolderIds: Set<string>;
-  } | null>(null);
   const folderRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -184,12 +141,6 @@ export default function FilesPage() {
         setShowCreateNote(true);
       }
 
-      // Ctrl/Cmd + U: Open upload dialog
-      if (modKey && e.key === 'u') {
-        e.preventDefault();
-        fileInputRef.current?.click();
-      }
-
       // Ctrl/Cmd + F: Focus search
       if (modKey && e.key === 'f') {
         e.preventDefault();
@@ -217,10 +168,6 @@ export default function FilesPage() {
           setShowCreateFolder(false);
         } else if (showCreateNote) {
           setShowCreateNote(false);
-        } else if (showYouTubeDialog) {
-          setShowYouTubeDialog(false);
-        } else if (showAudioRecorder) {
-          setShowAudioRecorder(false);
         } else if (showAiChat) {
           setShowAiChat(false);
         } else if (selectedFile) {
@@ -236,241 +183,9 @@ export default function FilesPage() {
     selectedFile,
     showCreateFolder,
     showCreateNote,
-    showYouTubeDialog,
-    showAudioRecorder,
     showAiChat,
     handleDeleteFile
   ]);
-
-  // WebSocket for real-time updates
-  useFileWebSocket({
-    onFileUpdate: (fileId, data) => {
-      setFiles(prev => prev.map(f =>
-        f.id === fileId
-          ? {
-              ...f,
-              processing_status: data.status,
-              error_message: data.error,
-              processing_message: data.message || f.processing_message
-            }
-          : f
-      ));
-
-      setUploadProgress(prev => prev.map(p =>
-        p.file_id === fileId
-          ? {
-              ...p,
-              status: data.status,
-              message: data.message,
-              progress: data.status === 'completed' ? 100 : p.progress
-            }
-          : p
-      ));
-
-      if (data.status === 'completed') {
-        const message = data.message || 'Processing completed successfully';
-        if (toast) {
-          toast({ title: 'File processed', description: message });
-        }
-        setUploadProgress(prev => prev.filter(p => p.file_id !== fileId));
-        processingMapRef.current.delete(fileId);
-      } else if (data.status === 'failed') {
-        const errorMsg = data.error || 'Processing failed';
-        if (toast) {
-          toast({ title: 'Processing failed', description: errorMsg, variant: 'destructive' });
-        }
-        setUploadProgress(prev => prev.map(p =>
-          p.file_id === fileId
-            ? { ...p, status: 'failed', message: errorMsg, progress: 100 }
-            : p
-        ));
-        processingMapRef.current.delete(fileId);
-      }
-    },
-    enabled: true
-  });
-
-  // Handle file upload
-  const handleFileUpload = async (fileList: FileList) => {
-    const filesArray = Array.from(fileList);
-    if (filesArray.length === 0) {
-      return;
-    }
-
-    setIsUploading(true);
-
-    for (const file of filesArray) {
-      const tempId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-      const optimisticFile: FileItem = {
-        id: tempId,
-        user_id: '',
-        folder_id: selectedFolderId,
-        title: file.name,
-        original_filename: file.name,
-        file_type: file.name.split('.').pop() as any || 'txt',
-        file_size_bytes: file.size,
-        processing_status: 'processing',
-        processing_message: 'Uploading file...',
-        has_images: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      setFiles(prev => [optimisticFile, ...prev]);
-
-      setUploadProgress(prev => [
-        ...prev,
-        {
-          file_id: tempId,
-          filename: file.name,
-          progress: 5,
-          status: 'uploading',
-          message: 'Uploading file...'
-        }
-      ]);
-
-      try {
-        const uploadedFile = await uploadFile(file, selectedFolderId || undefined);
-
-        processingMapRef.current.set(uploadedFile.id, uploadedFile.processing_job_id || '');
-
-        setUploadProgress(prev => prev.map(p =>
-          p.file_id === tempId
-            ? {
-                ...p,
-                file_id: uploadedFile.id,
-                status: 'processing',
-                progress: 25,
-                message: 'Queued for processing'
-              }
-            : p
-        ));
-
-        setFiles(prev => prev.map(f =>
-          f.id === tempId
-            ? {
-                ...uploadedFile,
-                processing_status: 'processing',
-                processing_message: 'Processing started...'
-              }
-            : f
-        ));
-
-        if (toast) {
-          toast({
-            title: 'Upload succeeded',
-            description: `${uploadedFile.title} added to processing queue.`
-          });
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Upload failed';
-
-        setUploadProgress(prev => prev.map(p =>
-          p.file_id === tempId
-            ? { ...p, status: 'failed', message, progress: 100 }
-            : p
-        ));
-
-        setFiles(prev => prev.filter(f => f.id !== tempId));
-
-        if (toast) {
-          toast({
-            title: 'Upload failed',
-            description: message,
-            variant: 'destructive'
-          });
-        }
-      }
-    }
-
-    setIsUploading(false);
-  };
-
-  // Handle folder upload
-  const handleFolderUpload = async (fileList: FileList) => {
-    const filesArray = Array.from(fileList);
-    if (filesArray.length === 0) return;
-
-    setIsUploading(true);
-
-    // Extract folder structure from webkitRelativePath
-    const folderPaths = new Set<string>();
-    const fileStructure: FolderStructure['files'] = [];
-
-    filesArray.forEach((file, index) => {
-      const relativePath = (file as any).webkitRelativePath || file.name;
-      const pathParts = relativePath.split('/');
-      
-      // Build folder hierarchy
-      let currentPath = '';
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        currentPath = currentPath ? `${currentPath}/${pathParts[i]}` : pathParts[i];
-        folderPaths.add(currentPath);
-      }
-
-      // Add file to structure
-      const folderPath = pathParts.slice(0, -1).join('/');
-      fileStructure.push({
-        index,
-        folder_path: folderPath,
-        title: pathParts[pathParts.length - 1]
-      });
-    });
-
-    const structure: FolderStructure = {
-      folders: Array.from(folderPaths).sort(),
-      files: fileStructure
-    };
-
-    // Add all files to upload progress
-    const progressEntries = filesArray.map(file => ({
-      file_id: `temp-folder-${Date.now()}-${Math.random()}`,
-      filename: (file as any).webkitRelativePath || file.name,
-      progress: 0,
-      status: 'uploading' as const
-    }));
-    setUploadProgress(prev => [...prev, ...progressEntries]);
-
-    try {
-      await uploadFolder(filesArray, structure, selectedFolderId || undefined);
-      
-      // Update all to completed
-      setUploadProgress(prev => prev.map(p => {
-        const isFromThisBatch = progressEntries.some(e => e.file_id === p.file_id);
-        return isFromThisBatch
-          ? { ...p, status: 'completed', progress: 100 }
-          : p;
-      }));
-
-      // Refresh data
-      await loadData();
-    } catch (err) {
-      // Mark all as failed
-      setUploadProgress(prev => prev.map(p => {
-        const isFromThisBatch = progressEntries.some(e => e.file_id === p.file_id);
-        return isFromThisBatch
-          ? { ...p, status: 'failed', message: err instanceof Error ? err.message : 'Folder upload failed' }
-          : p;
-      }));
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Handle retry
-  const handleRetry = async (fileId: string) => {
-    try {
-      await retryFileProcessing(fileId);
-      setFiles(prev => prev.map(f =>
-        f.id === fileId
-          ? { ...f, processing_status: 'pending', error_message: undefined }
-          : f
-      ));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to retry');
-    }
-  };
 
   // Handle folder created
   const handleFolderCreated = (folder: FileFolder) => {
@@ -525,309 +240,15 @@ export default function FilesPage() {
     setFileContextMenu({ file, x: e.clientX, y: e.clientY });
   };
 
-  // Multi-selection handlers
-  const handleSelectionMouseDown = (e: React.MouseEvent) => {
-    // Only start selection on left click in empty space
-    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-selectable]')) {
-      return;
-    }
-
-    const container = selectionContainerRef.current;
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    selectionStartRef.current = {
-      x: e.clientX - containerRect.left,
-      y: e.clientY - containerRect.top
-    };
-
-    // Store base selections if Shift is held
-    selectionContextRef.current = {
-      containerRect,
-      baseFileIds: e.shiftKey ? new Set(selectedFileIds) : new Set(),
-      baseFolderIds: e.shiftKey ? new Set(selectedFolderIds) : new Set()
-    };
-
-    // Clear selections if not holding Shift
-    if (!e.shiftKey) {
-      setSelectedFileIds(new Set());
-      setSelectedFolderIds(new Set());
-    }
-  };
-
-  const handleSelectionMouseMove = (e: React.MouseEvent) => {
-    if (!selectionStartRef.current || !selectionContextRef.current) return;
-
-    const container = selectionContainerRef.current;
-    if (!container) return;
-
-    const containerRect = selectionContextRef.current.containerRect;
-    const currentX = e.clientX - containerRect.left;
-    const currentY = e.clientY - containerRect.top;
-    const startX = selectionStartRef.current.x;
-    const startY = selectionStartRef.current.y;
-
-    // Calculate selection rectangle
-    const left = Math.min(startX, currentX);
-    const top = Math.min(startY, currentY);
-    const width = Math.abs(currentX - startX);
-    const height = Math.abs(currentY - startY);
-
-    setSelectionRect({ left, top, width, height });
-
-    // Calculate which items intersect with selection rectangle
-    const selectionBounds = {
-      left: containerRect.left + left,
-      top: containerRect.top + top,
-      right: containerRect.left + left + width,
-      bottom: containerRect.top + top + height
-    };
-
-    const newFileIds = new Set(selectionContextRef.current.baseFileIds);
-    const newFolderIds = new Set(selectionContextRef.current.baseFolderIds);
-
-    // Check folder intersections
-    folders.forEach(folder => {
-      const folderEl = folderRefs.current[folder.id];
-      if (folderEl) {
-        const rect = folderEl.getBoundingClientRect();
-        if (intersects(selectionBounds, rect)) {
-          newFolderIds.add(folder.id);
-        }
-      }
-    });
-
-    // Check file intersections
-    filteredFiles.forEach(file => {
-      const fileEl = fileRefs.current[file.id];
-      if (fileEl) {
-        const rect = fileEl.getBoundingClientRect();
-        if (intersects(selectionBounds, rect)) {
-          newFileIds.add(file.id);
-        }
-      }
-    });
-
-    setSelectedFileIds(newFileIds);
-    setSelectedFolderIds(newFolderIds);
-  };
-
-  const handleSelectionMouseUp = () => {
-    selectionStartRef.current = null;
-    selectionContextRef.current = null;
-    setSelectionRect(null);
-  };
-
-  // Helper function to check rectangle intersection
-  const intersects = (a: { left: number; top: number; right: number; bottom: number }, b: DOMRect) => {
-    return !(
-      a.right < b.left ||
-      a.left > b.right ||
-      a.bottom < b.top ||
-      a.top > b.bottom
-    );
-  };
-
-  // Handle bulk context menu
-  const handleBulkContextMenu = (e: React.MouseEvent) => {
-    if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setBulkContextMenu({ x: e.clientX, y: e.clientY });
-  };
-
-  // Handle bulk delete
-  const handleBulkDelete = async () => {
-    const fileCount = selectedFileIds.size;
-    const folderCount = selectedFolderIds.size;
-    const totalCount = fileCount + folderCount;
-
-    if (totalCount === 0) return;
-
-    const message = `Are you sure you want to delete ${totalCount} item${totalCount > 1 ? 's' : ''}?\n\n` +
-      (folderCount > 0 ? `• ${folderCount} folder${folderCount > 1 ? 's' : ''} (files inside will remain but be ungrouped)\n` : '') +
-      (fileCount > 0 ? `• ${fileCount} file${fileCount > 1 ? 's' : ''}` : '');
-
-    if (!confirm(message)) return;
-
-    setIsProcessingBulkDelete(true);
-    setBulkContextMenu(null);
-
-    const errors: string[] = [];
-
-    try {
-      // Delete folders first
-      const folderPromises = Array.from(selectedFolderIds).map(async folderId => {
-        try {
-          await deleteFolder(folderId);
-          return { success: true, id: folderId, type: 'folder' };
-        } catch (err) {
-          errors.push(`Folder: ${folders.find(f => f.id === folderId)?.name || folderId}`);
-          return { success: false, id: folderId, type: 'folder' };
-        }
-      });
-
-      // Delete files
-      const filePromises = Array.from(selectedFileIds).map(async fileId => {
-        try {
-          await deleteFile(fileId);
-          return { success: true, id: fileId, type: 'file' };
-        } catch (err) {
-          errors.push(`File: ${files.find(f => f.id === fileId)?.title || fileId}`);
-          return { success: false, id: fileId, type: 'file' };
-        }
-      });
-
-      const results = await Promise.allSettled([...folderPromises, ...filePromises]);
-
-      // Update state with successful deletions
-      const successfulFolderIds = new Set<string>();
-      const successfulFileIds = new Set<string>();
-
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value.success) {
-          if (result.value.type === 'folder') {
-            successfulFolderIds.add(result.value.id);
-          } else {
-            successfulFileIds.add(result.value.id);
-          }
-        }
-      });
-
-      // Remove deleted items from state
-      setFolders(prev => prev.filter(f => !successfulFolderIds.has(f.id)));
-      setFiles(prev => prev.filter(f => !successfulFileIds.has(f.id)));
-
-      // Clear selections
-      setSelectedFileIds(new Set());
-      setSelectedFolderIds(new Set());
-
-      // Show errors if any
-      if (errors.length > 0) {
-        alert(`Failed to delete ${errors.length} item(s):\n\n${errors.join('\n')}`);
-      }
-    } catch (err) {
-      alert('An unexpected error occurred during bulk deletion');
-    } finally {
-      setIsProcessingBulkDelete(false);
-    }
-  };
-
-  // Clear selections on Escape
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && (selectedFileIds.size > 0 || selectedFolderIds.size > 0)) {
-        setSelectedFileIds(new Set());
-        setSelectedFolderIds(new Set());
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [selectedFileIds.size, selectedFolderIds.size]);
-
-  // Drag and drop handlers
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set to false if leaving the main drop zone
-    if (e.currentTarget === e.target) {
-      setIsDraggingOver(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(false);
-
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      handleFileUpload(files);
-    }
-  };
-
-  // Perform semantic search
-  const performSemanticSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSemanticResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend.onrender.com'}/api/embeddings/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` })
-        },
-        body: JSON.stringify({
-          query,
-          limit: 20,
-          threshold: 0.3
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Semantic search failed');
-      }
-
-      const data = await response.json();
-      setSemanticResults(data.results || []);
-    } catch (error) {
-      console.error('Semantic search error:', error);
-      setSemanticResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Debounce semantic search
-  useEffect(() => {
-    if (searchMode === 'semantic' && searchQuery) {
-      const timer = setTimeout(() => {
-        performSemanticSearch(searchQuery);
-      }, 500);
-      return () => clearTimeout(timer);
-    } else if (searchMode === 'text') {
-      setSemanticResults([]);
-    }
-  }, [searchQuery, searchMode]);
-
-  // Filter files by search
+  // Filter files by search (text only)
   const filteredFiles = useMemo(() => {
     if (!searchQuery.trim()) {
       return files;
     }
-
-    if (searchMode === 'text') {
-      return files.filter(file =>
-        file.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        file.original_filename.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    } else {
-      // Semantic search: filter by results and sort by similarity
-      const resultMap = new Map(semanticResults.map(r => [r.file_id, r.similarity]));
-      return files
-        .filter(file => resultMap.has(file.id))
-        .sort((a, b) => (resultMap.get(b.id) || 0) - (resultMap.get(a.id) || 0));
-    }
-  }, [files, searchQuery, searchMode, semanticResults]);
-
-  // Get similarity score for a file
-  const getSimilarityScore = (fileId: string): number | null => {
-    if (searchMode !== 'semantic') return null;
-    const result = semanticResults.find(r => r.file_id === fileId);
-    return result ? result.similarity : null;
-  };
+    return files.filter(file =>
+      file.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [files, searchQuery]);
 
   // Toggle folder collapse
   const toggleFolder = (folderId: string) => {
@@ -840,643 +261,324 @@ export default function FilesPage() {
       }
       return next;
     });
-};
+  };
 
-// Get file icon
-const getFileIcon = (fileType: string) => {
-  switch (fileType) {
-    case 'pdf':
-      return <FileText className="w-4 h-4 text-red-500" />;
-    case 'docx':
-      return <FileType className="w-4 h-4 text-sky-500" />;
-    case 'txt':
-    case 'md':
-      return <FileText className="w-4 h-4 text-gray-500" />;
-    case 'audio':
-      return <FileAudio className="w-4 h-4 text-purple-500" />;
-    case 'youtube':
-      return <Youtube className="w-4 h-4 text-red-500" />;
-    default:
-      return <FileImage className="w-4 h-4 text-amber-500" />;
-  }
-};
+  // Get file icon
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'pdf':
+        return <FileText className="w-4 h-4 text-red-500" />;
+      case 'docx':
+        return <FileText className="w-4 h-4 text-sky-500" />;
+      case 'txt':
+      case 'md':
+        return <FileText className="w-4 h-4 text-gray-500" />;
+      default:
+        return <FileText className="w-4 h-4 text-amber-500" />;
+    }
+  };
 
-const getStatusBadge = (file: FileItem) => {
-  const commonClasses = 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium';
+  const getStatusBadge = (file: FileItem) => {
+    // All manual notes are completed
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300 px-2 py-1 text-xs font-medium">
+        ✓ Completed
+      </span>
+    );
+  };
 
-  switch (file.processing_status) {
-    case 'pending':
-      return (
-        <span className={`${commonClasses} bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300`}>
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Pending...
-        </span>
-      );
-    case 'processing':
-      return (
-        <span className={`${commonClasses} bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300`}>
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Processing
-        </span>
-      );
-    case 'completed':
-      return (
-        <span className={`${commonClasses} bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300`}>
-          ✓ Completed
-        </span>
-      );
-    case 'failed':
-      return (
-        <span className={`${commonClasses} bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300`}>
-          <AlertCircle className="w-3 h-3" />
-          Failed
-        </span>
-      );
-    default:
-      return null;
-  }
-};
-
-return (
-  <FileErrorBoundary>
-    <ToastViewport />
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
-        
-        <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="flex items-center gap-2">
+  return (
+    <FileErrorBoundary>
+      <ToastViewport />
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
+          
+          <div className="flex items-center gap-4">
+            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder={searchMode === 'semantic' ? 'Semantic search...' : 'Search files...'}
+                placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
               />
-              {isSearching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-blue-600" />
-              )}
             </div>
-            
-            {/* Search mode toggle */}
-            <div className="flex rounded-lg border border-gray-300 bg-white">
-              <button
-                onClick={() => setSearchMode('text')}
-                className={`px-3 py-1.5 text-xs font-medium transition ${
-                  searchMode === 'text'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                } rounded-l-lg`}
-              >
-                Text
-              </button>
-              <button
-                onClick={() => setSearchMode('semantic')}
-                className={`px-3 py-1.5 text-xs font-medium transition ${
-                  searchMode === 'semantic'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                } rounded-r-lg border-l border-gray-300`}
-              >
-                Semantic
-              </button>
-            </div>
-          </div>
 
-          {/* Action buttons */}
-          <button
-            onClick={() => setShowCreateNote(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            title="Create Markdown Note"
-          >
-            <FileEdit className="w-4 h-4" />
-            New Note
-          </button>
-
-          <button
-            onClick={() => setShowYouTubeDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            title="Upload YouTube Transcript"
-          >
-            <Youtube className="w-4 h-4" />
-            YouTube
-          </button>
-
-          <button
-            onClick={() => setShowAudioRecorder(!showAudioRecorder)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            title="Record Audio"
-          >
-            <Mic className="w-4 h-4" />
-            Record
-          </button>
-
-          {/* Upload buttons */}
-          <label className={`flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg transition ${
-            isUploading
-              ? 'opacity-50 cursor-not-allowed'
-              : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}>
-            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4" />}
-            Upload Folder
-            <input
-              type="file"
-              {...({ webkitdirectory: '', directory: '' } as any)}
-              className="hidden"
-              onChange={(e) => !isUploading && e.target.files && handleFolderUpload(e.target.files)}
-              disabled={isUploading}
-            />
-          </label>
-
-          <label className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white dark:bg-blue-500 rounded-lg transition ${
-            isUploading
-              ? 'opacity-50 cursor-not-allowed'
-              : 'cursor-pointer hover:bg-blue-700 dark:hover:bg-blue-600'
-          }`}>
-            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Upload Files
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => !isUploading && e.target.files && handleFileUpload(e.target.files)}
-              disabled={isUploading}
-            />
-          </label>
-
-          {/* AI Chat toggle */}
-          <button
-            onClick={() => setShowAiChat(!showAiChat)}
-            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - File explorer */}
-        <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+            {/* Action buttons */}
             <button
-              onClick={() => setSelectedFolderId(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg transition ${
-                selectedFolderId === null
-                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+              onClick={() => setShowCreateNote(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              title="Create Markdown Note"
             >
-              All Files
+              <FileEdit className="w-4 h-4" />
+              New Note
+            </button>
+
+            <button
+              onClick={() => setShowCreateFolder(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              title="Create Folder"
+            >
+              <Plus className="w-4 h-4" />
+              New Folder
+            </button>
+
+            {/* AI Chat toggle */}
+            <button
+              onClick={() => setShowAiChat(!showAiChat)}
+              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            >
+              <MessageSquare className="w-5 h-5" />
             </button>
           </div>
+        </header>
 
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Folders</h3>
-              <button 
-                className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                onClick={() => setShowCreateFolder(true)}
-                title="Create Folder"
+        {/* Main content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left sidebar - File explorer */}
+          <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setSelectedFolderId(null)}
+                className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                  selectedFolderId === null
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
               >
-                <Plus className="w-4 h-4" />
+                All Files
               </button>
             </div>
 
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="animate-pulse flex items-center gap-2 px-3 py-2">
-                    <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-                    <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : folders.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No folders yet</p>
-            ) : (
-              <div className="space-y-1">
-                {folders.map(folder => (
-                  <div 
-                    key={folder.id} 
-                    className="relative group"
-                    ref={el => { folderRefs.current[folder.id] = el; }}
-                    data-selectable="folder"
-                  >
-                    <button
-                      onClick={() => setSelectedFolderId(folder.id)}
-                      onContextMenu={(e) => handleFolderContextMenu(e, folder)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition ${
-                        selectedFolderIds.has(folder.id)
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200 ring-2 ring-blue-400 dark:ring-blue-500/60'
-                          : selectedFolderId === folder.id
-                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                      }`}
-                    >
-                      <Folder className="w-4 h-4" style={{ color: folder.color }} />
-                      <span className="flex-1 text-left text-sm truncate">{folder.name}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFolderContextMenu(e, folder);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
-                      >
-                        <MoreVertical className="w-3 h-3" />
-                      </button>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Main viewer area */}
-        <main 
-          ref={selectionContainerRef}
-          className="flex-1 flex flex-col overflow-hidden relative"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onMouseDown={handleSelectionMouseDown}
-          onMouseMove={handleSelectionMouseMove}
-          onMouseUp={handleSelectionMouseUp}
-          onContextMenu={handleBulkContextMenu}
-        >
-          {/* Selection rectangle overlay */}
-          {selectionRect && (
-            <div
-              className="absolute z-30 border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
-              style={{
-                left: `${selectionRect.left}px`,
-                top: `${selectionRect.top}px`,
-                width: `${selectionRect.width}px`,
-                height: `${selectionRect.height}px`
-              }}
-            />
-          )}
-          {/* Drag and drop overlay */}
-          {isDraggingOver && (
-            <div className="absolute inset-0 z-40 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center border-4 border-dashed border-blue-500">
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl p-8 text-center">
-                <Upload className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Drop files here to upload</h3>
-                <p className="text-gray-500 dark:text-gray-400">Release to upload files to {selectedFolderId ? 'the selected folder' : 'your library'}</p>
-              </div>
-            </div>
-          )}
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-600" />
-            </div>
-          ) : error ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <p className="text-red-600 dark:text-red-400">{error}</p>
-                <button
-                  onClick={loadData}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Folders</h3>
+                <button 
+                  className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  onClick={() => setShowCreateFolder(true)}
+                  title="Create Folder"
                 >
-                  Retry
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-          ) : loading ? (
-            <div className="flex-1 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                  <div key={i} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-gray-900 animate-pulse">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-                        <div className="w-12 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
-                      </div>
-                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-                    </div>
-                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : selectedFile ? (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="max-w-5xl mx-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-                  >
-                    <X className="w-4 h-4" />
-                    Close
-                  </button>
-                </div>
 
-                {selectedFile.file_type === 'md' && selectedFile.processing_status === 'completed' ? (
-                  <FileEditor
-                    file={selectedFile}
-                    onSaved={handleFileUpdated}
-                    onError={(err) => console.error('File save error:', err)}
-                    onAskAboutFile={(file) => {
-                      setShowAiChat(true)
-                      setSelectedFile(file)
-                    }}
-                  />
-                ) : selectedFile.content ? (
-                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">{selectedFile.title}</h2>
-                    <div className="prose max-w-none text-gray-700 dark:text-gray-200">
-                      <pre className="whitespace-pre-wrap bg-gray-100 dark:bg-gray-900/60 text-gray-800 dark:text-gray-200 p-6 rounded-lg">
-                        {selectedFile.content}
-                      </pre>
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="animate-pulse flex items-center gap-2 px-3 py-2">
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                      <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-12 text-center text-gray-400 dark:text-gray-500">
-                    {selectedFile.processing_status === 'pending' || selectedFile.processing_status === 'processing' ? (
-                      <>
-                        <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600 dark:text-blue-400" />
-                        <p>Processing file...</p>
-                      </>
-                    ) : (
-                      <p>No content available</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-auto p-6">
-              {filteredFiles.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      {searchQuery ? 'No files match your search' : 'No files yet'}
-                    </p>
-                  </div>
+                  ))}
                 </div>
+              ) : folders.length === 0 ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No folders yet</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredFiles.map(file => (
-                    <div
-                      key={file.id}
-                      ref={el => { fileRefs.current[file.id] = el; }}
-                      data-selectable="file"
-                      className={`border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:shadow-md hover:shadow-blue-500/20 dark:hover:shadow-blue-500/10 transition cursor-pointer group relative ${
-                        selectedFileIds.has(file.id)
-                          ? 'ring-2 ring-blue-400 dark:ring-blue-500/60 bg-blue-50 dark:bg-blue-500/10'
-                          : file.processing_status === 'pending' || file.processing_status === 'processing'
-                          ? 'opacity-75 cursor-wait bg-white dark:bg-gray-900'
-                          : file.processing_status === 'failed'
-                          ? 'border-red-300 dark:border-red-500/60 bg-red-50 dark:bg-red-500/10'
-                          : 'bg-white dark:bg-gray-900'
-                      }`}
-                      onClick={() => file.processing_status === 'completed' && setSelectedFile(file)}
-                      onContextMenu={(e) => handleFileContextMenu(e, file)}
+                <div className="space-y-1">
+                  {folders.map(folder => (
+                    <div 
+                      key={folder.id} 
+                      className="relative group"
+                      ref={el => { folderRefs.current[folder.id] = el; }}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {file.processing_status === 'pending' || file.processing_status === 'processing' ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
-                          ) : (
-                            getFileIcon(file.file_type)
-                          )}
-                          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">{file.file_type}</span>
-                        </div>
-                        
+                      <button
+                        onClick={() => setSelectedFolderId(folder.id)}
+                        onContextMenu={(e) => handleFolderContextMenu(e, folder)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition ${
+                          selectedFolderId === folder.id
+                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <Folder className="w-4 h-4" style={{ color: folder.color }} />
+                        <span className="flex-1 text-left text-sm truncate">{folder.name}</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleFileContextMenu(e, file);
+                            handleFolderContextMenu(e, folder);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          <MoreVertical className="w-3 h-3" />
                         </button>
-                      </div>
-
-                      <h3 className="font-medium mb-1 truncate text-gray-900 dark:text-gray-100">{file.title}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mb-2">{file.original_filename}</p>
-                      
-                      <div className="flex flex-wrap items-center gap-2">
-                        {getStatusBadge(file)}
-
-                        {file.processing_status === 'processing' && file.processing_message && (
-                          <span className="text-xs text-blue-600 dark:text-blue-300">
-                            {file.processing_message}
-                          </span>
-                        )}
-
-                        {file.processing_status === 'completed' && file.extraction_method && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-500/10 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
-                            Method: {file.extraction_method.toUpperCase()}
-                          </span>
-                        )}
-
-                        {getSimilarityScore(file.id) !== null && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-500/10 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
-                            <Sparkles className="w-3 h-3" />
-                            {Math.round(getSimilarityScore(file.id)! * 100)}% match
-                          </span>
-                        )}
-                      </div>
-
-                      {file.error_message && (
-                        <div className="mt-3 space-y-2">
-                          <p className="text-xs text-red-600 dark:text-red-400">
-                            {file.error_message}
-                          </p>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRetry(file.id);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Retry Processing
-                          </button>
-                        </div>
-                      )}
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          )}
-        </main>
-      </div>
+          </aside>
 
-      {/* Upload progress bar (bottom) */}
-      {uploadProgress.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4">
-          <div className="max-w-4xl mx-auto space-y-2">
-            {uploadProgress.map(progress => (
-              <div key={progress.file_id} className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <span className="flex-1 text-sm truncate text-gray-700 dark:text-gray-200">{progress.filename}</span>
-                {progress.status === 'uploading' && (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
-                )}
-                {progress.status === 'processing' && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400">Processing...</span>
-                )}
-                {progress.status === 'completed' && (
-                  <span className="text-xs text-green-600 dark:text-green-400">✓ Complete</span>
-                )}
-                {progress.status === 'failed' && (
-                  <span className="text-xs text-red-600 dark:text-red-400">✗ Failed</span>
-                )}
-                <button
-                  onClick={() => setUploadProgress(prev => prev.filter(p => p.file_id !== progress.file_id))}
-                  className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* Main viewer area */}
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-600" />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            ) : error ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-red-600 dark:text-red-400">{error}</p>
+                  <button
+                    onClick={loadData}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : selectedFile ? (
+              <div className="flex-1 overflow-auto p-6">
+                <div className="max-w-5xl mx-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => setSelectedFile(null)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                    >
+                      <X className="w-4 h-4" />
+                      Close
+                    </button>
+                  </div>
 
-      {/* Audio Recorder overlay */}
-      {showAudioRecorder && (
-        <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Audio Recorder</h3>
-            <button
-              onClick={() => setShowAudioRecorder(false)}
-              className="p-1 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="p-4 text-gray-700 dark:text-gray-200">
-            <AudioRecorder
-              folderId={selectedFolderId || undefined}
-              onUploaded={(file) => {
-                handleFileCreated(file);
-                setShowAudioRecorder(false);
+                  {selectedFile.file_type === 'md' ? (
+                    <FileEditor
+                      file={selectedFile}
+                      onSaved={handleFileUpdated}
+                      onError={(err) => console.error('File save error:', err)}
+                      onAskAboutFile={(file) => {
+                        setShowAiChat(true)
+                        setSelectedFile(file)
+                      }}
+                    />
+                  ) : selectedFile.content ? (
+                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+                      <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">{selectedFile.title}</h2>
+                      <div className="prose max-w-none text-gray-700 dark:text-gray-200">
+                        <pre className="whitespace-pre-wrap bg-gray-100 dark:bg-gray-900/60 text-gray-800 dark:text-gray-200 p-6 rounded-lg">
+                          {selectedFile.content}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-12 text-center text-gray-400 dark:text-gray-500">
+                      <p>No content available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto p-6">
+                {filteredFiles.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">
+                        {searchQuery ? 'No files match your search' : 'No files yet'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredFiles.map(file => (
+                      <div
+                        key={file.id}
+                        ref={el => { fileRefs.current[file.id] = el; }}
+                        className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:shadow-md hover:shadow-blue-500/20 dark:hover:shadow-blue-500/10 transition cursor-pointer group relative bg-white dark:bg-gray-900"
+                        onClick={() => setSelectedFile(file)}
+                        onContextMenu={(e) => handleFileContextMenu(e, file)}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {getFileIcon(file.file_type)}
+                            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">{file.file_type}</span>
+                          </div>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFileContextMenu(e, file);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <h3 className="font-medium mb-1 truncate text-gray-900 dark:text-gray-100">{file.title}</h3>
+                        
+                        <div className="flex flex-wrap items-center gap-2">
+                          {getStatusBadge(file)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+
+        {/* AI Chat panel */}
+        {showAiChat && (
+          <div className="fixed bottom-4 right-4 w-96 h-[600px] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <AIChatPanel
+              selectedFile={selectedFile}
+              onClose={() => setShowAiChat(false)}
+              onFileReference={(fileId) => {
+                // Find and select the referenced file
+                const file = files.find(f => f.id === fileId)
+                if (file) {
+                  setSelectedFile(file)
+                }
               }}
-              onError={(err) => console.error('Audio upload error:', err)}
             />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* AI Chat panel */}
-      {showAiChat && (
-        <div className="fixed bottom-4 right-4 w-96 h-[600px] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <AIChatPanel
-            selectedFile={selectedFile}
-            onClose={() => setShowAiChat(false)}
-            onFileReference={(fileId) => {
-              // Find and select the referenced file
-              const file = files.find(f => f.id === fileId)
-              if (file) {
-                setSelectedFile(file)
-              }
-            }}
-          />
-        </div>
-      )}
-
-      {/* Dialogs */}
-      <CreateFolderDialog
-        isOpen={showCreateFolder}
-        onClose={() => setShowCreateFolder(false)}
-        parentFolders={folders}
-        onCreated={handleFolderCreated}
-      />
-
-      <CreateNoteDialog
-        isOpen={showCreateNote}
-        onClose={() => setShowCreateNote(false)}
-        parentFolders={folders}
-        defaultFolderId={selectedFolderId}
-        onCreated={handleFileCreated}
-      />
-
-      <YouTubeDialog
-        isOpen={showYouTubeDialog}
-        onClose={() => setShowYouTubeDialog(false)}
-        parentFolders={folders}
-        defaultFolderId={selectedFolderId}
-        onUploaded={handleFileCreated}
-      />
-
-      {/* Context Menus */}
-      {folderContextMenu && (
-        <FolderContextMenu
-          folder={folderContextMenu.folder}
-          position={{ x: folderContextMenu.x, y: folderContextMenu.y }}
+        {/* Dialogs */}
+        <CreateFolderDialog
+          isOpen={showCreateFolder}
+          onClose={() => setShowCreateFolder(false)}
           parentFolders={folders}
-          onClose={() => setFolderContextMenu(null)}
-          onFolderUpdated={handleFolderUpdated}
-          onFolderDeleted={handleFolderDeleted}
+          onCreated={handleFolderCreated}
         />
-      )}
 
-      {fileContextMenu && (
-        <FileContextMenu
-          file={fileContextMenu.file}
-          position={{ x: fileContextMenu.x, y: fileContextMenu.y }}
-          folders={folders}
-          onClose={() => setFileContextMenu(null)}
-          onFileUpdated={handleFileUpdated}
-          onFileDeleted={handleFileDeletedFromMenu}
-          onRetry={handleRetry}
+        <CreateNoteDialog
+          isOpen={showCreateNote}
+          onClose={() => setShowCreateNote(false)}
+          parentFolders={folders}
+          defaultFolderId={selectedFolderId}
+          onCreated={handleFileCreated}
         />
-      )}
 
-      {/* Bulk Context Menu */}
-      {bulkContextMenu && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed z-50 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 shadow-xl"
-          style={{ left: bulkContextMenu.x, top: bulkContextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="rounded-md border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 px-3 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-300">
-            {selectedFileIds.size + selectedFolderIds.size} Items Selected
-          </div>
-          
-          <div className="mt-2 rounded-md border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-3 py-2">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
-              onClick={handleBulkDelete}
-              disabled={isProcessingBulkDelete}
-            >
-              <span>{isProcessingBulkDelete ? 'Deleting...' : 'Delete Selected'}</span>
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <p className="mt-2 text-xs text-gray-600">
-              {selectedFolderIds.size > 0 && `${selectedFolderIds.size} folder${selectedFolderIds.size > 1 ? 's' : ''}`}
-              {selectedFolderIds.size > 0 && selectedFileIds.size > 0 && ', '}
-              {selectedFileIds.size > 0 && `${selectedFileIds.size} file${selectedFileIds.size > 1 ? 's' : ''}`}
-            </p>
-          </div>
+        {/* Context Menus */}
+        {folderContextMenu && (
+          <FolderContextMenu
+            folder={folderContextMenu.folder}
+            position={{ x: folderContextMenu.x, y: folderContextMenu.y }}
+            parentFolders={folders}
+            onClose={() => setFolderContextMenu(null)}
+            onFolderUpdated={handleFolderUpdated}
+            onFolderDeleted={handleFolderDeleted}
+          />
+        )}
 
-          <button
-            type="button"
-            className="mt-2 w-full rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-            onClick={() => setBulkContextMenu(null)}
-          >
-            Cancel
-          </button>
-        </div>,
-        document.body
-      )}
+        {fileContextMenu && (
+          <FileContextMenu
+            file={fileContextMenu.file}
+            position={{ x: fileContextMenu.x, y: fileContextMenu.y }}
+            folders={folders}
+            onClose={() => setFileContextMenu(null)}
+            onFileUpdated={handleFileUpdated}
+            onFileDeleted={handleFileDeletedFromMenu}
+          />
+        )}
       </div>
     </FileErrorBoundary>
   );

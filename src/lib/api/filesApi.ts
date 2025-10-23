@@ -131,44 +131,6 @@ export async function deleteFile(fileId: string): Promise<void> {
   if (!response.ok) throw new Error('Failed to delete file');
 }
 
-export async function retryFileProcessing(fileId: string): Promise<void> {
-  const token = await getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/api/files/${fileId}/retry`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (!response.ok) throw new Error('Failed to retry processing');
-}
-
-export async function uploadYoutubeTranscript(
-  url: string,
-  title?: string,
-  folderId?: string
-): Promise<FileItem> {
-  const token = await getAuthToken();
-  
-  const formData = new FormData();
-  formData.append('url', url);
-  if (title) formData.append('title', title);
-  if (folderId) formData.append('folder_id', folderId);
-  
-  const response = await fetch(`${API_BASE_URL}/api/upload-youtube`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'YouTube upload failed');
-  }
-  
-  const data = await response.json();
-  return data.file;
-}
-
 // Folders API
 export async function fetchFolders(): Promise<FileFolder[]> {
   try {
@@ -232,14 +194,14 @@ export async function createFolder(name: string, color: string, parentFolderId?:
   return data;
 }
 
-export async function createMarkdownFile(
+export async function createNote(
   title: string,
   content: string,
   folderId?: string
 ): Promise<FileItem> {
   const token = await getAuthToken();
   
-  console.log('[filesApi] Creating markdown file:', { title, folderId, contentLength: content.length });
+  console.log('[filesApi] Creating note:', { title, folderId, contentLength: content.length });
 
   const response = await fetchWithRetry(`${API_BASE_URL}/api/files`, {
     method: 'POST',
@@ -249,9 +211,9 @@ export async function createMarkdownFile(
     },
     body: JSON.stringify({
       title,
-      file_type: 'md',
       content,
-      folder_id: folderId ?? undefined
+      folder_id: folderId,
+      file_type: 'md'
     })
   });
 
@@ -263,16 +225,17 @@ export async function createMarkdownFile(
     } catch {
       errorMessage = `Failed to create note: ${response.statusText}`;
     }
-    console.error('[filesApi] Create markdown file failed:', response.status, errorMessage);
+    console.error('[filesApi] Create note failed:', response.status, errorMessage);
     throw new Error(errorMessage);
   }
 
   const data = await response.json();
-  console.log('[filesApi] Markdown file created successfully:', data);
-  
-  // Backend returns the file directly, not wrapped
+  console.log('[filesApi] Note created successfully:', data);
   return data;
 }
+
+// Backward compatibility alias
+export const createMarkdownFile = createNote;
 
 export async function updateFolder(folderId: string, updates: { name?: string; color?: string }): Promise<FileFolder> {
   const token = await getAuthToken();
@@ -299,71 +262,6 @@ export async function deleteFolder(folderId: string): Promise<void> {
   });
   
   if (!response.ok) throw new Error('Failed to delete folder');
-}
-
-// Upload API
-export async function uploadFile(
-  file: File,
-  folderId?: string,
-  onProgress?: (progress: number) => void
-): Promise<FileItem> {
-  const token = await getAuthToken();
-  
-  const formData = new FormData();
-  formData.append('file', file);
-  if (folderId) formData.append('folder_id', folderId);
-  
-  const response = await fetch(`${API_BASE_URL}/api/upload`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Upload failed');
-  }
-  
-  const data = await response.json();
-  return data.file;
-}
-
-export interface FolderStructure {
-  folders: string[];
-  files: Array<{
-    index: number;
-    folder_path: string;
-    title: string;
-  }>;
-}
-
-export async function uploadFolder(
-  files: File[],
-  structure: FolderStructure,
-  parentFolderId?: string
-): Promise<{ success: boolean; message: string }> {
-  const token = await getAuthToken();
-  
-  const formData = new FormData();
-  formData.append('structure', JSON.stringify(structure));
-  if (parentFolderId) formData.append('parent_folder_id', parentFolderId);
-  
-  files.forEach((file, index) => {
-    formData.append(`file_${index}`, file);
-  });
-  
-  const response = await fetch(`${API_BASE_URL}/api/upload-folder`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Folder upload failed');
-  }
-  
-  return response.json();
 }
 
 // Quota API

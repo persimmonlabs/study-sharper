@@ -18,7 +18,7 @@ export default function NotesUpload() {
     const formData = new FormData(e.currentTarget)
     
     try {
-      const response = await fetch('/api/notes/upload', {
+      const response = await fetch('/api/files', {
         method: 'POST',
         body: formData
       })
