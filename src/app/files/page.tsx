@@ -1,12 +1,12 @@
 // src/app/files/page.tsx
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FileFolder, FileItem } from '@/types/files';
 import { Plus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
-import { fetchFiles } from '@/lib/api/filesApi';
+import { fetchFile, fetchFiles } from '@/lib/api/filesApi';
 
 export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
@@ -15,6 +15,9 @@ export default function FilesPage() {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [loadingSelectedFile, setLoadingSelectedFile] = useState(false);
+  const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoadingFiles(true);
@@ -22,6 +25,8 @@ export default function FilesPage() {
     try {
       const data = await fetchFiles();
       setFiles(data);
+      setSelectedFile(null);
+      setSelectedFileError(null);
       setSelectedFileId((previous) => {
         if (!data.length) {
           return null;
@@ -50,10 +55,30 @@ export default function FilesPage() {
     loadFiles();
   };
 
-  const selectedFile = useMemo(
-    () => files.find((file) => file.id === selectedFileId) ?? null,
-    [files, selectedFileId]
-  );
+  useEffect(() => {
+    const fetchSelectedFile = async (fileId: string) => {
+      setLoadingSelectedFile(true);
+      setSelectedFileError(null);
+      try {
+        const file = await fetchFile(fileId);
+        setSelectedFile(file);
+      } catch (error) {
+        console.error('[FilesPage] Failed to load selected file:', error);
+        setSelectedFile(null);
+        setSelectedFileError(error instanceof Error ? error.message : 'Failed to load file');
+      } finally {
+        setLoadingSelectedFile(false);
+      }
+    };
+
+    if (!selectedFileId) {
+      setSelectedFile(null);
+      setSelectedFileError(null);
+      return;
+    }
+
+    fetchSelectedFile(selectedFileId);
+  }, [selectedFileId]);
 
   return (
     <FileErrorBoundary>
@@ -107,7 +132,11 @@ export default function FilesPage() {
                     return (
                       <button
                         key={file.id}
-                        onClick={() => setSelectedFileId(file.id)}
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setSelectedFileError(null);
+                          setSelectedFileId(file.id);
+                        }}
                         className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
                           isActive
                             ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
@@ -154,6 +183,14 @@ export default function FilesPage() {
               <div className="flex-1 flex items-center justify-center text-red-500">
                 {fileError}
               </div>
+            ) : selectedFileId && loadingSelectedFile ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                Loading file content...
+              </div>
+            ) : selectedFileError ? (
+              <div className="flex-1 flex items-center justify-center text-red-500">
+                {selectedFileError}
+              </div>
             ) : selectedFile ? (
               <div className="flex-1">
                 <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-6 bg-gray-50 dark:bg-gray-800/40 h-full flex flex-col">
@@ -163,9 +200,13 @@ export default function FilesPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                     Last updated {new Date(selectedFile.updated_at).toLocaleString()}
                   </p>
-                  <p className="text-gray-600 dark:text-gray-300 leading-6">
-                    This preview shows the file title. Open the editor from other workflows to view or edit full content.
-                  </p>
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-200 leading-6">
+                      {selectedFile.content?.trim()
+                        ? selectedFile.content
+                        : 'No content available for this file.'}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
