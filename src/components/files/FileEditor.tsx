@@ -20,13 +20,11 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
   const [content, setContent] = useState(file.content ?? '')
   const [savedTitle, setSavedTitle] = useState(file.title)
   const [savedContent, setSavedContent] = useState(file.content ?? '')
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
     file.updated_at ? new Date(file.updated_at) : null
   )
-
 
   useEffect(() => {
     setTitle(file.title)
@@ -36,7 +34,6 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
     setLastSavedAt(file.updated_at ? new Date(file.updated_at) : null)
     setSaveStatus('idle')
     setError(null)
-    setIsEditingTitle(false)
   }, [file.id, file.title, file.content, file.updated_at])
 
   const hasChanges = useMemo(() => {
@@ -46,12 +43,12 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
   function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') {
       event.preventDefault()
-      setIsEditingTitle(false)
+      event.currentTarget.blur()
     }
     if (event.key === 'Escape') {
       event.preventDefault()
       setTitle(savedTitle)
-      setIsEditingTitle(false)
+      event.currentTarget.blur()
     }
   }
 
@@ -62,14 +59,12 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
     }
     setTitle(savedTitle)
     setContent(savedContent)
-    setIsEditingTitle(false)
     onCancel?.()
   }
 
   async function handleSave() {
     if (!title.trim()) {
       setError('Title is required.')
-      setIsEditingTitle(true)
       return
     }
 
@@ -131,25 +126,16 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
       {/* Header with Title and Action Buttons */}
       <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
         <div className="flex-1">
-          {isEditingTitle ? (
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              onBlur={() => setIsEditingTitle(false)}
-              onKeyDown={handleTitleKeyDown}
-              autoFocus
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-3 text-2xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsEditingTitle(true)}
-              className="text-3xl font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition"
-              title="Click to edit title"
-            >
-              {title || 'Untitled'}
-            </button>
-          )}
+          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+            Title
+          </label>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={handleTitleKeyDown}
+            placeholder="Untitled"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
         </div>
 
         <div className="flex items-center gap-2">
