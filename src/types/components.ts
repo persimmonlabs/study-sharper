@@ -225,15 +225,6 @@ export interface PdfViewerProps {
   onLoadError?: (error: Error) => void
 }
 
-/**
- * Props for DocxViewer component
- */
-export interface DocxViewerProps {
-  fileUrl: string
-  fileName?: string
-  onLoadError?: (error: Error) => void
-}
-
 // ============================================================================
 // Layout Component Props
 // ============================================================================

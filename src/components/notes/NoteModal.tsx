@@ -6,7 +6,6 @@ import { supabase, type Database } from '@/lib/supabase'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PdfViewer } from '@/components/documents/PdfViewer'
-import { DocxViewer } from '@/components/documents/DocxViewer'
 import { noteCache } from '@/lib/noteCache'
 
 interface Note {
@@ -48,7 +47,6 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
   const router = useRouter()
   const pathname = usePathname()
   const extractedText = fullNote?.extracted_text?.trim()?.length ? fullNote?.extracted_text : (fullNote?.content?.trim()?.length ? fullNote?.content : null)
-  const isDocx = fullNote?.file_path?.endsWith('.docx')
   const isPdf = fullNote?.file_path?.endsWith('.pdf')
 
   useEffect(() => {
@@ -361,12 +359,6 @@ export function NoteModal({ note, isOpen, onClose, onDeleted, folders = [], onUp
           {!fileLoading && fileUrl && isPdf && (
             <div className="space-y-4 pb-6">
               <PdfViewer src={fileUrl} title={note.title} />
-            </div>
-          )}
-
-          {!fileLoading && fileUrl && isDocx && (
-            <div className="space-y-4 pb-6">
-              <DocxViewer src={fileUrl} title={note.title} />
             </div>
           )}
 

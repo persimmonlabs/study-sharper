@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { updateFile, deleteFile, retryFileProcessing } from '@/lib/api/filesApi'
+import { updateFile, deleteFile } from '@/lib/api/filesApi'
 import type { FileItem, FileFolder } from '@/types/files'
 
 interface FileContextMenuProps {
@@ -12,7 +12,6 @@ interface FileContextMenuProps {
   onClose: () => void
   onFileUpdated?: (file: FileItem) => void
   onFileDeleted?: (fileId: string) => void
-  onRetry?: (fileId: string) => void
 }
 
 type MoveState = 'idle' | 'saving' | 'error'
@@ -26,7 +25,6 @@ export function FileContextMenu({
   onClose,
   onFileUpdated,
   onFileDeleted,
-  onRetry,
 }: FileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [isClient, setIsClient] = useState(false)
@@ -42,9 +40,6 @@ export function FileContextMenu({
 
   const [deleteState, setDeleteState] = useState<DeleteState>('idle')
   const [deleteError, setDeleteError] = useState<string | null>(null)
-
-  const [retryError, setRetryError] = useState<string | null>(null)
-  const [isRetrying, setIsRetrying] = useState(false)
 
   useEffect(() => {
     setIsClient(true)
@@ -89,8 +84,6 @@ export function FileContextMenu({
     setMoveError(null)
     setDeleteState('idle')
     setDeleteError(null)
-    setRetryError(null)
-    setIsRetrying(false)
   }, [file])
 
   if (!isClient || typeof document === 'undefined') {
@@ -145,19 +138,6 @@ export function FileContextMenu({
     }
   }
 
-  function handleDownload() {
-    if (!file.original_preview_path) {
-      return
-    }
-
-    const link = document.createElement('a')
-    link.href = file.original_preview_path
-    link.download = file.original_filename ?? `${file.title}.download`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   async function handleDelete() {
     setDeleteState('deleting')
     setDeleteError(null)
@@ -169,21 +149,6 @@ export function FileContextMenu({
     } catch (error) {
       setDeleteState('confirming')
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete file.')
-    }
-  }
-
-  async function handleRetry() {
-    setIsRetrying(true)
-    setRetryError(null)
-
-    try {
-      await retryFileProcessing(file.id)
-      onRetry?.(file.id)
-      onClose()
-    } catch (error) {
-      setRetryError(error instanceof Error ? error.message : 'Failed to retry processing.')
-    } finally {
-      setIsRetrying(false)
     }
   }
 
@@ -271,40 +236,6 @@ export function FileContextMenu({
           <p className="mt-1 text-xs text-red-600">{moveError}</p>
         )}
       </div>
-
-      <div className="rounded-md border border-slate-200">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-          onClick={handleDownload}
-          disabled={!file.original_preview_path}
-        >
-          <span>Download File</span>
-          <span className="text-xs text-slate-400">
-            {file.original_preview_path ? 'Available' : 'Not available'}
-          </span>
-        </button>
-        {!file.original_preview_path && (
-          <p className="px-3 pb-2 text-xs text-slate-400">
-            Original file not available for download.
-          </p>
-        )}
-      </div>
-
-      {file.processing_status === 'failed' && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-sm text-amber-700 hover:text-amber-800"
-            onClick={() => void handleRetry()}
-            disabled={isRetrying}
-          >
-            <span>Retry Processing</span>
-            <span className="text-xs">{isRetrying ? 'Retrying...' : 'Try again'}</span>
-          </button>
-          {retryError && <p className="mt-1 text-xs text-red-600">{retryError}</p>}
-        </div>
-      )}
 
       <div className="rounded-md border border-slate-200 px-3 py-2">
         {deleteState === 'confirming' || deleteState === 'deleting' ? (
