@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState, KeyboardEvent } from 'react'
-import type { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import '@uiw/react-md-editor/markdown-editor.css'
 import '@uiw/react-markdown-preview/markdown.css'
 import { updateFile } from '@/lib/api/filesApi'
 import type { FileItem } from '@/types/files'
 import { formatDistanceToNow } from 'date-fns'
-import { MessageSquare, BarChart2, Sparkles, FileText, Hash, Timer } from 'lucide-react'
+import { MessageSquare, BarChart2 } from 'lucide-react'
 
 const MDEditor = dynamic(
   () => import('@uiw/react-md-editor').then((mod) => mod.default),
@@ -125,7 +124,7 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
   }
 
   const fileStats = useMemo(() => {
-    const text = file.extracted_text || file.content || ''
+    const text = file.content || ''
     const words = text ? text.trim().split(/\s+/).filter(Boolean).length : 0
     const chars = text.length
     const minutes = Math.max(1, Math.ceil(words / 200))
@@ -137,87 +136,7 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
       estimatedMinutes: minutes,
       pages
     }
-  }, [file.extracted_text, file.content])
-
-  const metadataItems = useMemo(() => {
-    const items: Array<{ label: string; value: string | number; icon: ReactNode }> = []
-
-    if (file.extraction_method) {
-      items.push({
-        label: 'Extraction Method',
-        value: file.extraction_method.toUpperCase(),
-        icon: <Sparkles className="w-4 h-4 text-violet-500" />
-      })
-    }
-
-    if (file.processing_status) {
-      items.push({
-        label: 'Status',
-        value: file.processing_status,
-        icon: <FileText className="w-4 h-4 text-slate-500" />
-      })
-    }
-
-    const words = file.word_count ?? fileStats.words
-    if (words) {
-      items.push({
-        label: 'Word Count',
-        value: words,
-        icon: <Hash className="w-4 h-4 text-blue-500" />
-      })
-    }
-
-    const pages = file.page_count ?? fileStats.pages
-    if (pages) {
-      items.push({
-        label: 'Approx. Pages',
-        value: pages,
-        icon: <FileText className="w-4 h-4 text-orange-500" />
-      })
-    }
-
-    if (fileStats.estimatedMinutes) {
-      items.push({
-        label: 'Read Time',
-        value: `${fileStats.estimatedMinutes} min`,
-        icon: <Timer className="w-4 h-4 text-emerald-500" />
-      })
-    }
-
-    if (file.processing_duration_ms) {
-      items.push({
-        label: 'Extraction Time',
-        value: `${(file.processing_duration_ms / 1000).toFixed(1)} s`,
-        icon: <Timer className="w-4 h-4 text-amber-500" />
-      })
-    }
-
-    return items
-  }, [file.processing_status, file.extraction_method, fileStats, file.word_count, file.page_count, file.processing_duration_ms])
-
-  const embeddingStatus = useMemo(() => {
-    if (file.embedding_status === 'generated') {
-      return 'Embeddings generated.'
-    }
-
-    if (file.embedding_status === 'processing') {
-      return 'Generating embeddings...'
-    }
-
-    if (file.embedding_status === 'failed') {
-      return 'Embedding generation failed.'
-    }
-
-    if (file.processing_status === 'failed') {
-      return 'Embeddings unavailable due to processing failure.'
-    }
-
-    if (file.processing_status === 'completed') {
-      return 'Embeddings generated.'
-    }
-
-    return 'Embeddings pending processing completion.'
-  }, [file.embedding_status, file.processing_status])
+  }, [file.content])
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -316,19 +235,6 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
             {showMetadata && (
               <div className="space-y-6 px-4 py-4">
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Extraction</h3>
-                  <ul className="space-y-2">
-                    {metadataItems.map((item) => (
-                      <li key={item.label} className="flex items-center gap-2 text-sm text-slate-700">
-                        {item.icon}
-                        <span className="font-medium text-slate-500">{item.label}:</span>
-                        <span className="text-slate-900">{item.value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section>
                   <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <BarChart2 className="w-4 h-4" />
                     Stats
@@ -354,19 +260,13 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
                     </div>
                   </div>
                 </section>
-
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Embedding Status</h3>
-                  <p className="text-sm text-slate-600">{embeddingStatus}</p>
-                </section>
-
-                <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Extracted Text</h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Content Preview</h3>
                   <div className="max-h-48 overflow-y-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
-                    {file.extracted_text ? (
-                      <pre className="whitespace-pre-wrap">{file.extracted_text}</pre>
+                    {content ? (
+                      <pre className="whitespace-pre-wrap">{content}</pre>
                     ) : (
-                      <p className="text-slate-500">No extracted text available yet.</p>
+                      <p className="text-slate-500">No content available yet.</p>
                     )}
                   </div>
                 </section>
