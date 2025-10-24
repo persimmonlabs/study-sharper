@@ -6,6 +6,7 @@ import { FileFolder, FileItem } from '@/types/files';
 import { Plus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
+import { FileEditor } from '@/components/files/FileEditor';
 import { fetchFile, fetchFiles } from '@/lib/api/filesApi';
 
 export default function FilesPage() {
@@ -18,6 +19,7 @@ export default function FilesPage() {
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [loadingSelectedFile, setLoadingSelectedFile] = useState(false);
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
+  const [savingMessage, setSavingMessage] = useState<string | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoadingFiles(true);
@@ -59,6 +61,7 @@ export default function FilesPage() {
     const fetchSelectedFile = async (fileId: string) => {
       setLoadingSelectedFile(true);
       setSelectedFileError(null);
+      setSavingMessage(null);
       try {
         const file = await fetchFile(fileId);
         setSelectedFile(file);
@@ -79,6 +82,25 @@ export default function FilesPage() {
 
     fetchSelectedFile(selectedFileId);
   }, [selectedFileId]);
+
+  const handleFileSaved = useCallback(
+    (updatedFile: FileItem) => {
+      setSelectedFile(updatedFile);
+      setSavingMessage('Changes saved successfully.');
+      setFiles((previous) =>
+        previous.map((file) =>
+          file.id === updatedFile.id
+            ? {
+                ...file,
+                title: updatedFile.title,
+                updated_at: updatedFile.updated_at,
+              }
+            : file
+        )
+      );
+    },
+    []
+  );
 
   return (
     <FileErrorBoundary>
@@ -165,11 +187,14 @@ export default function FilesPage() {
           <main className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">File Preview</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">File Editor</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Select a file from the sidebar to view its details.
+                  Select a file from the sidebar to edit its title or markdown content.
                 </p>
               </div>
+              {savingMessage && (
+                <span className="text-sm text-green-500">{savingMessage}</span>
+              )}
             </div>
 
             {loadingFiles && files.length === 0 ? (
@@ -190,21 +215,7 @@ export default function FilesPage() {
               </div>
             ) : selectedFile ? (
               <div className="flex-1">
-                <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-6 bg-gray-50 dark:bg-gray-800/40 h-full flex flex-col">
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    {selectedFile.title || 'Untitled note'}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Last updated {new Date(selectedFile.updated_at).toLocaleString()}
-                  </p>
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-200 leading-6">
-                      {selectedFile.content?.trim()
-                        ? selectedFile.content
-                        : 'No content available for this file.'}
-                    </div>
-                  </div>
-                </div>
+                <FileEditor file={selectedFile} onSaved={handleFileSaved} />
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
