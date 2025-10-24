@@ -1,0 +1,127 @@
+/* Tiptap Editor Styling - Light and Dark Mode */
+
+.ProseMirror {
+  @apply p-4 text-gray-900 dark:text-gray-100 outline-none;
+  min-height: 400px;
+}
+
+.ProseMirror > * + * {
+  @apply mt-3;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  @apply font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2;
+}
+
+.ProseMirror h1 {
+  @apply text-2xl;
+}
+
+.ProseMirror h2 {
+  @apply text-xl;
+}
+
+.ProseMirror h3 {
+  @apply text-lg;
+}
+
+.ProseMirror p {
+  @apply text-base leading-relaxed;
+}
+
+.ProseMirror a {
+  @apply text-blue-600 dark:text-blue-400 underline cursor-pointer hover:text-blue-700 dark:hover:text-blue-300;
+}
+
+.ProseMirror code {
+  @apply bg-gray-100 dark:bg-gray-800 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-mono text-sm;
+}
+
+.ProseMirror pre {
+  @apply bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-3;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent text-gray-100 p-0 rounded-none;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  @apply ml-6 my-2;
+}
+
+.ProseMirror li {
+  @apply mb-1;
+}
+
+.ProseMirror ul li {
+  @apply list-disc;
+}
+
+.ProseMirror ol li {
+  @apply list-decimal;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-gray-300 dark:border-gray-700 pl-4 italic text-gray-600 dark:text-gray-400 my-3;
+}
+
+.ProseMirror hr {
+  @apply border-t border-gray-300 dark:border-gray-700 my-4;
+}
+
+/* Selection styling */
+.ProseMirror::selection {
+  @apply bg-blue-200 dark:bg-blue-900;
+}
+
+/* Focus state */
+.ProseMirror:focus {
+  @apply outline-none;
+}
+
+/* Placeholder styling */
+.ProseMirror.is-editor-empty:first-child::before {
+  @apply text-gray-400 dark:text-gray-600 pointer-events-none float-left h-0 content-['attr(data-placeholder)'];
+}
+
+/* Dark mode adjustments */
+.dark .ProseMirror {
+  @apply bg-gray-950;
+}
+
+/* Ensure proper contrast in dark mode */
+.dark .ProseMirror strong {
+  @apply font-bold text-gray-100;
+}
+
+.dark .ProseMirror em {
+  @apply italic text-gray-100;
+}
+
+/* List styling improvements */
+.ProseMirror ul {
+  @apply list-inside;
+}
+
+.ProseMirror ol {
+  @apply list-inside;
+}
+
+/* Improve spacing for nested lists */
+.ProseMirror li ul,
+.ProseMirror li ol {
+  @apply ml-4;
+}
+
+/* Code block language label */
+.ProseMirror pre::before {
+  @apply text-gray-400 dark:text-gray-500 text-xs font-mono;
+}
+
+/* Horizontal rule styling */
+.ProseMirror hr {
+  @apply my-4 border-0 border-t-2 border-gray-300 dark:border-gray-700;
+}

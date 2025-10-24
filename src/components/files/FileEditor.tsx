@@ -1,18 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState, KeyboardEvent } from 'react'
-import dynamic from 'next/dynamic'
-import '@uiw/react-md-editor/markdown-editor.css'
-import '@uiw/react-markdown-preview/markdown.css'
 import { updateFile } from '@/lib/api/filesApi'
 import type { FileItem } from '@/types/files'
 import { formatDistanceToNow } from 'date-fns'
 import { MessageSquare, BarChart2 } from 'lucide-react'
-
-const MDEditor = dynamic(
-  () => import('@uiw/react-md-editor').then((mod) => mod.default),
-  { ssr: false }
-)
+import { TiptapEditor } from './TiptapEditor'
 
 interface FileEditorProps {
   file: FileItem
@@ -198,15 +191,10 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
         </div>
 
         <div className="flex flex-1 gap-4 overflow-hidden">
-          <div className="flex-1 overflow-hidden" data-color-mode="light">
-            <MDEditor
-              value={content}
-              onChange={(value) => setContent(value ?? '')}
-              preview="edit"
-              hideToolbar={false}
-              height="100%"
-              visibleDragbar={false}
-              className="h-full"
+          <div className="flex-1 overflow-hidden">
+            <TiptapEditor
+              markdown={content}
+              onChange={setContent}
             />
           </div>
 
