@@ -1,18 +1,20 @@
 // src/app/files/page.tsx
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileFolder, FileItem } from '@/types/files';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, FolderPlus, FilePlus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
+import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
 import { FileViewer } from '@/components/files/FileViewer';
-import { fetchFile, fetchFiles } from '@/lib/api/filesApi';
+import { fetchFile, fetchFiles, fetchFolders } from '@/lib/api/filesApi';
 
 export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
   const [showCreateNote, setShowCreateNote] = useState(false);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -22,6 +24,46 @@ export default function FilesPage() {
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  const newMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const folderColorClasses = useMemo(
+    () => ({
+      blue: 'bg-blue-500',
+      red: 'bg-red-500',
+      green: 'bg-green-500',
+      yellow: 'bg-yellow-400',
+      purple: 'bg-purple-500',
+      pink: 'bg-pink-400',
+    }),
+    []
+  );
+
+  useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        const data = await fetchFolders();
+        setFolders(data);
+      } catch (error) {
+        console.error('[FilesPage] Failed to load folders:', error);
+      }
+    };
+    loadFolders();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (newMenuRef.current && !newMenuRef.current.contains(event.target as Node)) {
+        setIsNewMenuOpen(false);
+      }
+    };
+
+    if (isNewMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isNewMenuOpen]);
 
   useEffect(() => {
     if (!savingMessage) {
@@ -138,6 +180,14 @@ export default function FilesPage() {
     setIsEditMode(false);
   }, []);
 
+  const handleFolderCreated = useCallback(
+    (folder: FileFolder) => {
+      setShowCreateFolder(false);
+      setFolders((prev) => [...prev, folder]);
+    },
+    []
+  );
+
   return (
     <FileErrorBoundary>
       <div className="space-y-6">
@@ -163,13 +213,39 @@ export default function FilesPage() {
           <aside className="md:w-72 lg:w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl h-full flex flex-col shadow-sm">
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Your Files</h2>
-              <button
-                onClick={() => setShowCreateNote(true)}
-                className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
-              >
-                <Plus className="w-4 h-4" />
-                New
-              </button>
+              <div className="relative" ref={newMenuRef}>
+                <button
+                  onClick={() => setIsNewMenuOpen(!isNewMenuOpen)}
+                  className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  New
+                </button>
+                {isNewMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+                    <button
+                      onClick={() => {
+                        setShowCreateNote(true);
+                        setIsNewMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 first:rounded-t-lg"
+                    >
+                      <FilePlus className="w-4 h-4" />
+                      New File
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateFolder(true);
+                        setIsNewMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 last:rounded-b-lg"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      New Folder
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -192,30 +268,97 @@ export default function FilesPage() {
                 </div>
               ) : (
                 <nav className="p-2 space-y-1">
-                  {files.map((file) => {
-                    const isActive = file.id === selectedFileId;
+                  {folders.map((folder) => {
+                    const isExpanded = expandedFolders.includes(folder.id);
+                    const folderFiles = files.filter((f) => f.folder_id === folder.id);
+                    const colorClass = folderColorClasses[folder.color as keyof typeof folderColorClasses] || folderColorClasses.blue;
+
                     return (
-                      <button
-                        key={file.id}
-                        onClick={() => {
-                          setIsEditMode(false);
-                          setSavingMessage(null);
-                          setSelectedFile(null);
-                          setSelectedFileError(null);
-                          setSelectedFileId(file.id);
-                        }}
-                        className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
-                          isActive
-                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                        }`}
-                      >
-                        <span className="block text-sm font-semibold truncate">
-                          {file.title || 'Untitled note'}
-                        </span>
-                      </button>
+                      <div key={folder.id}>
+                        <button
+                          onClick={() => {
+                            setExpandedFolders((prev) =>
+                              isExpanded
+                                ? prev.filter((id) => id !== folder.id)
+                                : [...prev, folder.id]
+                            );
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg transition hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          <span className={`w-3 h-3 rounded-full ${colorClass} flex-shrink-0`} />
+                          <span className="text-sm font-semibold truncate">{folder.name}</span>
+                        </button>
+                        {isExpanded && folderFiles.length > 0 && (
+                          <div className="ml-4 space-y-1">
+                            {folderFiles.map((file) => {
+                              const isActive = file.id === selectedFileId;
+                              return (
+                                <button
+                                  key={file.id}
+                                  onClick={() => {
+                                    setIsEditMode(false);
+                                    setSavingMessage(null);
+                                    setSelectedFile(null);
+                                    setSelectedFileError(null);
+                                    setSelectedFileId(file.id);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
+                                    isActive
+                                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+                                  }`}
+                                >
+                                  <span className="block text-sm font-semibold truncate">
+                                    {file.title || 'Untitled note'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
+                  {files.filter((f) => !f.folder_id).length > 0 && (
+                    <div>
+                      {folders.length > 0 && (
+                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
+                          Other Files
+                        </div>
+                      )}
+                      {files
+                        .filter((f) => !f.folder_id)
+                        .map((file) => {
+                          const isActive = file.id === selectedFileId;
+                          return (
+                            <button
+                              key={file.id}
+                              onClick={() => {
+                                setIsEditMode(false);
+                                setSavingMessage(null);
+                                setSelectedFile(null);
+                                setSelectedFileError(null);
+                                setSelectedFileId(file.id);
+                              }}
+                              className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
+                                isActive
+                                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
+                                  : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+                              }`}
+                            >
+                              <span className="block text-sm font-semibold truncate">
+                                {file.title || 'Untitled note'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
                 </nav>
               )}
             </div>
@@ -275,6 +418,15 @@ export default function FilesPage() {
           parentFolders={folders}
           defaultFolderId={null}
           onCreated={handleFileCreated}
+        />
+
+        {/* Create Folder Dialog */}
+        <CreateFolderDialog
+          isOpen={showCreateFolder}
+          onClose={() => setShowCreateFolder(false)}
+          parentFolders={folders}
+          defaultParentId={null}
+          onCreated={handleFolderCreated}
         />
       </div>
     </FileErrorBoundary>
