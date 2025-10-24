@@ -42,7 +42,7 @@ export function FileViewer({ file, onEditClick }: FileViewerProps) {
       </div>
 
       {/* Content Display */}
-      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-6">
+      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 shadow-sm">
         {contentPreview ? (
           <div className="prose dark:prose-invert max-w-none overflow-y-auto h-full">
             <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 text-sm leading-relaxed">

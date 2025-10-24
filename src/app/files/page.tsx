@@ -23,6 +23,20 @@ export default function FilesPage() {
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  useEffect(() => {
+    if (!savingMessage) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setSavingMessage(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [savingMessage]);
+
   const loadFiles = useCallback(async () => {
     setLoadingFiles(true);
     setFileError(null);

@@ -52,6 +52,10 @@
   @apply ml-6 my-2;
 }
 
+.ProseMirror li > p {
+  @apply m-0;
+}
+
 .ProseMirror li {
   @apply mb-1;
 }
