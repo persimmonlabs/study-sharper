@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000'
+const BACKEND_URL = process.env.BACKEND_API_URL || 'https://study-sharper-backend-production.up.railway.app'
 
 // Force dynamic rendering since we access request headers
 export const dynamic = 'force-dynamic'
