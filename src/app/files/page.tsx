@@ -198,6 +198,8 @@ export default function FilesPage() {
                       <button
                         key={file.id}
                         onClick={() => {
+                          setIsEditMode(false);
+                          setSavingMessage(null);
                           setSelectedFile(null);
                           setSelectedFileError(null);
                           setSelectedFileId(file.id);
