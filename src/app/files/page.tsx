@@ -37,15 +37,18 @@ export default function FilesPage() {
     };
   }, [savingMessage]);
 
-  const loadFiles = useCallback(async () => {
+  const loadFiles = useCallback(async (nextSelectedId?: string | null) => {
     setLoadingFiles(true);
     setFileError(null);
     try {
       const data = await fetchFiles();
       setFiles(data);
-      setSelectedFile(null);
       setSelectedFileError(null);
       setSelectedFileId((previous) => {
+        if (nextSelectedId && data.some((file) => file.id === nextSelectedId)) {
+          return nextSelectedId;
+        }
+
         if (!data.length) {
           return null;
         }
@@ -68,10 +71,18 @@ export default function FilesPage() {
     loadFiles();
   }, [loadFiles]);
 
-  const handleFileCreated = () => {
-    setShowCreateNote(false);
-    loadFiles();
-  };
+  const handleFileCreated = useCallback(
+    (note: FileItem) => {
+      setShowCreateNote(false);
+      setIsEditMode(false);
+      setSavingMessage(null);
+      setSelectedFileError(null);
+      setSelectedFile(note);
+      setSelectedFileId(note.id);
+      loadFiles(note.id);
+    },
+    [loadFiles]
+  );
 
   useEffect(() => {
     const fetchSelectedFile = async (fileId: string) => {

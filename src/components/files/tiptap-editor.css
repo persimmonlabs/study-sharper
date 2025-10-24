@@ -54,6 +54,7 @@
 
 .ProseMirror li > p {
   @apply m-0;
+  display: inline;
 }
 
 .ProseMirror li {
@@ -62,10 +63,12 @@
 
 .ProseMirror ul li {
   @apply list-disc;
+  list-style-position: outside;
 }
 
 .ProseMirror ol li {
   @apply list-decimal;
+  list-style-position: outside;
 }
 
 .ProseMirror blockquote {
@@ -107,11 +110,11 @@
 
 /* List styling improvements */
 .ProseMirror ul {
-  @apply list-inside;
+  @apply list-outside;
 }
 
 .ProseMirror ol {
-  @apply list-inside;
+  @apply list-outside;
 }
 
 /* Improve spacing for nested lists */
