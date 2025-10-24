@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
+import { FileViewer } from '@/components/files/FileViewer';
 import { fetchFile, fetchFiles } from '@/lib/api/filesApi';
 
 export default function FilesPage() {
@@ -20,6 +21,7 @@ export default function FilesPage() {
   const [loadingSelectedFile, setLoadingSelectedFile] = useState(false);
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const loadFiles = useCallback(async () => {
     setLoadingFiles(true);
@@ -87,6 +89,7 @@ export default function FilesPage() {
     (updatedFile: FileItem) => {
       setSelectedFile(updatedFile);
       setSavingMessage('Changes saved successfully.');
+      setIsEditMode(false);
       setFiles((previous) =>
         previous.map((file) =>
           file.id === updatedFile.id
@@ -101,6 +104,14 @@ export default function FilesPage() {
     },
     []
   );
+
+  const handleEditClick = useCallback(() => {
+    setIsEditMode(true);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditMode(false);
+  }, []);
 
   return (
     <FileErrorBoundary>
@@ -185,17 +196,11 @@ export default function FilesPage() {
 
           {/* Main Content */}
           <main className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">File Editor</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Select a file from the sidebar to edit its title or markdown content.
-                </p>
+            {savingMessage && (
+              <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm">
+                {savingMessage}
               </div>
-              {savingMessage && (
-                <span className="text-sm text-green-500">{savingMessage}</span>
-              )}
-            </div>
+            )}
 
             {loadingFiles && files.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
@@ -215,11 +220,22 @@ export default function FilesPage() {
               </div>
             ) : selectedFile ? (
               <div className="flex-1">
-                <FileEditor file={selectedFile} onSaved={handleFileSaved} />
+                {isEditMode ? (
+                  <FileEditor
+                    file={selectedFile}
+                    onSaved={handleFileSaved}
+                    onCancel={handleCancelEdit}
+                  />
+                ) : (
+                  <FileViewer
+                    file={selectedFile}
+                    onEditClick={handleEditClick}
+                  />
+                )}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                Select a file from the sidebar to preview its title.
+                Select a file from the sidebar to view it.
               </div>
             )}
           </main>

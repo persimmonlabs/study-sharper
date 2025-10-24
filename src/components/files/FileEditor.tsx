@@ -3,20 +3,19 @@
 import { useEffect, useMemo, useState, KeyboardEvent } from 'react'
 import { updateFile } from '@/lib/api/filesApi'
 import type { FileItem } from '@/types/files'
-import { formatDistanceToNow } from 'date-fns'
-import { MessageSquare, BarChart2 } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { TiptapEditor } from './TiptapEditor'
 
 interface FileEditorProps {
   file: FileItem
   onSaved?: (file: FileItem) => void
   onError?: (error: Error) => void
-  onAskAboutFile?: (file: FileItem) => void
+  onCancel?: () => void
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEditorProps) {
+export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps) {
   const [title, setTitle] = useState(file.title)
   const [content, setContent] = useState(file.content ?? '')
   const [savedTitle, setSavedTitle] = useState(file.title)
@@ -28,7 +27,6 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
     file.updated_at ? new Date(file.updated_at) : null
   )
 
-  const [showMetadata, setShowMetadata] = useState(true)
 
   useEffect(() => {
     setTitle(file.title)
@@ -55,6 +53,17 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
       setTitle(savedTitle)
       setIsEditingTitle(false)
     }
+  }
+
+  function handleCancel() {
+    if (hasChanges) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to discard them?')
+      if (!confirmed) return
+    }
+    setTitle(savedTitle)
+    setContent(savedContent)
+    setIsEditingTitle(false)
+    onCancel?.()
   }
 
   async function handleSave() {
@@ -116,152 +125,76 @@ export function FileEditor({ file, onSaved, onError, onAskAboutFile }: FileEdito
     return lastSavedAt.toLocaleTimeString()
   }
 
-  const fileStats = useMemo(() => {
-    const text = file.content || ''
-    const words = text ? text.trim().split(/\s+/).filter(Boolean).length : 0
-    const chars = text.length
-    const minutes = Math.max(1, Math.ceil(words / 200))
-    const pages = Math.max(1, Math.ceil(words / 500))
-
-    return {
-      words,
-      chars,
-      estimatedMinutes: minutes,
-      pages
-    }
-  }, [file.content])
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div className="flex flex-col">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Markdown File
-            </span>
-            {isEditingTitle ? (
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                onBlur={() => setIsEditingTitle(false)}
-                onKeyDown={handleTitleKeyDown}
-                autoFocus
-                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-lg font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsEditingTitle(true)}
-                className="mt-1 max-w-xl text-left text-2xl font-semibold text-slate-900 hover:text-blue-600"
-                title="Click to edit title"
-              >
-                {title || 'Untitled file'}
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-slate-500">
-              Last saved: <span className="font-medium text-slate-700">{formatLastSaved()}</span>
-            </div>
+      {/* Header with Title and Action Buttons */}
+      <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex-1">
+          {isEditingTitle ? (
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyDown={handleTitleKeyDown}
+              autoFocus
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-2xl font-bold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          ) : (
             <button
               type="button"
-              onClick={handleSave}
-              disabled={!hasChanges || saveStatus === 'saving'}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-blue-400"
+              onClick={() => setIsEditingTitle(true)}
+              className="text-3xl font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition"
+              title="Click to edit title"
             >
-              {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+              {title || 'Untitled'}
             </button>
-          </div>
+          )}
         </div>
 
-        <div className="border-b border-slate-200 bg-slate-50 px-6 py-2 text-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {saveStatus === 'saving' && <span className="text-blue-600">Saving...</span>}
-              {saveStatus === 'saved' && !hasChanges && <span className="text-green-600">Saved</span>}
-              {saveStatus === 'error' && <span className="text-red-600">Error saving changes</span>}
-              {!hasChanges && saveStatus === 'idle' && <span className="text-slate-500">No changes</span>}
-              {hasChanges && saveStatus !== 'saving' && (
-                <span className="text-orange-600">Unsaved changes</span>
-              )}
-            </div>
-            {error && <span className="text-sm text-red-600">{error}</span>}
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            title="Cancel editing"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!hasChanges || saveStatus === 'saving'}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Check className="w-4 h-4" />
+            {saveStatus === 'saving' ? 'Saving...' : 'Save'}
+          </button>
         </div>
+      </div>
 
-        <div className="flex flex-1 gap-4 overflow-hidden">
-          <div className="flex-1 overflow-hidden">
-            <TiptapEditor
-              markdown={content}
-              onChange={setContent}
-            />
-          </div>
-
-          <div className="w-80 flex-shrink-0 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setShowMetadata(!showMetadata)}
-                className="text-sm font-semibold text-slate-700 hover:text-blue-600"
-              >
-                File Details
-              </button>
-
-              {onAskAboutFile && (
-                <button
-                  type="button"
-                  onClick={() => onAskAboutFile(file)}
-                  className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Ask about this file
-                </button>
-              )}
-            </div>
-
-            {showMetadata && (
-              <div className="space-y-6 px-4 py-4">
-                <section>
-                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <BarChart2 className="w-4 h-4" />
-                    Stats
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
-                    <div>
-                      <p className="text-xs text-slate-500">Word Count</p>
-                      <p className="text-base font-semibold text-slate-900">{fileStats.words}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Characters</p>
-                      <p className="text-base font-semibold text-slate-900">{fileStats.chars}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Read Time</p>
-                      <p className="text-base font-semibold text-slate-900">{fileStats.estimatedMinutes} min</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Updated</p>
-                      <p className="text-base font-semibold text-slate-900">
-                        {file.updated_at ? formatDistanceToNow(new Date(file.updated_at), { addSuffix: true }) : 'Unknown'}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-                <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Content Preview</h3>
-                  <div className="max-h-48 overflow-y-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
-                    {content ? (
-                      <pre className="whitespace-pre-wrap">{content}</pre>
-                    ) : (
-                      <p className="text-slate-500">No content available yet.</p>
-                    )}
-                  </div>
-                </section>
-              </div>
+      {/* Status Messages */}
+      {(error || saveStatus !== 'idle') && (
+        <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-2 text-sm">
+            {saveStatus === 'saving' && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
+            {saveStatus === 'saved' && !hasChanges && <span className="text-green-600 dark:text-green-400">✓ Saved</span>}
+            {saveStatus === 'error' && <span className="text-red-600 dark:text-red-400">Error saving changes</span>}
+            {hasChanges && saveStatus !== 'saving' && (
+              <span className="text-orange-600 dark:text-orange-400">● Unsaved changes</span>
             )}
           </div>
+          {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
         </div>
+      )}
+
+      {/* Editor */}
+      <div className="flex-1 overflow-hidden">
+        <TiptapEditor
+          markdown={content}
+          onChange={setContent}
+        />
       </div>
     </div>
   )
