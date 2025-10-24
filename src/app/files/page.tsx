@@ -84,13 +84,20 @@ export default function FilesPage() {
     <FileErrorBoundary>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Browse your uploaded files from the sidebar and create new study notes anytime.
             </p>
           </div>
+          <button
+            onClick={() => setShowCreateNote(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition self-start md:self-center"
+          >
+            <Plus className="w-4 h-4" />
+            Create Note
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-6 min-h-[500px]">
@@ -146,9 +153,6 @@ export default function FilesPage() {
                         <span className="block text-sm font-semibold truncate">
                           {file.title || 'Untitled note'}
                         </span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">
-                          Updated {new Date(file.updated_at).toLocaleString()}
-                        </span>
                       </button>
                     );
                   })}
@@ -166,13 +170,6 @@ export default function FilesPage() {
                   Select a file from the sidebar to view its details.
                 </p>
               </div>
-              <button
-                onClick={() => setShowCreateNote(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
-              >
-                <Plus className="w-4 h-4" />
-                Create Note
-              </button>
             </div>
 
             {loadingFiles && files.length === 0 ? (
