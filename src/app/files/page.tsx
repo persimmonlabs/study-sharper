@@ -1,15 +1,17 @@
 // src/app/files/page.tsx
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileFolder, FileItem } from '@/types/files';
 import { Plus, ChevronRight, ChevronDown, FolderPlus, FilePlus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
+import { FileContextMenu } from '@/components/files/FileContextMenu';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
 import { FileViewer } from '@/components/files/FileViewer';
-import { fetchFile, fetchFiles, fetchFolders } from '@/lib/api/filesApi';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { fetchFile, fetchFiles, fetchFolders, deleteFile } from '@/lib/api/filesApi';
 
 export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
@@ -27,6 +29,12 @@ export default function FilesPage() {
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const newMenuRef = useRef<HTMLDivElement | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    file: FileItem;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<FileItem | null>(null);
 
   const folderColorClasses = useMemo(
     () => ({
@@ -39,6 +47,8 @@ export default function FilesPage() {
     }),
     []
   );
+
+  const filesWithoutFolder = useMemo(() => files.filter((file) => !file.folder_id), [files]);
 
   useEffect(() => {
     const loadFolders = async () => {
@@ -180,6 +190,78 @@ export default function FilesPage() {
     setIsEditMode(false);
   }, []);
 
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const handleFileContextMenu = useCallback(
+    (event: ReactMouseEvent, file: FileItem) => {
+      event.preventDefault();
+      setContextMenu({
+        file,
+        position: { x: event.clientX, y: event.clientY },
+      });
+    },
+    []
+  );
+
+  const handleFileDeleted = useCallback(
+    (fileId: string) => {
+      setFiles((prev) => prev.filter((file) => file.id !== fileId));
+      if (selectedFileId === fileId) {
+        setSelectedFileId(null);
+        setSelectedFile(null);
+        setIsEditMode(false);
+      }
+      void loadFiles();
+    },
+    [selectedFileId, loadFiles]
+  );
+
+  const handleFileUpdated = useCallback(
+    (updatedFile: FileItem) => {
+      setFiles((prev) =>
+        prev.map((file) => (file.id === updatedFile.id ? { ...file, ...updatedFile } : file))
+      );
+      if (selectedFileId === updatedFile.id) {
+        setSelectedFile(updatedFile);
+      }
+    },
+    [selectedFileId]
+  );
+
+  const requestFileDelete = useCallback(
+    (file: FileItem) => {
+      setConfirmDeleteFile(file);
+      closeContextMenu();
+    },
+    [closeContextMenu]
+  );
+
+  const handleDeleteConfirmed = useCallback(async () => {
+    if (!confirmDeleteFile) {
+      return;
+    }
+
+    const fileId = confirmDeleteFile.id;
+    setDeletingFileId(fileId);
+    try {
+      await deleteFile(fileId);
+      handleFileDeleted(fileId);
+      setSavingMessage('File deleted successfully.');
+    } catch (error) {
+      console.error('[FilesPage] Failed to delete file:', error);
+      setSavingMessage('Failed to delete file. Please try again.');
+    } finally {
+      setDeletingFileId(null);
+      setConfirmDeleteFile(null);
+    }
+  }, [confirmDeleteFile, handleFileDeleted]);
+
+  const handleDeleteCancelled = useCallback(() => {
+    setConfirmDeleteFile(null);
+  }, []);
+
   const handleFolderCreated = useCallback(
     (folder: FileFolder) => {
       setShowCreateFolder(false);
@@ -271,7 +353,8 @@ export default function FilesPage() {
                   {folders.map((folder) => {
                     const isExpanded = expandedFolders.includes(folder.id);
                     const folderFiles = files.filter((f) => f.folder_id === folder.id);
-                    const colorClass = folderColorClasses[folder.color as keyof typeof folderColorClasses] || folderColorClasses.blue;
+                    const colorClass =
+                      folderColorClasses[folder.color as keyof typeof folderColorClasses] || folderColorClasses.blue;
 
                     return (
                       <div key={folder.id}>
@@ -306,7 +389,9 @@ export default function FilesPage() {
                                     setSelectedFile(null);
                                     setSelectedFileError(null);
                                     setSelectedFileId(file.id);
+                                    closeContextMenu();
                                   }}
+                                  onContextMenu={(event) => handleFileContextMenu(event, file)}
                                   className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
                                     isActive
                                       ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
@@ -324,39 +409,40 @@ export default function FilesPage() {
                       </div>
                     );
                   })}
-                  {files.filter((f) => !f.folder_id).length > 0 && (
+
+                  {filesWithoutFolder.length > 0 && (
                     <div>
                       {folders.length > 0 && (
                         <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
                           Other Files
                         </div>
                       )}
-                      {files
-                        .filter((f) => !f.folder_id)
-                        .map((file) => {
-                          const isActive = file.id === selectedFileId;
-                          return (
-                            <button
-                              key={file.id}
-                              onClick={() => {
-                                setIsEditMode(false);
-                                setSavingMessage(null);
-                                setSelectedFile(null);
-                                setSelectedFileError(null);
-                                setSelectedFileId(file.id);
-                              }}
-                              className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
-                                isActive
-                                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
-                                  : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                              }`}
-                            >
-                              <span className="block text-sm font-semibold truncate">
-                                {file.title || 'Untitled note'}
-                              </span>
-                            </button>
-                          );
-                        })}
+                      {filesWithoutFolder.map((file) => {
+                        const isActive = file.id === selectedFileId;
+                        return (
+                          <button
+                            key={file.id}
+                            onClick={() => {
+                              setIsEditMode(false);
+                              setSavingMessage(null);
+                              setSelectedFile(null);
+                              setSelectedFileError(null);
+                              setSelectedFileId(file.id);
+                              closeContextMenu();
+                            }}
+                            onContextMenu={(event) => handleFileContextMenu(event, file)}
+                            className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
+                              isActive
+                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+                            }`}
+                          >
+                            <span className="block text-sm font-semibold truncate">
+                              {file.title || 'Untitled note'}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </nav>
@@ -364,71 +450,100 @@ export default function FilesPage() {
             </div>
           </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6 flex flex-col">
-            {savingMessage && (
-              <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm">
-                {savingMessage}
-              </div>
-            )}
+        {/* Main Content */}
+        <main className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6 flex flex-col">
+          {savingMessage && (
+            <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm">
+              {savingMessage}
+            </div>
+          )}
 
-            {loadingFiles && files.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                Loading files...
-              </div>
-            ) : fileError ? (
-              <div className="flex-1 flex items-center justify-center text-red-500">
-                {fileError}
-              </div>
-            ) : selectedFileId && loadingSelectedFile ? (
-              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                Loading file content...
-              </div>
-            ) : selectedFileError ? (
-              <div className="flex-1 flex items-center justify-center text-red-500">
-                {selectedFileError}
-              </div>
-            ) : selectedFile ? (
-              <div className="flex-1">
-                {isEditMode ? (
-                  <FileEditor
-                    file={selectedFile}
-                    onSaved={handleFileSaved}
-                    onCancel={handleCancelEdit}
-                  />
-                ) : (
-                  <FileViewer
-                    file={selectedFile}
-                    onEditClick={handleEditClick}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                Select a file from the sidebar to view it.
-              </div>
-            )}
-          </main>
-        </div>
-
-        {/* Create Note Dialog */}
-        <CreateNoteDialog
-          isOpen={showCreateNote}
-          onClose={() => setShowCreateNote(false)}
-          parentFolders={folders}
-          defaultFolderId={null}
-          onCreated={handleFileCreated}
-        />
-
-        {/* Create Folder Dialog */}
-        <CreateFolderDialog
-          isOpen={showCreateFolder}
-          onClose={() => setShowCreateFolder(false)}
-          parentFolders={folders}
-          defaultParentId={null}
-          onCreated={handleFolderCreated}
-        />
+          {loadingFiles && files.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              Loading files...
+            </div>
+          ) : fileError ? (
+            <div className="flex-1 flex items-center justify-center text-red-500">
+              {fileError}
+            </div>
+          ) : selectedFileId && loadingSelectedFile ? (
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              Loading file content...
+            </div>
+          ) : selectedFileError ? (
+            <div className="flex-1 flex items-center justify-center text-red-500">
+              {selectedFileError}
+            </div>
+          ) : selectedFile ? (
+            <div className="flex-1">
+              {isEditMode ? (
+                <FileEditor
+                  file={selectedFile}
+                  onSaved={handleFileSaved}
+                  onCancel={handleCancelEdit}
+                />
+              ) : (
+                <FileViewer
+                  file={selectedFile}
+                  onEditClick={handleEditClick}
+                  onDeleteClick={() => requestFileDelete(selectedFile)}
+                  isDeleting={deletingFileId === selectedFile.id}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              Select a file from the sidebar to view it.
+            </div>
+          )}
+        </main>
       </div>
-    </FileErrorBoundary>
-  );
+
+      {/* Create Note Dialog */}
+      <CreateNoteDialog
+        isOpen={showCreateNote}
+        onClose={() => setShowCreateNote(false)}
+        parentFolders={folders}
+        defaultFolderId={null}
+        onCreated={handleFileCreated}
+      />
+
+      {/* Create Folder Dialog */}
+      <CreateFolderDialog
+        isOpen={showCreateFolder}
+        onClose={() => setShowCreateFolder(false)}
+        parentFolders={folders}
+        defaultParentId={null}
+        onCreated={handleFolderCreated}
+      />
+
+      {contextMenu && (
+        <FileContextMenu
+          file={contextMenu.file}
+          position={contextMenu.position}
+          folders={folders}
+          onClose={closeContextMenu}
+          onFileUpdated={handleFileUpdated}
+          onFileDeleted={(fileId) => {
+            handleFileDeleted(fileId);
+            closeContextMenu();
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteFile}
+        title="Delete File"
+        message={`Are you sure you want to delete "${confirmDeleteFile?.title || 'this file'}"? This action cannot be undone.`}
+        confirmText={deletingFileId ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={() => {
+          void handleDeleteConfirmed();
+        }}
+        onCancel={handleDeleteCancelled}
+        isDestructive
+      />
+    </div>
+  </FileErrorBoundary>
+);
 }

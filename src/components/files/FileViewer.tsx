@@ -2,15 +2,17 @@
 
 import { useState } from 'react'
 import type { FileItem } from '@/types/files'
-import { Edit2, Clock } from 'lucide-react'
+import { Edit2, Clock, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface FileViewerProps {
   file: FileItem
   onEditClick: () => void
+  onDeleteClick?: () => void
+  isDeleting?: boolean
 }
 
-export function FileViewer({ file, onEditClick }: FileViewerProps) {
+export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = false }: FileViewerProps) {
   const [showFullContent, setShowFullContent] = useState(false)
 
   const contentPreview = file.content || ''
@@ -32,13 +34,23 @@ export function FileViewer({ file, onEditClick }: FileViewerProps) {
             </span>
           </div>
         </div>
-        <button
-          onClick={onEditClick}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap"
-        >
-          <Edit2 className="w-4 h-4" />
-          Edit
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onDeleteClick?.()}
+            disabled={isDeleting}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <Trash2 className="w-4 h-4" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button
+            onClick={onEditClick}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap"
+          >
+            <Edit2 className="w-4 h-4" />
+            Edit
+          </button>
+        </div>
       </div>
 
       {/* Content Display */}
@@ -75,6 +87,7 @@ export function FileViewer({ file, onEditClick }: FileViewerProps) {
           </div>
         )}
       </div>
+
     </div>
   )
 }
