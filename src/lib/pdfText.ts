@@ -94,53 +94,11 @@ async function runOcrFallback(buffer: Buffer, fileName?: string): Promise<{ text
   }
 }
 
-async function extractWithPdfJs(buffer: Buffer, maxPages?: number): Promise<{ text: string | null; pageCount?: number; error?: string }> {
-  try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    
-    // Set workerSrc to false to disable worker entirely
-    if (pdfjsLib.GlobalWorkerOptions) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = false as any
-    }
-    
-    const data = new Uint8Array(buffer)
-    const loadingTask = pdfjsLib.getDocument({ 
-      data, 
-      useWorkerFetch: false, 
-      isEvalSupported: false, 
-      useSystemFonts: true,
-      standardFontDataUrl: undefined
-    })
-    const pdfDoc = await loadingTask.promise
-    
-    const totalPages = pdfDoc.numPages
-    const maxPagesToExtract = typeof maxPages === 'number' && maxPages > 0 ? Math.min(maxPages, totalPages) : totalPages
-    
-    const textParts: string[] = []
-    for (let pageNum = 1; pageNum <= maxPagesToExtract; pageNum++) {
-      const page = await pdfDoc.getPage(pageNum)
-      const textContent = await page.getTextContent()
-      const pageText = textContent.items
-        .map((item) => {
-          // TextItem has 'str' property, TextMarkedContent does not
-          if ('str' in item) {
-            return item.str
-          }
-          return ''
-        })
-        .join(' ')
-      if (pageText.trim()) {
-        textParts.push(pageText.trim())
-      }
-    }
-    
-    await loadingTask.destroy()
-    
-    const text = textParts.join('\\n\\n').trim()
-    return { text: text.length > 0 ? text : null, pageCount: totalPages }
-  } catch (error) {
-    console.error('Native PDF parsing with pdfjs-dist failed', error)
-    return { text: null, pageCount: undefined, error: error instanceof Error ? error.message : 'Unknown native parsing error' }
+async function extractWithPdfJs(_buffer: Buffer, _maxPages?: number): Promise<{ text: string | null; pageCount?: number; error?: string }> {
+  return {
+    text: null,
+    pageCount: undefined,
+    error: 'Native PDF extraction disabled (dependency removed)'
   }
 }
 
@@ -157,7 +115,7 @@ export async function extractPdfText(options: ExtractPdfOptions): Promise<PdfExt
     }
 
     // Attempt 1: Native PDF parsing via pdfjs-dist
-    console.log('Attempting native PDF text extraction via pdfjs-dist')
+    console.log('PDF extraction skipped: pdfjs-dist disabled in lightweight build')
     const nativeResult = await extractWithPdfJs(buffer, options.maxPages)
     if (nativeResult.text) {
       return {

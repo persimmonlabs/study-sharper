@@ -99,27 +99,6 @@ export interface FolderContextMenuProps extends ContextMenuProps {
 // Folder Component Props
 // ============================================================================
 
-/**
- * Props for UploadFolderDialog
- */
-export interface UploadFolderDialogProps extends BaseModalProps {
-  folders: NoteFolder[]
-  selectedFolderId: string | null
-  onSelectFolder: (folderId: string | null) => void
-  onCreateFolder?: (name: string, color: string) => Promise<void>
-}
-
-/**
- * Props for folder selector
- */
-export interface FolderSelectorProps {
-  folders: NoteFolder[]
-  selectedId: string | null
-  onSelect: (folderId: string | null) => void
-  allowNone?: boolean
-  noneLabel?: string
-}
-
 // ============================================================================
 // Dashboard Component Props
 // ============================================================================
