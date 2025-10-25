@@ -371,7 +371,7 @@ export default function FilesPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
               {loadingFiles ? (
                 <div className="p-4 space-y-3">
                   {Array.from({ length: 5 }).map((_, index) => (

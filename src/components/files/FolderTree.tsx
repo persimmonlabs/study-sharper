@@ -53,14 +53,13 @@ export function FolderTree({
   // Render a single file
   const renderFile = (file: FileItem, indentLevel: number) => {
     const isActive = file.id === selectedFileId;
-    const indentClass = `ml-${indentLevel * 6}`;
 
     return (
       <button
         key={file.id}
         onClick={() => onSelectFile(file.id)}
         onContextMenu={(event) => onFileContextMenu(event, file)}
-        className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
+        className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent overflow-hidden ${
           isActive
             ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
             : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
@@ -81,12 +80,12 @@ export function FolderTree({
     const nestedSubfolders = getSubfolders(subfolder.id);
 
     return (
-      <div key={subfolder.id} className="space-y-1">
+      <div key={subfolder.id} className="space-y-1 overflow-hidden">
         <button
           type="button"
           onClick={() => onToggleFolder(subfolder.id)}
           onContextMenu={(event) => onFolderContextMenu(event, subfolder)}
-          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
           style={{ marginLeft: `${indentLevel * 24}px` }}
         >
           {isExpanded ? (
@@ -136,12 +135,12 @@ export function FolderTree({
     const subfolders = getSubfolders(folder.id);
 
     return (
-      <div key={folder.id} className="space-y-1">
+      <div key={folder.id} className="space-y-1 overflow-hidden">
         <button
           type="button"
           onClick={() => onToggleFolder(folder.id)}
           onContextMenu={(event) => onFolderContextMenu(event, folder)}
-          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
         >
           {isExpanded ? (
             <ChevronDown className="h-4 w-4 flex-shrink-0" />
@@ -184,9 +183,11 @@ export function FolderTree({
   };
 
   return (
-    <nav className="p-2 space-y-1">
-      {/* Render all root folders */}
-      {rootFolders.map((folder) => renderRootFolder(folder))}
+    <nav className="p-2 space-y-1 overflow-x-hidden">
+      {/* Render all root folders - always visible */}
+      {rootFolders.length > 0 ? (
+        rootFolders.map((folder) => renderRootFolder(folder))
+      ) : null}
 
       {/* Render files without folder (if any) */}
       {filesWithoutFolder.length > 0 && (
