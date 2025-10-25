@@ -21,10 +21,10 @@ export interface FileFolder {
   parent_folder_id: string | null;
   name: string;
   color: string;
-  position: number;
+  position?: number;
   depth: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface UserQuota {
