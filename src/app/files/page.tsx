@@ -356,28 +356,48 @@ export default function FilesPage() {
                     const colorClass =
                       folderColorClasses[folder.color as keyof typeof folderColorClasses] || folderColorClasses.blue;
 
+                    const toggleFolder = () => {
+                      setExpandedFolders((prev) =>
+                        isExpanded ? prev.filter((id) => id !== folder.id) : [...prev, folder.id]
+                      );
+                    };
+
                     return (
-                      <div key={folder.id}>
-                        <button
-                          onClick={() => {
-                            setExpandedFolders((prev) =>
+                      <div key={folder.id} className="space-y-1">
+                        <div className="flex items-center gap-2 px-2">
+                          <button
+                            type="button"
+                            aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleFolder();
+                            }}
+                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              isExpanded ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleFolder}
+                            className={`flex-1 text-left rounded-lg px-3 py-2 transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 ${
                               isExpanded
-                                ? prev.filter((id) => id !== folder.id)
-                                : [...prev, folder.id]
-                            );
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg transition hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-gray-700 dark:text-gray-200"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                          )}
-                          <span className={`w-3 h-3 rounded-full ${colorClass} flex-shrink-0`} />
-                          <span className="text-sm font-semibold truncate">{folder.name}</span>
-                        </button>
+                                ? 'bg-gray-100 dark:bg-gray-800'
+                                : ''
+                            }`}
+                          >
+                            <span className={`w-3 h-3 rounded-full ${colorClass} flex-shrink-0`} />
+                            <span className="text-sm font-semibold truncate">{folder.name}</span>
+                          </button>
+                        </div>
                         {isExpanded && folderFiles.length > 0 && (
-                          <div className="ml-4 space-y-1">
+                          <div className="ml-10 space-y-1">
                             {folderFiles.map((file) => {
                               const isActive = file.id === selectedFileId;
                               return (
@@ -524,9 +544,8 @@ export default function FilesPage() {
           folders={folders}
           onClose={closeContextMenu}
           onFileUpdated={handleFileUpdated}
-          onFileDeleted={(fileId) => {
-            handleFileDeleted(fileId);
-            closeContextMenu();
+          onDeleteRequested={(file) => {
+            requestFileDelete(file);
           }}
         />
       )}
