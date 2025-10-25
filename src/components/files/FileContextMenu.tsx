@@ -206,7 +206,7 @@ export function FileContextMenu({
               onClick={() => void handleMove(null)}
               disabled={isProcessing}
             >
-              <span>No folder</span>
+              <span>Remove from Folder</span>
               {!file.folder_id && <span className="text-xs text-blue-600 dark:text-blue-400">Current</span>}
             </button>
             {sortedFolders.map((folderOption) => {

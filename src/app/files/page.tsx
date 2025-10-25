@@ -3,7 +3,7 @@
 
 import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileFolder, FileItem } from '@/types/files';
-import { Plus, ChevronRight, ChevronDown, FolderPlus, FilePlus } from 'lucide-react';
+import { Plus, Folder, FolderOpen, FolderPlus, FilePlus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { FileContextMenu } from '@/components/files/FileContextMenu';
@@ -294,7 +294,7 @@ export default function FilesPage() {
           {/* File Navigation */}
           <aside className="md:w-72 lg:w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl h-full flex flex-col shadow-sm">
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Your Files</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File Explorer</h2>
               <div className="relative" ref={newMenuRef}>
                 <button
                   onClick={() => setIsNewMenuOpen(!isNewMenuOpen)}
@@ -353,8 +353,6 @@ export default function FilesPage() {
                   {folders.map((folder) => {
                     const isExpanded = expandedFolders.includes(folder.id);
                     const folderFiles = files.filter((f) => f.folder_id === folder.id);
-                    const colorClass =
-                      folderColorClasses[folder.color as keyof typeof folderColorClasses] || folderColorClasses.blue;
 
                     const toggleFolder = () => {
                       setExpandedFolders((prev) =>
@@ -364,40 +362,20 @@ export default function FilesPage() {
 
                     return (
                       <div key={folder.id} className="space-y-1">
-                        <div className="flex items-center gap-2 px-2">
-                          <button
-                            type="button"
-                            aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleFolder();
-                            }}
-                            className={`flex h-8 w-8 items-center justify-center rounded-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                              isExpanded ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'
-                            }`}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={toggleFolder}
-                            className={`flex-1 text-left rounded-lg px-3 py-2 transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                              isExpanded
-                                ? 'bg-gray-100 dark:bg-gray-800'
-                                : ''
-                            }`}
-                          >
-                            <span className={`w-3 h-3 rounded-full ${colorClass} flex-shrink-0`} />
-                            <span className="text-sm font-semibold truncate">{folder.name}</span>
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={toggleFolder}
+                          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          {isExpanded ? (
+                            <FolderOpen className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                          ) : (
+                            <Folder className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                          )}
+                          <span className="text-sm font-semibold truncate">{folder.name}</span>
+                        </button>
                         {isExpanded && folderFiles.length > 0 && (
-                          <div className="ml-10 space-y-1">
+                          <div className="ml-6 space-y-1">
                             {folderFiles.map((file) => {
                               const isActive = file.id === selectedFileId;
                               return (
@@ -434,7 +412,7 @@ export default function FilesPage() {
                     <div>
                       {folders.length > 0 && (
                         <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
-                          Other Files
+                          Unfiled
                         </div>
                       )}
                       {filesWithoutFolder.map((file) => {
