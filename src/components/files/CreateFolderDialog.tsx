@@ -52,7 +52,9 @@ export function CreateFolderDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const options = useMemo(() => {
-    return [...parentFolders].sort((a, b) => a.name.localeCompare(b.name));
+    return parentFolders
+      .filter((folder) => !folder.parent_folder_id)
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [parentFolders]);
 
   useEffect(() => {
