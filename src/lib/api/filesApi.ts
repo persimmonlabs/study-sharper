@@ -237,8 +237,8 @@ export async function createNote(
 // Backward compatibility alias
 export const createMarkdownFile = createNote;
 
-export async function updateFolder(folderId: string, updates: { name?: string; color?: string }): Promise<FileFolder> {
-  const token = await getAuthToken();
+export async function updateFolder(folderId: string, updates: { name?: string; color?: string; parent_folder_id?: string | null }): Promise<FileFolder> {
+  const token = await getAuthToken()
   
   const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
     method: 'PATCH',
@@ -247,21 +247,21 @@ export async function updateFolder(folderId: string, updates: { name?: string; c
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(updates)
-  });
+  })
   
-  if (!response.ok) throw new Error('Failed to update folder');
-  return response.json();
+  if (!response.ok) throw new Error('Failed to update folder')
+  return response.json()
 }
 
 export async function deleteFolder(folderId: string): Promise<void> {
-  const token = await getAuthToken();
+  const token = await getAuthToken()
   
   const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
-  });
+  })
   
-  if (!response.ok) throw new Error('Failed to delete folder');
+  if (!response.ok) throw new Error('Failed to delete folder')
 }
 
 // Quota API

@@ -7,6 +7,7 @@ import { Plus, Folder, FolderOpen, FolderPlus, FilePlus } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { FileContextMenu } from '@/components/files/FileContextMenu';
+import { FolderContextMenu } from '@/components/files/FolderContextMenu';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
 import { FileViewer } from '@/components/files/FileViewer';
@@ -33,17 +34,21 @@ export default function FilesPage() {
     file: FileItem;
     position: { x: number; y: number };
   } | null>(null);
+  const [folderContextMenu, setFolderContextMenu] = useState<{
+    folder: FileFolder;
+    position: { x: number; y: number };
+  } | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [confirmDeleteFile, setConfirmDeleteFile] = useState<FileItem | null>(null);
 
   const folderColorClasses = useMemo(
     () => ({
-      blue: 'bg-blue-500',
-      red: 'bg-red-500',
-      green: 'bg-green-500',
-      yellow: 'bg-yellow-400',
-      purple: 'bg-purple-500',
-      pink: 'bg-pink-400',
+      blue: '#3b82f6',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      purple: '#a855f7',
+      pink: '#ec4899',
     }),
     []
   );
@@ -194,11 +199,26 @@ export default function FilesPage() {
     setContextMenu(null);
   }, []);
 
+  const closeFolderContextMenu = useCallback(() => {
+    setFolderContextMenu(null);
+  }, []);
+
   const handleFileContextMenu = useCallback(
     (event: ReactMouseEvent, file: FileItem) => {
       event.preventDefault();
       setContextMenu({
         file,
+        position: { x: event.clientX, y: event.clientY },
+      });
+    },
+    []
+  );
+
+  const handleFolderContextMenu = useCallback(
+    (event: ReactMouseEvent, folder: FileFolder) => {
+      event.preventDefault();
+      setFolderContextMenu({
+        folder,
         position: { x: event.clientX, y: event.clientY },
       });
     },
@@ -268,6 +288,26 @@ export default function FilesPage() {
       setFolders((prev) => [...prev, folder]);
     },
     []
+  );
+
+  const handleFolderUpdated = useCallback(
+    (updatedFolder: FileFolder) => {
+      setFolders((prev) =>
+        prev.map((folder) =>
+          folder.id === updatedFolder.id ? { ...folder, ...updatedFolder } : folder
+        )
+      );
+      closeFolderContextMenu();
+    },
+    [closeFolderContextMenu]
+  );
+
+  const handleFolderDeleted = useCallback(
+    (folderId: string) => {
+      setFolders((prev) => prev.filter((folder) => folder.id !== folderId));
+      closeFolderContextMenu();
+    },
+    [closeFolderContextMenu]
   );
 
   return (
@@ -365,12 +405,13 @@ export default function FilesPage() {
                         <button
                           type="button"
                           onClick={toggleFolder}
+                          onContextMenu={(event) => handleFolderContextMenu(event, folder)}
                           className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
                           {isExpanded ? (
-                            <FolderOpen className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                            <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
                           ) : (
-                            <Folder className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                            <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
                           )}
                           <span className="text-sm font-semibold truncate">{folder.name}</span>
                         </button>
@@ -525,6 +566,18 @@ export default function FilesPage() {
           onDeleteRequested={(file) => {
             requestFileDelete(file);
           }}
+        />
+      )}
+
+      {folderContextMenu && (
+        <FolderContextMenu
+          folder={folderContextMenu.folder}
+          position={folderContextMenu.position}
+          allFolders={folders}
+          parentFolders={folders}
+          onClose={closeFolderContextMenu}
+          onFolderUpdated={handleFolderUpdated}
+          onFolderDeleted={handleFolderDeleted}
         />
       )}
 
