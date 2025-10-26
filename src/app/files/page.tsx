@@ -332,7 +332,7 @@ export default function FilesPage() {
 
         <div className="flex flex-col md:flex-row gap-6 min-h-[500px]">
           {/* File Navigation */}
-          <aside className="md:w-72 lg:w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl h-full flex flex-col shadow-sm">
+          <aside className="md:w-56 lg:w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl h-full flex flex-col shadow-sm">
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File Explorer</h2>
               <div className="relative" ref={newMenuRef}>

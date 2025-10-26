@@ -77,6 +77,12 @@ export function FileContextMenu({
     }
   }, [position])
 
+  const menuAlignment = useMemo(() => {
+    const MENU_HEIGHT = 180
+    const VIEWPORT_PADDING = 10
+    return position.y > window.innerHeight - MENU_HEIGHT - VIEWPORT_PADDING ? 'bottom' : 'top'
+  }, [position])
+
   useEffect(() => {
     setView('menu')
     setMenuMessage(null)
@@ -160,7 +166,7 @@ export function FileContextMenu({
       ref={menuRef}
       onClick={stopPropagation}
       className="fixed z-50 w-48 rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-gray-900"
-      style={{ left: menuPosition.left, top: menuPosition.top }}
+      style={menuAlignment === 'bottom' ? { left: menuPosition.left, bottom: `calc(100vh - ${position.y}px)` } : { left: menuPosition.left, top: menuPosition.top }}
     >
       {view === 'menu' ? (
         <div className="py-1 text-sm text-slate-700 dark:text-slate-200">

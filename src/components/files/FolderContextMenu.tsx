@@ -119,6 +119,12 @@ export function FolderContextMenu({
     }
   }, [position])
 
+  const menuAlignment = useMemo(() => {
+    const MENU_HEIGHT = 400
+    const VIEWPORT_PADDING = 10
+    return position.y > window.innerHeight - MENU_HEIGHT - VIEWPORT_PADDING ? 'bottom' : 'top'
+  }, [position])
+
   const colorMap = useMemo(
     () => ({
       blue: 'bg-blue-500',
@@ -232,7 +238,7 @@ export function FolderContextMenu({
       ref={menuRef}
       onClick={stopPropagation}
       className="fixed z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-gray-900"
-      style={{ left: menuPosition.left, top: menuPosition.top }}
+      style={menuAlignment === 'bottom' ? { left: menuPosition.left, bottom: `calc(100vh - ${position.y}px)` } : { left: menuPosition.left, top: menuPosition.top }}
     >
       {view === 'menu' ? (
         <div className="space-y-2 p-2">
