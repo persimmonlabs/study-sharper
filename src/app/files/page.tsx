@@ -384,7 +384,7 @@ export default function FilesPage() {
                 <div className="p-4 text-sm text-red-500">
                   {fileError}
                 </div>
-              ) : files.length === 0 ? (
+              ) : folders.length === 0 && files.length === 0 ? (
                 <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   No files yet. Create your first note to get started.
                 </div>
