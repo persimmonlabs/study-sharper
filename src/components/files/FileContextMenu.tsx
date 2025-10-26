@@ -66,6 +66,17 @@ export function FileContextMenu({
     return [...folders].sort((a, b) => a.name.localeCompare(b.name))
   }, [folders])
 
+  const menuPosition = useMemo(() => {
+    const MENU_HEIGHT = 180
+    const VIEWPORT_PADDING = 10
+    const shouldPositionAbove = position.y > window.innerHeight - MENU_HEIGHT - VIEWPORT_PADDING
+    
+    return {
+      left: position.x,
+      top: shouldPositionAbove ? position.y - MENU_HEIGHT : position.y,
+    }
+  }, [position])
+
   useEffect(() => {
     setView('menu')
     setMenuMessage(null)
@@ -149,7 +160,7 @@ export function FileContextMenu({
       ref={menuRef}
       onClick={stopPropagation}
       className="fixed z-50 w-48 rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-gray-900"
-      style={{ left: position.x, top: position.y }}
+      style={{ left: menuPosition.left, top: menuPosition.top }}
     >
       {view === 'menu' ? (
         <div className="py-1 text-sm text-slate-700 dark:text-slate-200">

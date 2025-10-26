@@ -108,6 +108,17 @@ export function FolderContextMenu({
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [allFolders, folder])
 
+  const menuPosition = useMemo(() => {
+    const MENU_HEIGHT = 400
+    const VIEWPORT_PADDING = 10
+    const shouldPositionAbove = position.y > window.innerHeight - MENU_HEIGHT - VIEWPORT_PADDING
+    
+    return {
+      left: position.x,
+      top: shouldPositionAbove ? position.y - MENU_HEIGHT : position.y,
+    }
+  }, [position])
+
   const colorMap = useMemo(
     () => ({
       blue: 'bg-blue-500',
@@ -221,7 +232,7 @@ export function FolderContextMenu({
       ref={menuRef}
       onClick={stopPropagation}
       className="fixed z-50 w-64 rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-gray-900"
-      style={{ left: position.x, top: position.y }}
+      style={{ left: menuPosition.left, top: menuPosition.top }}
     >
       {view === 'menu' ? (
         <div className="space-y-2 p-2">

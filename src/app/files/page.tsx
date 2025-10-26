@@ -410,7 +410,7 @@ export default function FilesPage() {
                             type="button"
                             onClick={toggleFolder}
                             onContextMenu={(event) => handleFolderContextMenu(event, folder)}
-                            className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
                           >
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4 flex-shrink-0" />
@@ -444,8 +444,8 @@ export default function FilesPage() {
                                       type="button"
                                       onClick={toggleSubfolder}
                                       onContextMenu={(event) => handleFolderContextMenu(event, subfolder)}
-                                      className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                                      style={{ marginLeft: '24px' }}
+                                      className="text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
+                                      style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
                                     >
                                       {isSubExpanded ? (
                                         <ChevronDown className="h-4 w-4 flex-shrink-0" />
@@ -476,12 +476,12 @@ export default function FilesPage() {
                                                 closeContextMenu();
                                               }}
                                               onContextMenu={(event) => handleFileContextMenu(event, file)}
-                                              className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
+                                              className={`text-left px-3 py-2 rounded-lg transition border border-transparent overflow-hidden ${
                                                 isActive
                                                   ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
                                                   : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
                                               }`}
-                                              style={{ marginLeft: '48px' }}
+                                              style={{ marginLeft: '48px', width: 'calc(100% - 48px)' }}
                                             >
                                               <span className="block text-sm font-semibold truncate">
                                                 {file.title || 'Untitled note'}
@@ -512,12 +512,12 @@ export default function FilesPage() {
                                           closeContextMenu();
                                         }}
                                         onContextMenu={(event) => handleFileContextMenu(event, file)}
-                                        className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
+                                        className={`text-left px-3 py-2 rounded-lg transition border border-transparent overflow-hidden ${
                                           isActive
                                             ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
                                             : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
                                         }`}
-                                        style={{ marginLeft: '24px' }}
+                                        style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
                                       >
                                         <span className="block text-sm font-semibold truncate">
                                           {file.title || 'Untitled note'}
@@ -555,7 +555,7 @@ export default function FilesPage() {
                               closeContextMenu();
                             }}
                             onContextMenu={(event) => handleFileContextMenu(event, file)}
-                            className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
+                            className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent overflow-hidden ${
                               isActive
                                 ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
