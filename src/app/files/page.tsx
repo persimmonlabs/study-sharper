@@ -8,7 +8,6 @@ import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { FileContextMenu } from '@/components/files/FileContextMenu';
 import { FolderContextMenu } from '@/components/files/FolderContextMenu';
-import { FolderTree } from '@/components/files/FolderTree';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
 import { FileViewer } from '@/components/files/FileViewer';
@@ -371,7 +370,7 @@ export default function FilesPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 overflow-y-auto">
               {loadingFiles ? (
                 <div className="p-4 space-y-3">
                   {Array.from({ length: 5 }).map((_, index) => (
@@ -390,30 +389,102 @@ export default function FilesPage() {
                   No files yet. Create your first note to get started.
                 </div>
               ) : (
-                <FolderTree
-                  folders={folders}
-                  files={files}
-                  selectedFileId={selectedFileId}
-                  expandedFolders={expandedFolders}
-                  folderColorClasses={folderColorClasses}
-                  onToggleFolder={(folderId) => {
-                    setExpandedFolders((prev) =>
-                      prev.includes(folderId)
-                        ? prev.filter((id) => id !== folderId)
-                        : [...prev, folderId]
+                <nav className="p-2 space-y-1">
+                  {folders.map((folder) => {
+                    const isExpanded = expandedFolders.includes(folder.id);
+                    const folderFiles = files.filter((f) => f.folder_id === folder.id);
+
+                    const toggleFolder = () => {
+                      setExpandedFolders((prev) =>
+                        isExpanded ? prev.filter((id) => id !== folder.id) : [...prev, folder.id]
+                      );
+                    };
+
+                    return (
+                      <div key={folder.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={toggleFolder}
+                          onContextMenu={(event) => handleFolderContextMenu(event, folder)}
+                          className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          {isExpanded ? (
+                            <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                          ) : (
+                            <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                          )}
+                          <span className="text-sm font-semibold truncate">{folder.name}</span>
+                        </button>
+                        {isExpanded && folderFiles.length > 0 && (
+                          <div className="ml-6 space-y-1">
+                            {folderFiles.map((file) => {
+                              const isActive = file.id === selectedFileId;
+                              return (
+                                <button
+                                  key={file.id}
+                                  onClick={() => {
+                                    setIsEditMode(false);
+                                    setSavingMessage(null);
+                                    setSelectedFile(null);
+                                    setSelectedFileError(null);
+                                    setSelectedFileId(file.id);
+                                    closeContextMenu();
+                                  }}
+                                  onContextMenu={(event) => handleFileContextMenu(event, file)}
+                                  className={`w-full text-left px-3 py-2 rounded-lg transition border border-transparent ${
+                                    isActive
+                                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+                                  }`}
+                                >
+                                  <span className="block text-sm font-semibold truncate">
+                                    {file.title || 'Untitled note'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
-                  }}
-                  onSelectFile={(fileId) => {
-                    setIsEditMode(false);
-                    setSavingMessage(null);
-                    setSelectedFile(null);
-                    setSelectedFileError(null);
-                    setSelectedFileId(fileId);
-                    closeContextMenu();
-                  }}
-                  onFileContextMenu={handleFileContextMenu}
-                  onFolderContextMenu={handleFolderContextMenu}
-                />
+                  })}
+
+                  {filesWithoutFolder.length > 0 && (
+                    <div>
+                      {folders.length > 0 && (
+                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
+                          Unfiled
+                        </div>
+                      )}
+                      {filesWithoutFolder.map((file) => {
+                        const isActive = file.id === selectedFileId;
+                        return (
+                          <button
+                            key={file.id}
+                            onClick={() => {
+                              setIsEditMode(false);
+                              setSavingMessage(null);
+                              setSelectedFile(null);
+                              setSelectedFileError(null);
+                              setSelectedFileId(file.id);
+                              closeContextMenu();
+                            }}
+                            onContextMenu={(event) => handleFileContextMenu(event, file)}
+                            className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent ${
+                              isActive
+                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+                            }`}
+                          >
+                            <span className="block text-sm font-semibold truncate">
+                              {file.title || 'Untitled note'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </nav>
               )}
             </div>
           </aside>
@@ -466,6 +537,7 @@ export default function FilesPage() {
           )}
         </main>
       </div>
+    </div>
 
       {/* Create Note Dialog */}
       <CreateNoteDialog
@@ -522,7 +594,6 @@ export default function FilesPage() {
         onCancel={handleDeleteCancelled}
         isDestructive
       />
-    </div>
-  </FileErrorBoundary>
-);
+    </FileErrorBoundary>
+  );
 }
