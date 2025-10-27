@@ -1,11 +1,11 @@
-// src/app/files/page.tsx
 'use client';
 
 import { MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileFolder, FileItem } from '@/types/files';
-import { Plus, Folder, FolderOpen, FolderPlus, FilePlus, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Folder, FolderOpen, FolderPlus, FilePlus, ChevronRight, ChevronDown, Upload } from 'lucide-react';
 import { CreateNoteDialog } from '@/components/files/CreateNoteDialog';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
+import { UploadDialog } from '@/components/files/UploadDialog';
 import { FileContextMenu } from '@/components/files/FileContextMenu';
 import { FolderContextMenu } from '@/components/files/FolderContextMenu';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
@@ -18,6 +18,7 @@ export default function FilesPage() {
   const [folders, setFolders] = useState<FileFolder[]>([]);
   const [showCreateNote, setShowCreateNote] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -137,6 +138,15 @@ export default function FilesPage() {
       setSelectedFile(note);
       setSelectedFileId(note.id);
       loadFiles(note.id);
+    },
+    [loadFiles]
+  );
+
+  const handleUploadSuccess = useCallback(
+    (fileId: string) => {
+      setShowUploadDialog(false);
+      setSavingMessage('File uploaded and processed successfully!');
+      loadFiles(fileId);
     },
     [loadFiles]
   );
@@ -360,10 +370,20 @@ export default function FilesPage() {
                         setShowCreateFolder(true);
                         setIsNewMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 last:rounded-b-lg"
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                     >
                       <FolderPlus className="w-4 h-4" />
                       New Folder
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUploadDialog(true);
+                        setIsNewMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 last:rounded-b-lg"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload File
                     </button>
                   </div>
                 )}
@@ -386,7 +406,7 @@ export default function FilesPage() {
                 </div>
               ) : folders.length === 0 && files.length === 0 ? (
                 <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No files yet. Create your first note to get started.
+                  No files yet. Create your first note or upload a file to get started.
                 </div>
               ) : (
                 <nav className="p-2 space-y-1">
@@ -640,6 +660,13 @@ export default function FilesPage() {
         parentFolders={folders}
         defaultParentId={null}
         onCreated={handleFolderCreated}
+      />
+
+      {/* Upload Dialog */}
+      <UploadDialog
+        isOpen={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        onUploadSuccess={handleUploadSuccess}
       />
 
       {contextMenu && (
