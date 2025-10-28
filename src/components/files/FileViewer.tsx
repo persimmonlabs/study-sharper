@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import type { FileItem } from '@/types/files'
 import { Edit2, Clock, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { TiptapEditor } from './TiptapEditor'
 
 interface FileViewerProps {
   file: FileItem
@@ -13,11 +13,7 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = false }: FileViewerProps) {
-  const [showFullContent, setShowFullContent] = useState(false)
-
   const contentPreview = file.content || ''
-  const isLongContent = contentPreview.length > 500
-  const displayContent = showFullContent ? contentPreview : contentPreview.slice(0, 500)
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -54,33 +50,13 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
       </div>
 
       {/* Content Display */}
-      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 shadow-sm">
+      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
         {contentPreview ? (
-          <div className="prose dark:prose-invert max-w-none overflow-y-auto h-full">
-            <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-              {displayContent}
-              {isLongContent && !showFullContent && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setShowFullContent(true)}
-                    className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
-                  >
-                    Show more...
-                  </button>
-                </div>
-              )}
-              {isLongContent && showFullContent && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setShowFullContent(false)}
-                    className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
-                  >
-                    Show less
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <TiptapEditor
+            markdown={contentPreview}
+            onChange={() => {}}
+            disabled={true}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-600">
             No content yet. Click Edit to add content.
