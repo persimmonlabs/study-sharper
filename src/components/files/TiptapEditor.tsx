@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
+import { htmlToJSON, isHTML } from '@/lib/html-converter'
 import {
   Bold,
   Italic,
@@ -41,7 +42,7 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         autolink: true,
       }),
     ],
-    content: markdownToJSON(markdown),
+    content: isHTML(markdown) ? htmlToJSON(markdown) : markdownToJSON(markdown),
     editable: !disabled,
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
@@ -52,7 +53,8 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
 
   useEffect(() => {
     if (editor && markdown !== jsonToMarkdown(editor.getJSON())) {
-      editor.commands.setContent(markdownToJSON(markdown))
+      const content = isHTML(markdown) ? htmlToJSON(markdown) : markdownToJSON(markdown)
+      editor.commands.setContent(content)
     }
   }, [markdown, editor])
 
