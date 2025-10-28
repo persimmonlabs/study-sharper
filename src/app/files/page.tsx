@@ -41,8 +41,6 @@ export default function FilesPage() {
   } | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [confirmDeleteFile, setConfirmDeleteFile] = useState<FileItem | null>(null);
-  const [processingFileIds, setProcessingFileIds] = useState<Set<string>>(new Set());
-  const [cancellingFileId, setCancellingFileId] = useState<string | null>(null);
 
   const folderColorClasses = useMemo(
     () => ({
@@ -57,12 +55,7 @@ export default function FilesPage() {
   );
 
   const filesWithoutFolder = useMemo(
-    () => files.filter((file) => !file.folder_id && file.processing_status !== 'processing'),
-    [files]
-  );
-
-  const processingFiles = useMemo(
-    () => files.filter((file) => file.processing_status === 'processing'),
+    () => files.filter((file) => !file.folder_id),
     [files]
   );
 
@@ -112,14 +105,6 @@ export default function FilesPage() {
       const data = await fetchFiles();
       setFiles(data);
       
-      // Update processing file IDs to track which files are still processing
-      const newProcessingIds = new Set(
-        data
-          .filter((file) => file.processing_status === 'processing')
-          .map((file) => file.id)
-      );
-      setProcessingFileIds(newProcessingIds);
-      
       setSelectedFileError(null);
       setSelectedFileId((previous) => {
         // Filter to only completed files for selection
@@ -151,18 +136,6 @@ export default function FilesPage() {
     loadFiles();
   }, [loadFiles]);
 
-  // Auto-refresh when there are processing files
-  useEffect(() => {
-    if (processingFileIds.size === 0) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      loadFiles();
-    }, 3000); // Poll every 3 seconds to reduce flickering
-
-    return () => clearInterval(interval);
-  }, [processingFileIds.size, loadFiles]);
 
   const handleFileCreated = useCallback(
     (note: FileItem) => {
@@ -184,28 +157,6 @@ export default function FilesPage() {
       loadFiles(fileId);
     },
     [loadFiles]
-  );
-
-  const handleCancelUpload = useCallback(
-    async (fileId: string) => {
-      setCancellingFileId(fileId);
-      try {
-        await deleteFile(fileId);
-        setProcessingFileIds((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(fileId);
-          return newSet;
-        });
-        setFiles((prev) => prev.filter((file) => file.id !== fileId));
-        setSavingMessage('Upload cancelled');
-      } catch (error) {
-        console.error('[FilesPage] Failed to cancel upload:', error);
-        setSavingMessage('Failed to cancel upload');
-      } finally {
-        setCancellingFileId(null);
-      }
-    },
-    []
   );
 
   useEffect(() => {
@@ -670,42 +621,10 @@ export default function FilesPage() {
                       );
                     })}
 
-                  {/* Processing files */}
-                  {processingFiles.length > 0 && (
-                    <div>
-                      <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
-                        Processing
-                      </div>
-                      {processingFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          className="w-full text-left px-3 py-3 rounded-lg transition border border-transparent overflow-hidden bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 group"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin flex-shrink-0" />
-                              <span className="block text-sm font-semibold truncate">
-                                {file.title || 'Untitled note'}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleCancelUpload(file.id)}
-                              disabled={cancellingFileId === file.id}
-                              className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Cancel upload"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Unfiled files */}
                   {filesWithoutFolder.length > 0 && (
                     <div>
-                      {(folders.length > 0 || processingFileIds.size > 0) && (
+                      {folders.length > 0 && (
                         <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
                           Files
                         </div>

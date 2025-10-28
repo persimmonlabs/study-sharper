@@ -6,6 +6,8 @@ import { ThemeProvider } from '@/components/common/ThemeProvider'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
+import { ProcessingProvider } from '@/context/ProcessingContext'
+import { ProcessingBar } from '@/components/ProcessingBar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,7 +26,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider>
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+            <ProcessingProvider>
+              <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
               {/* Sidebar Navigation */}
               <Sidebar />
               
@@ -41,6 +44,8 @@ export default function RootLayout({
                 </main>
               </div>
             </div>
+            <ProcessingBar />
+            </ProcessingProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

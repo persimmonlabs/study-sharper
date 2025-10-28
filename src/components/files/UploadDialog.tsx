@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 import { Upload, X, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useProcessing } from "@/context/ProcessingContext";
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export function UploadDialog({
   onClose,
   onUploadSuccess,
 }: UploadDialogProps) {
+  const { addProcessingFile, updateProcessingFile, removeProcessingFile } = useProcessing();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
     status: "idle",
@@ -106,6 +108,7 @@ export function UploadDialog({
             message: `✅ Processing complete! ${data.chunk_count} chunks created.`,
             chunkCount: data.chunk_count,
           });
+          updateProcessingFile(fileId, { status: 'completed', progress: 100 });
           onUploadSuccess?.(fileId);
           return;
         } else if (data.status === "failed") {
@@ -117,15 +120,18 @@ export function UploadDialog({
             message: `❌ Processing failed`,
             error: data.error_message,
           });
+          updateProcessingFile(fileId, { status: 'error', error: data.error_message });
           return;
         } else {
           // Still processing
+          const newProgress = Math.min(uploadProgress.progress + 5, 95);
           setUploadProgress((prev) => ({
             ...prev,
             status: "processing",
-            progress: Math.min(prev.progress + 5, 95),
+            progress: newProgress,
             message: `Processing... (${data.status})`,
           }));
+          updateProcessingFile(fileId, { status: 'processing', progress: newProgress });
         }
 
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -212,6 +218,14 @@ export function UploadDialog({
         fileId: fileId,
         progress: 50,
         message: "Processing file with AI...",
+      });
+
+      // Add to processing context
+      addProcessingFile({
+        id: fileId,
+        filename: file.name,
+        status: 'processing',
+        progress: 50,
       });
 
       // Poll for completion
