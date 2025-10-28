@@ -67,18 +67,30 @@ export function htmlToJSON(html: string) {
 
 function parseElements(nodes: NodeListOf<ChildNode>): any[] {
   const result: any[] = []
+  let pendingText: any[] = []
 
   nodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim()
       if (text) {
-        result.push({
-          type: 'paragraph',
-          content: [{ type: 'text', text }],
+        pendingText.push({
+          type: 'text',
+          text,
         })
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as Element
+      const tagName = element.tagName.toLowerCase()
+
+      // If we have pending text and encounter a block element, flush it
+      if (pendingText.length > 0 && isBlockElement(tagName)) {
+        result.push({
+          type: 'paragraph',
+          content: pendingText,
+        })
+        pendingText = []
+      }
+
       const parsed = parseElement(element)
       if (parsed) {
         result.push(parsed)
@@ -86,7 +98,35 @@ function parseElements(nodes: NodeListOf<ChildNode>): any[] {
     }
   })
 
+  // Flush any remaining text
+  if (pendingText.length > 0) {
+    result.push({
+      type: 'paragraph',
+      content: pendingText,
+    })
+  }
+
   return result
+}
+
+function isBlockElement(tagName: string): boolean {
+  return [
+    'p',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'ul',
+    'ol',
+    'blockquote',
+    'pre',
+    'hr',
+    'div',
+    'section',
+    'article',
+  ].includes(tagName)
 }
 
 function parseElement(element: Element): any | null {
@@ -189,12 +229,8 @@ function parseElement(element: Element): any | null {
     case 'article':
       // Recursively parse children
       const children = parseElements(element.childNodes)
-      return children.length > 0
-        ? {
-            type: 'paragraph',
-            content: children[0]?.content || [],
-          }
-        : null
+      // Return all children as-is, don't wrap
+      return children.length > 0 ? children[0] : null
 
     case 'span':
       // Parse span content as inline
