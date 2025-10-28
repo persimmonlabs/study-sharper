@@ -91,9 +91,15 @@ function parseElements(nodes: NodeListOf<ChildNode>): any[] {
         pendingText = []
       }
 
-      const parsed = parseElement(element)
-      if (parsed) {
-        result.push(parsed)
+      // Special handling for wrapper divs - recursively parse their children
+      if (tagName === 'div' || tagName === 'section' || tagName === 'article') {
+        const childContent = parseElements(element.childNodes)
+        result.push(...childContent)
+      } else {
+        const parsed = parseElement(element)
+        if (parsed) {
+          result.push(parsed)
+        }
       }
     }
   })
@@ -227,10 +233,8 @@ function parseElement(element: Element): any | null {
     case 'div':
     case 'section':
     case 'article':
-      // Recursively parse children
-      const children = parseElements(element.childNodes)
-      // Return all children as-is, don't wrap
-      return children.length > 0 ? children[0] : null
+      // Should not reach here - parseElements handles these
+      return null
 
     case 'span':
       // Parse span content as inline

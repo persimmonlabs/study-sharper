@@ -48,6 +48,7 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         codeBlock: {
           languageClassPrefix: 'language-',
         },
+        hardBreak: false,
       }),
       Link.configure({
         openOnClick: false,
