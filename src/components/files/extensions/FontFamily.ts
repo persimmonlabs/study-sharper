@@ -1,17 +1,17 @@
 import { Mark } from '@tiptap/core'
 
-export const FontFamily = Mark.create({
+export const FontFamily: any = Mark.create({
   name: 'fontFamily',
 
   addAttributes() {
     return {
       fontFamily: {
         default: null,
-        parseHTML: (element) => {
-          const fontFamily = (element as HTMLElement).style.fontFamily
+        parseHTML: (element: any) => {
+          const fontFamily = element.style.fontFamily
           return fontFamily || null
         },
-        renderHTML: (attributes) => {
+        renderHTML: (attributes: any) => {
           if (!attributes.fontFamily) {
             return {}
           }
@@ -27,18 +27,13 @@ export const FontFamily = Mark.create({
     return [
       {
         tag: 'span',
-        getAttrs: (element) => {
-          const fontFamily = (element as HTMLElement).style.fontFamily
+        getAttrs: (element: any) => {
+          const fontFamily = element.style.fontFamily
           if (!fontFamily) return false
           return { fontFamily }
         },
       },
     ]
-  },
-
-  renderHTML({ attributes }) {
-    if (!attributes.fontFamily) return ['span', 0]
-    return ['span', { style: `font-family: ${attributes.fontFamily}` }, 0]
   },
 
   addCommands() {
@@ -49,6 +44,6 @@ export const FontFamily = Mark.create({
       unsetFontFamily: () => ({ commands }: any) => {
         return commands.unsetMark('fontFamily')
       },
-    }
+    } as any
   },
 })

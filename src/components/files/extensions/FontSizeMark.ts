@@ -1,17 +1,17 @@
 import { Mark } from '@tiptap/core'
 
-export const FontSizeMark = Mark.create({
+export const FontSizeMark: any = Mark.create({
   name: 'fontSize',
 
   addAttributes() {
     return {
       fontSize: {
         default: null,
-        parseHTML: (element) => {
-          const fontSize = (element as HTMLElement).style.fontSize
+        parseHTML: (element: any) => {
+          const fontSize = element.style.fontSize
           return fontSize || null
         },
-        renderHTML: (attributes) => {
+        renderHTML: (attributes: any) => {
           if (!attributes.fontSize) {
             return {}
           }
@@ -27,18 +27,13 @@ export const FontSizeMark = Mark.create({
     return [
       {
         tag: 'span',
-        getAttrs: (element) => {
-          const fontSize = (element as HTMLElement).style.fontSize
+        getAttrs: (element: any) => {
+          const fontSize = element.style.fontSize
           if (!fontSize) return false
           return { fontSize }
         },
       },
     ]
-  },
-
-  renderHTML({ attributes }) {
-    if (!attributes.fontSize) return ['span', 0]
-    return ['span', { style: `font-size: ${attributes.fontSize}` }, 0]
   },
 
   addCommands() {
@@ -49,6 +44,6 @@ export const FontSizeMark = Mark.create({
       unsetFontSize: () => ({ commands }: any) => {
         return commands.unsetMark('fontSize')
       },
-    }
+    } as any
   },
 })
