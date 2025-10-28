@@ -9,9 +9,9 @@ import Highlight from '@tiptap/extension-highlight'
 import HardBreak from '@tiptap/extension-hard-break'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
-import { FontSizeMark } from './extensions/FontSizeMark'
-import { Color } from './extensions/Color'
-import { FontFamily } from './extensions/FontFamily'
+import { FontSizeMarkFixed } from './extensions/FontSizeMarkFixed'
+import { ColorMark } from './extensions/ColorMark'
+import { FontFamilyMarkFixed } from './extensions/FontFamilyMarkFixed'
 import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,
@@ -53,9 +53,9 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         openOnClick: false,
         autolink: true,
       }),
-      Color,
-      FontFamily,
-      FontSizeMark,
+      ColorMark,
+      FontFamilyMarkFixed,
+      FontSizeMarkFixed,
       Highlight.configure({
         multicolor: true,
       }),

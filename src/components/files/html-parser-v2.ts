@@ -31,21 +31,21 @@ function getMarksFromStyles(styles: Record<string, string>): any[] {
 
   if (styles['font-size']) {
     marks.push({
-      type: 'fontSize',
+      type: 'fontSizeFixed',
       attrs: { fontSize: styles['font-size'] },
     })
   }
 
   if (styles['color']) {
     marks.push({
-      type: 'color',
+      type: 'colorMark',
       attrs: { color: styles['color'] },
     })
   }
 
   if (styles['font-family']) {
     marks.push({
-      type: 'fontFamily',
+      type: 'fontFamilyFixed',
       attrs: { fontFamily: styles['font-family'] },
     })
   }
