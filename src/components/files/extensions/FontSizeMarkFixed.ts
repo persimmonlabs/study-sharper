@@ -1,15 +1,18 @@
 import { Mark } from '@tiptap/core'
 
-export const FontSizeMarkFixed = Mark.create({
+export const FontSizeMarkFixed: any = Mark.create({
   name: 'fontSizeFixed',
 
   addAttributes() {
     return {
       fontSize: {
         default: null,
-        parseHTML: (element: any) => element.style.fontSize || null,
+        parseHTML: (element: any) => {
+          const fontSize = element.style?.fontSize
+          return fontSize || null
+        },
         renderHTML: (attributes: any) => {
-          if (!attributes.fontSize) return {}
+          if (!attributes?.fontSize) return {}
           return { style: `font-size: ${attributes.fontSize}` }
         },
       },
@@ -19,18 +22,20 @@ export const FontSizeMarkFixed = Mark.create({
   parseHTML() {
     return [
       {
-        tag: 'span[style*="font-size"]',
+        tag: 'span',
+        style: { fontSize: null },
         getAttrs: (element: any) => {
           const fontSize = element.style.fontSize
-          return fontSize ? { fontSize } : false
+          if (!fontSize) return false
+          return { fontSize }
         },
       },
     ]
   },
 
-  renderHTML({ attributes }: any) {
-    if (!attributes.fontSize) return ['span', 0]
-    return ['span', { style: `font-size: ${attributes.fontSize}` }, 0]
+  renderHTML({ mark }: any) {
+    if (!mark?.attrs?.fontSize) return ['span', 0]
+    return ['span', { style: `font-size: ${mark.attrs.fontSize}` }, 0]
   },
 
   addCommands() {
@@ -38,6 +43,7 @@ export const FontSizeMarkFixed = Mark.create({
       setFontSizeFixed:
         (fontSize: string) =>
         ({ commands }: any) => {
+          if (!fontSize) return false
           return commands.setMark(this.name, { fontSize })
         },
       unsetFontSizeFixed: () => ({ commands }: any) => {

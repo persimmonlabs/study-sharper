@@ -1,15 +1,18 @@
 import { Mark } from '@tiptap/core'
 
-export const ColorMark = Mark.create({
+export const ColorMark: any = Mark.create({
   name: 'colorMark',
 
   addAttributes() {
     return {
       color: {
         default: null,
-        parseHTML: (element: any) => element.style.color || null,
+        parseHTML: (element: any) => {
+          const color = element.style?.color
+          return color || null
+        },
         renderHTML: (attributes: any) => {
-          if (!attributes.color) return {}
+          if (!attributes?.color) return {}
           return { style: `color: ${attributes.color}` }
         },
       },
@@ -19,18 +22,20 @@ export const ColorMark = Mark.create({
   parseHTML() {
     return [
       {
-        tag: 'span[style*="color"]',
+        tag: 'span',
+        style: { color: null },
         getAttrs: (element: any) => {
           const color = element.style.color
-          return color ? { color } : false
+          if (!color) return false
+          return { color }
         },
       },
     ]
   },
 
-  renderHTML({ attributes }: any) {
-    if (!attributes.color) return ['span', 0]
-    return ['span', { style: `color: ${attributes.color}` }, 0]
+  renderHTML({ mark }: any) {
+    if (!mark?.attrs?.color) return ['span', 0]
+    return ['span', { style: `color: ${mark.attrs.color}` }, 0]
   },
 
   addCommands() {
@@ -38,6 +43,7 @@ export const ColorMark = Mark.create({
       setColorMark:
         (color: string) =>
         ({ commands }: any) => {
+          if (!color) return false
           return commands.setMark(this.name, { color })
         },
       unsetColorMark: () => ({ commands }: any) => {

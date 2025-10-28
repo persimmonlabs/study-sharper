@@ -1,15 +1,18 @@
 import { Mark } from '@tiptap/core'
 
-export const FontFamilyMarkFixed = Mark.create({
+export const FontFamilyMarkFixed: any = Mark.create({
   name: 'fontFamilyFixed',
 
   addAttributes() {
     return {
       fontFamily: {
         default: null,
-        parseHTML: (element: any) => element.style.fontFamily || null,
+        parseHTML: (element: any) => {
+          const fontFamily = element.style?.fontFamily
+          return fontFamily || null
+        },
         renderHTML: (attributes: any) => {
-          if (!attributes.fontFamily) return {}
+          if (!attributes?.fontFamily) return {}
           return { style: `font-family: ${attributes.fontFamily}` }
         },
       },
@@ -19,18 +22,20 @@ export const FontFamilyMarkFixed = Mark.create({
   parseHTML() {
     return [
       {
-        tag: 'span[style*="font-family"]',
+        tag: 'span',
+        style: { fontFamily: null },
         getAttrs: (element: any) => {
           const fontFamily = element.style.fontFamily
-          return fontFamily ? { fontFamily } : false
+          if (!fontFamily) return false
+          return { fontFamily }
         },
       },
     ]
   },
 
-  renderHTML({ attributes }: any) {
-    if (!attributes.fontFamily) return ['span', 0]
-    return ['span', { style: `font-family: ${attributes.fontFamily}` }, 0]
+  renderHTML({ mark }: any) {
+    if (!mark?.attrs?.fontFamily) return ['span', 0]
+    return ['span', { style: `font-family: ${mark.attrs.fontFamily}` }, 0]
   },
 
   addCommands() {
@@ -38,6 +43,7 @@ export const FontFamilyMarkFixed = Mark.create({
       setFontFamilyFixed:
         (fontFamily: string) =>
         ({ commands }: any) => {
+          if (!fontFamily) return false
           return commands.setMark(this.name, { fontFamily })
         },
       unsetFontFamilyFixed: () => ({ commands }: any) => {
