@@ -315,10 +315,60 @@ export default function FilesPage() {
 
   const handleFolderDeleted = useCallback(
     (folderId: string) => {
-      setFolders((prev) => prev.filter((folder) => folder.id !== folderId));
+      const collectFolderIds = (targetId: string, allFolders: FileFolder[], collected = new Set<string>()) => {
+        if (collected.has(targetId)) {
+          return collected;
+        }
+
+        collected.add(targetId);
+
+        for (const folder of allFolders) {
+          if (folder.parent_folder_id === targetId) {
+            collectFolderIds(folder.id, allFolders, collected);
+          }
+        }
+
+        return collected;
+      };
+
+      const foldersToRemove = Array.from(collectFolderIds(folderId, folders));
+
+      setFolders((prev) => prev.filter((folder) => !foldersToRemove.includes(folder.id)));
+      setExpandedFolders((prev) => prev.filter((id) => !foldersToRemove.includes(id)));
+
+      setFiles((prev) => {
+        if (!foldersToRemove.length) {
+          return prev;
+        }
+
+        const remaining: FileItem[] = [];
+        const movedToRoot: FileItem[] = [];
+
+        prev.forEach((file) => {
+          if (file.folder_id && foldersToRemove.includes(file.folder_id)) {
+            movedToRoot.push({ ...file, folder_id: null });
+          } else {
+            remaining.push(file);
+          }
+        });
+
+        if (!movedToRoot.length) {
+          return prev;
+        }
+
+        return [...remaining, ...movedToRoot];
+      });
+
+      setSelectedFile((prev) => {
+        if (prev && prev.folder_id && foldersToRemove.includes(prev.folder_id)) {
+          return { ...prev, folder_id: null };
+        }
+        return prev;
+      });
+
       closeFolderContextMenu();
     },
-    [closeFolderContextMenu]
+    [folders, closeFolderContextMenu]
   );
 
   return (
