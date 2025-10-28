@@ -5,7 +5,6 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
-import { htmlToJSON, isHTML } from '@/lib/html-converter'
 import {
   Bold,
   Italic,
@@ -22,6 +21,238 @@ import {
   Redo2,
 } from 'lucide-react'
 import './tiptap-editor.css'
+
+// Helper function to detect if content is HTML
+function isHTML(content: string): boolean {
+  if (!content) return false
+  // Check if string contains HTML tags
+  return /<[a-z][\s\S]*>/i.test(content)
+}
+
+// Helper function to convert HTML to Tiptap JSON format
+function htmlToJSON(html: string) {
+  if (!html || !html.trim()) {
+    return {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [],
+        },
+      ],
+    }
+  }
+
+  // Create a temporary DOM parser
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  
+  const content: any[] = []
+  
+  // Process all child nodes
+  doc.body.childNodes.forEach((node) => {
+    const jsonNode = parseNode(node)
+    if (jsonNode) {
+      content.push(jsonNode)
+    }
+  })
+
+  return {
+    type: 'doc',
+    content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
+  }
+}
+
+// Parse a DOM node and convert to Tiptap JSON
+function parseNode(node: Node): any | null {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent?.trim()
+    if (text) {
+      return {
+        type: 'text',
+        text,
+      }
+    }
+    return null
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return null
+  }
+
+  const element = node as Element
+  const tagName = element.tagName.toLowerCase()
+
+  switch (tagName) {
+    case 'p':
+      return {
+        type: 'paragraph',
+        content: parseChildren(element),
+      }
+
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+      const level = parseInt(tagName[1])
+      return {
+        type: 'heading',
+        attrs: { level },
+        content: parseChildren(element),
+      }
+
+    case 'ul':
+      return {
+        type: 'bulletList',
+        content: Array.from(element.children)
+          .filter((child) => child.tagName.toLowerCase() === 'li')
+          .map((li) => ({
+            type: 'listItem',
+            content: [
+              {
+                type: 'paragraph',
+                content: parseChildren(li as Element),
+              },
+            ],
+          })),
+      }
+
+    case 'ol':
+      return {
+        type: 'orderedList',
+        content: Array.from(element.children)
+          .filter((child) => child.tagName.toLowerCase() === 'li')
+          .map((li) => ({
+            type: 'listItem',
+            content: [
+              {
+                type: 'paragraph',
+                content: parseChildren(li as Element),
+              },
+            ],
+          })),
+      }
+
+    case 'blockquote':
+      return {
+        type: 'blockquote',
+        content: parseChildren(element),
+      }
+
+    case 'pre':
+    case 'code':
+      const codeContent = element.textContent || ''
+      return {
+        type: 'codeBlock',
+        attrs: { language: 'text' },
+        content: [{ type: 'text', text: codeContent }],
+      }
+
+    case 'hr':
+      return {
+        type: 'horizontalRule',
+      }
+
+    case 'br':
+      return {
+        type: 'text',
+        text: '\n',
+      }
+
+    // Skip wrapper elements, process children
+    case 'div':
+    case 'section':
+    case 'article':
+      const children = parseChildren(element)
+      return children.length > 0
+        ? {
+            type: 'paragraph',
+            content: children,
+          }
+        : null
+
+    default:
+      // For unknown tags, try to parse as paragraph
+      return {
+        type: 'paragraph',
+        content: parseChildren(element),
+      }
+  }
+}
+
+// Parse all children of an element
+function parseChildren(element: Element): any[] {
+  const content: any[] = []
+
+  element.childNodes.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.trim()
+      if (text) {
+        content.push({
+          type: 'text',
+          text,
+        })
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const child = node as Element
+      const tagName = child.tagName.toLowerCase()
+
+      // Handle inline formatting
+      if (tagName === 'strong' || tagName === 'b') {
+        const text = child.textContent || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'bold' }],
+        })
+      } else if (tagName === 'em' || tagName === 'i') {
+        const text = child.textContent || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'italic' }],
+        })
+      } else if (tagName === 'code') {
+        const text = child.textContent || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'code' }],
+        })
+      } else if (tagName === 'a') {
+        const text = child.textContent || ''
+        const href = child.getAttribute('href') || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'link', attrs: { href } }],
+        })
+      } else if (tagName === 'u') {
+        const text = child.textContent || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'underline' }],
+        })
+      } else if (tagName === 's' || tagName === 'del') {
+        const text = child.textContent || ''
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'strike' }],
+        })
+      } else {
+        // Recursively parse nested elements
+        const childContent = parseChildren(child)
+        content.push(...childContent)
+      }
+    }
+  })
+
+  return content
+}
 
 interface TiptapEditorProps {
   markdown: string
