@@ -3,8 +3,17 @@
 import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import TextStyle from '@tiptap/extension-text-style'
+import FontFamily from '@tiptap/extension-font-family'
+import Color from '@tiptap/extension-color'
+import TextAlign from '@tiptap/extension-text-align'
+import Underline from '@tiptap/extension-underline'
+import Highlight from '@tiptap/extension-highlight'
+import HardBreak from '@tiptap/extension-hard-break'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
+import { FontSize } from './extensions/FontSize'
+import { isHTML, htmlToJSON } from './html-parser'
 import {
   Bold,
   Italic,
@@ -22,249 +31,13 @@ import {
 } from 'lucide-react'
 import './tiptap-editor.css'
 
-// Helper function to detect if content is HTML
-function isHTML(content: string): boolean {
-  if (!content) return false
-  // Check if string contains HTML tags
-  const result = /<[a-z][\s\S]*>/i.test(content)
-  console.log('[TiptapEditor] isHTML check:', result, 'content preview:', content.substring(0, 100))
-  return result
-}
-
-// Helper function to convert HTML to Tiptap JSON format
-function htmlToJSON(html: string) {
-  console.log('[htmlToJSON] Converting HTML:', html.substring(0, 150))
-  
-  if (!html || !html.trim()) {
-    return {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [],
-        },
-      ],
-    }
-  }
-
-  // Create a temporary DOM parser
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  
-  const content: any[] = []
-  
-  // Process all child nodes
-  doc.body.childNodes.forEach((node) => {
-    const jsonNode = parseNode(node)
-    if (jsonNode) {
-      content.push(jsonNode)
-    }
-  })
-
-  const result = {
-    type: 'doc',
-    content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
-  }
-  console.log('[htmlToJSON] Result:', result)
-  return result
-}
-
-// Parse a DOM node and convert to Tiptap JSON
-function parseNode(node: Node): any | null {
-  if (node.nodeType === Node.TEXT_NODE) {
-    const text = node.textContent?.trim()
-    if (text) {
-      return {
-        type: 'text',
-        text,
-      }
-    }
-    return null
-  }
-
-  if (node.nodeType !== Node.ELEMENT_NODE) {
-    return null
-  }
-
-  const element = node as Element
-  const tagName = element.tagName.toLowerCase()
-
-  switch (tagName) {
-    case 'p':
-      return {
-        type: 'paragraph',
-        content: parseChildren(element),
-      }
-
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-      const level = parseInt(tagName[1])
-      return {
-        type: 'heading',
-        attrs: { level },
-        content: parseChildren(element),
-      }
-
-    case 'ul':
-      return {
-        type: 'bulletList',
-        content: Array.from(element.children)
-          .filter((child) => child.tagName.toLowerCase() === 'li')
-          .map((li) => ({
-            type: 'listItem',
-            content: [
-              {
-                type: 'paragraph',
-                content: parseChildren(li as Element),
-              },
-            ],
-          })),
-      }
-
-    case 'ol':
-      return {
-        type: 'orderedList',
-        content: Array.from(element.children)
-          .filter((child) => child.tagName.toLowerCase() === 'li')
-          .map((li) => ({
-            type: 'listItem',
-            content: [
-              {
-                type: 'paragraph',
-                content: parseChildren(li as Element),
-              },
-            ],
-          })),
-      }
-
-    case 'blockquote':
-      return {
-        type: 'blockquote',
-        content: parseChildren(element),
-      }
-
-    case 'pre':
-    case 'code':
-      const codeContent = element.textContent || ''
-      return {
-        type: 'codeBlock',
-        attrs: { language: 'text' },
-        content: [{ type: 'text', text: codeContent }],
-      }
-
-    case 'hr':
-      return {
-        type: 'horizontalRule',
-      }
-
-    case 'br':
-      return {
-        type: 'text',
-        text: '\n',
-      }
-
-    // Skip wrapper elements, process children
-    case 'div':
-    case 'section':
-    case 'article':
-      const children = parseChildren(element)
-      return children.length > 0
-        ? {
-            type: 'paragraph',
-            content: children,
-          }
-        : null
-
-    default:
-      // For unknown tags, try to parse as paragraph
-      return {
-        type: 'paragraph',
-        content: parseChildren(element),
-      }
-  }
-}
-
-// Parse all children of an element
-function parseChildren(element: Element): any[] {
-  const content: any[] = []
-
-  element.childNodes.forEach((node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim()
-      if (text) {
-        content.push({
-          type: 'text',
-          text,
-        })
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const child = node as Element
-      const tagName = child.tagName.toLowerCase()
-
-      // Handle inline formatting
-      if (tagName === 'strong' || tagName === 'b') {
-        const text = child.textContent || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'bold' }],
-        })
-      } else if (tagName === 'em' || tagName === 'i') {
-        const text = child.textContent || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'italic' }],
-        })
-      } else if (tagName === 'code') {
-        const text = child.textContent || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'code' }],
-        })
-      } else if (tagName === 'a') {
-        const text = child.textContent || ''
-        const href = child.getAttribute('href') || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'link', attrs: { href } }],
-        })
-      } else if (tagName === 'u') {
-        const text = child.textContent || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'underline' }],
-        })
-      } else if (tagName === 's' || tagName === 'del') {
-        const text = child.textContent || ''
-        content.push({
-          type: 'text',
-          text,
-          marks: [{ type: 'strike' }],
-        })
-      } else {
-        // Recursively parse nested elements
-        const childContent = parseChildren(child)
-        content.push(...childContent)
-      }
-    }
-  })
-
-  return content
-}
-
 interface TiptapEditorProps {
   markdown: string
   onChange: (markdown: string) => void
   disabled?: boolean
 }
+
+// All HTML parsing functions moved to html-parser.ts module
 
 export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEditorProps) {
   console.log('[TiptapEditor] Received markdown:', markdown.substring(0, 200))
@@ -280,6 +53,20 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         openOnClick: false,
         autolink: true,
       }),
+      TextStyle,
+      FontFamily,
+      Color.configure({
+        types: ['textStyle'],
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Underline,
+      HardBreak,
+      FontSize,
     ],
     content: (() => {
       const isHtml = isHTML(markdown)
