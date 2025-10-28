@@ -3,16 +3,15 @@
 import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import TextStyle from '@tiptap/extension-text-style'
-import FontFamily from '@tiptap/extension-font-family'
-import Color from '@tiptap/extension-color'
 import TextAlign from '@tiptap/extension-text-align'
 import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
 import HardBreak from '@tiptap/extension-hard-break'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
-import { FontSize } from './extensions/FontSize'
+import { FontSizeMark } from './extensions/FontSizeMark'
+import { Color } from './extensions/Color'
+import { FontFamily } from './extensions/FontFamily'
 import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,
@@ -54,11 +53,9 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         openOnClick: false,
         autolink: true,
       }),
-      TextStyle,
+      Color,
       FontFamily,
-      Color.configure({
-        types: ['textStyle'],
-      }),
+      FontSizeMark,
       Highlight.configure({
         multicolor: true,
       }),
@@ -67,7 +64,6 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
       }),
       Underline,
       HardBreak,
-      FontSize,
     ],
     content: (() => {
       const isHtml = isHTML(markdown)
