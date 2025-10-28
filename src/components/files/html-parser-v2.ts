@@ -57,6 +57,49 @@ function getMarksFromStyles(styles: Record<string, string>): any[] {
     })
   }
 
+  // Priority 1 & 2 features
+  if (styles['text-decoration'] && styles['text-decoration'].includes('line-through')) {
+    marks.push({
+      type: 'strikethroughMark',
+      attrs: { strikethrough: true },
+    })
+  }
+
+  if (styles['vertical-align'] === 'sub') {
+    marks.push({
+      type: 'subscriptMark',
+      attrs: { subscript: true },
+    })
+  }
+
+  if (styles['vertical-align'] === 'super') {
+    marks.push({
+      type: 'superscriptMark',
+      attrs: { superscript: true },
+    })
+  }
+
+  if (styles['letter-spacing']) {
+    marks.push({
+      type: 'letterSpacingMark',
+      attrs: { letterSpacing: styles['letter-spacing'] },
+    })
+  }
+
+  if (styles['font-weight'] && styles['font-weight'] !== 'normal' && styles['font-weight'] !== '400') {
+    marks.push({
+      type: 'fontWeightMark',
+      attrs: { fontWeight: styles['font-weight'] },
+    })
+  }
+
+  if (styles['text-decoration'] && !styles['text-decoration'].includes('none')) {
+    marks.push({
+      type: 'textDecorationMark',
+      attrs: { textDecoration: styles['text-decoration'] },
+    })
+  }
+
   return marks
 }
 
@@ -187,12 +230,25 @@ function parseElement(element: Element): any | null {
   const tagName = element.tagName.toLowerCase()
   const styles = parseStyleAttribute(element.getAttribute('style') || '')
 
+  function parseBlockAttributes(element: Element): any {
+    const attrs: any = {}
+    const style = element.getAttribute('style') || ''
+    const styles = parseStyleAttribute(style)
+
+    if (styles['text-align']) {
+      attrs.textAlign = styles['text-align']
+    }
+
+    if (styles['line-height']) {
+      attrs.lineHeight = styles['line-height']
+    }
+
+    return attrs
+  }
+
   switch (tagName) {
     case 'p':
-      const attrs: any = {}
-      if (styles['text-align']) {
-        attrs.textAlign = styles['text-align']
-      }
+      const attrs = parseBlockAttributes(element)
       return {
         type: 'paragraph',
         ...(Object.keys(attrs).length > 0 ? { attrs } : {}),

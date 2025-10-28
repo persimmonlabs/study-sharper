@@ -12,6 +12,13 @@ import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
 import { FontSizeMarkFixed } from './extensions/FontSizeMarkFixed'
 import { ColorMark } from './extensions/ColorMark'
 import { FontFamilyMarkFixed } from './extensions/FontFamilyMarkFixed'
+import { StrikethroughMark } from './extensions/StrikethroughMark'
+import { SubscriptMark } from './extensions/SubscriptMark'
+import { SuperscriptMark } from './extensions/SuperscriptMark'
+import { LineHeightExtension } from './extensions/LineHeightExtension'
+import { LetterSpacingMark } from './extensions/LetterSpacingMark'
+import { FontWeightMark } from './extensions/FontWeightMark'
+import { TextDecorationMark } from './extensions/TextDecorationMark'
 import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,
@@ -56,6 +63,13 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
       ColorMark,
       FontFamilyMarkFixed,
       FontSizeMarkFixed,
+      StrikethroughMark,
+      SubscriptMark,
+      SuperscriptMark,
+      LetterSpacingMark,
+      FontWeightMark,
+      TextDecorationMark,
+      LineHeightExtension,
       Highlight.configure({
         multicolor: true,
       }),
