@@ -53,7 +53,7 @@ export function markdownToJSON(markdown: string): JSONContent {
         const paraContent = parseInlineTokens(contentToken.children || [])
         content.push({
           type: 'paragraph',
-          content: paraContent.length > 0 ? paraContent : [{ type: 'text', text: '' }],
+          content: paraContent.length > 0 ? paraContent : [{ type: 'text', text: ' ' }],
         })
       }
 
@@ -87,7 +87,7 @@ export function markdownToJSON(markdown: string): JSONContent {
 
           listContent.push({
             type: 'listItem',
-            content: itemContent.length > 0 ? itemContent : [{ type: 'paragraph', content: [] }],
+            content: itemContent.length > 0 ? itemContent : [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }],
           })
           i++
         } else {
@@ -129,7 +129,7 @@ export function markdownToJSON(markdown: string): JSONContent {
 
           listContent.push({
             type: 'listItem',
-            content: itemContent.length > 0 ? itemContent : [{ type: 'paragraph', content: [] }],
+            content: itemContent.length > 0 ? itemContent : [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }],
           })
           i++
         } else {
@@ -177,7 +177,7 @@ export function markdownToJSON(markdown: string): JSONContent {
 
       content.push({
         type: 'blockquote',
-        content: quoteContent.length > 0 ? quoteContent : [{ type: 'paragraph', content: [] }],
+        content: quoteContent.length > 0 ? quoteContent : [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }],
       })
       i++
       continue
@@ -196,8 +196,20 @@ export function markdownToJSON(markdown: string): JSONContent {
 
   return {
     type: 'doc',
-    content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
+    content: content.length > 0 ? content : [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }],
   }
+}
+
+/**
+ * Filter out empty text nodes (Tiptap doesn't allow them)
+ */
+function filterEmptyNodes(content: JSONContent[]): JSONContent[] {
+  return content.filter((node) => {
+    if (node.type === 'text') {
+      return node.text && node.text.trim().length > 0
+    }
+    return true
+  })
 }
 
 /**
@@ -211,10 +223,12 @@ function parseInlineTokens(tokens: any[]): JSONContent[] {
     const token = tokens[i]
 
     if (token.type === 'text') {
-      content.push({
-        type: 'text',
-        text: token.content,
-      })
+      if (token.content) {
+        content.push({
+          type: 'text',
+          text: token.content,
+        })
+      }
       i++
       continue
     }
@@ -222,11 +236,13 @@ function parseInlineTokens(tokens: any[]): JSONContent[] {
     if (token.type === 'strong_open') {
       const textToken = tokens[i + 1]
       const text = textToken?.content || ''
-      content.push({
-        type: 'text',
-        text,
-        marks: [{ type: 'bold' }],
-      })
+      if (text) {
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'bold' }],
+        })
+      }
       i += 3
       continue
     }
@@ -234,21 +250,25 @@ function parseInlineTokens(tokens: any[]): JSONContent[] {
     if (token.type === 'em_open') {
       const textToken = tokens[i + 1]
       const text = textToken?.content || ''
-      content.push({
-        type: 'text',
-        text,
-        marks: [{ type: 'italic' }],
-      })
+      if (text) {
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'italic' }],
+        })
+      }
       i += 3
       continue
     }
 
     if (token.type === 'code_inline') {
-      content.push({
-        type: 'text',
-        text: token.content,
-        marks: [{ type: 'code' }],
-      })
+      if (token.content) {
+        content.push({
+          type: 'text',
+          text: token.content,
+          marks: [{ type: 'code' }],
+        })
+      }
       i++
       continue
     }
@@ -257,11 +277,13 @@ function parseInlineTokens(tokens: any[]): JSONContent[] {
       const href = token.attrGet('href') || ''
       const textToken = tokens[i + 1]
       const text = textToken?.content || ''
-      content.push({
-        type: 'text',
-        text,
-        marks: [{ type: 'link', attrs: { href } }],
-      })
+      if (text) {
+        content.push({
+          type: 'text',
+          text,
+          marks: [{ type: 'link', attrs: { href } }],
+        })
+      }
       i += 3
       continue
     }
@@ -287,7 +309,8 @@ function parseInlineTokens(tokens: any[]): JSONContent[] {
     i++
   }
 
-  return content.length > 0 ? content : [{ type: 'text', text: '' }]
+  const filtered = filterEmptyNodes(content)
+  return filtered.length > 0 ? filtered : [{ type: 'text', text: ' ' }]
 }
 
 /**
