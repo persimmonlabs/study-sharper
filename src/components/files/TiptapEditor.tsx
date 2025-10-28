@@ -43,7 +43,7 @@ import './tiptap-editor.css'
 
 interface TiptapEditorProps {
   markdown: string
-  onChange: (markdown: string) => void
+  onChange: (content: string) => void
   disabled?: boolean
 }
 
@@ -94,18 +94,33 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
     editable: !disabled,
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
-      const md = jsonToMarkdown(json)
-      onChange(md)
+      onChange(JSON.stringify(json))
     },
   })
 
   useEffect(() => {
-    if (editor && markdown !== jsonToMarkdown(editor.getJSON())) {
-      const isHtml = isHTML(markdown)
-      console.log('[TiptapEditor] useEffect: Converting with:', isHtml ? 'htmlToJSON' : 'markdownToJSON')
-      const content = isHtml ? htmlToJSON(markdown) : markdownToJSON(markdown)
-      console.log('[TiptapEditor] Setting content:', content)
-      editor.commands.setContent(content)
+    if (!editor || !markdown) return
+    
+    try {
+      let content
+      
+      if (markdown.startsWith('{')) {
+        content = JSON.parse(markdown)
+      } else {
+        const isHtml = isHTML(markdown)
+        console.log('[TiptapEditor] useEffect: Converting with:', isHtml ? 'htmlToJSON' : 'markdownToJSON')
+        content = isHtml ? htmlToJSON(markdown) : markdownToJSON(markdown)
+      }
+      
+      const currentJson = JSON.stringify(editor.getJSON())
+      const newJson = JSON.stringify(content)
+      
+      if (currentJson !== newJson) {
+        console.log('[TiptapEditor] Setting content:', content)
+        editor.commands.setContent(content)
+      }
+    } catch (e) {
+      console.error('[TiptapEditor] Error parsing content:', e)
     }
   }, [markdown, editor])
 
