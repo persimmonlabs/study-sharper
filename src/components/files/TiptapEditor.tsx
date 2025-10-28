@@ -19,6 +19,10 @@ import { LineHeightExtension } from './extensions/LineHeightExtension'
 import { LetterSpacingMark } from './extensions/LetterSpacingMark'
 import { FontWeightMark } from './extensions/FontWeightMark'
 import { TextDecorationMark } from './extensions/TextDecorationMark'
+import { TextShadowMark } from './extensions/TextShadowMark'
+import { FontStyleMark } from './extensions/FontStyleMark'
+import { MarginPaddingExtension } from './extensions/MarginPaddingExtension'
+import { PasteHandler } from './extensions/PasteHandler'
 import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,
@@ -69,7 +73,10 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
       LetterSpacingMark,
       FontWeightMark,
       TextDecorationMark,
-      LineHeightExtension,
+      TextShadowMark,
+      FontStyleMark,
+      MarginPaddingExtension,
+      PasteHandler,
       Highlight.configure({
         multicolor: true,
       }),

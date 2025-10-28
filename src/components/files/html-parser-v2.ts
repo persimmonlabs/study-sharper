@@ -100,6 +100,21 @@ function getMarksFromStyles(styles: Record<string, string>): any[] {
     })
   }
 
+  // Priority 3 features
+  if (styles['text-shadow']) {
+    marks.push({
+      type: 'textShadowMark',
+      attrs: { textShadow: styles['text-shadow'] },
+    })
+  }
+
+  if (styles['font-style'] && styles['font-style'] !== 'normal') {
+    marks.push({
+      type: 'fontStyleMark',
+      attrs: { fontStyle: styles['font-style'] },
+    })
+  }
+
   return marks
 }
 
@@ -241,6 +256,26 @@ function parseElement(element: Element): any | null {
 
     if (styles['line-height']) {
       attrs.lineHeight = styles['line-height']
+    }
+
+    // Priority 3: Margin and padding
+    if (styles['margin']) {
+      attrs.margin = styles['margin']
+    }
+    if (styles['margin-top']) {
+      attrs.marginTop = styles['margin-top']
+    }
+    if (styles['margin-bottom']) {
+      attrs.marginBottom = styles['margin-bottom']
+    }
+    if (styles['padding']) {
+      attrs.padding = styles['padding']
+    }
+    if (styles['padding-top']) {
+      attrs.paddingTop = styles['padding-top']
+    }
+    if (styles['padding-bottom']) {
+      attrs.paddingBottom = styles['padding-bottom']
     }
 
     return attrs
