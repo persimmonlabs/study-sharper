@@ -12,6 +12,54 @@ export function isHTML(content: string): boolean {
   return result
 }
 
+function parseStyleAttribute(styleStr: string): Record<string, string> {
+  const styles: Record<string, string> = {}
+  if (!styleStr) return styles
+
+  styleStr.split(';').forEach((rule) => {
+    const [key, value] = rule.split(':').map((s) => s.trim())
+    if (key && value) {
+      styles[key] = value
+    }
+  })
+
+  return styles
+}
+
+function getMarksFromStyles(styles: Record<string, string>): any[] {
+  const marks: any[] = []
+
+  if (styles['font-size']) {
+    marks.push({
+      type: 'fontSize',
+      attrs: { fontSize: styles['font-size'] },
+    })
+  }
+
+  if (styles['color']) {
+    marks.push({
+      type: 'color',
+      attrs: { color: styles['color'] },
+    })
+  }
+
+  if (styles['font-family']) {
+    marks.push({
+      type: 'fontFamily',
+      attrs: { fontFamily: styles['font-family'] },
+    })
+  }
+
+  if (styles['background-color']) {
+    marks.push({
+      type: 'highlight',
+      attrs: { color: styles['background-color'] },
+    })
+  }
+
+  return marks
+}
+
 export function htmlToJSON(html: string) {
   console.log('[htmlParser] Starting conversion, length:', html.length)
 
@@ -137,11 +185,17 @@ function isBlockElement(tagName: string): boolean {
 
 function parseElement(element: Element): any | null {
   const tagName = element.tagName.toLowerCase()
+  const styles = parseStyleAttribute(element.getAttribute('style') || '')
 
   switch (tagName) {
     case 'p':
+      const attrs: any = {}
+      if (styles['text-align']) {
+        attrs.textAlign = styles['text-align']
+      }
       return {
         type: 'paragraph',
+        ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
         content: parseInlineElements(element),
       }
 
@@ -338,9 +392,21 @@ function parseInlineElements(element: Element): any[] {
           break
 
         case 'span':
-          // Recursively parse span content
-          const spanContent = parseInlineElements(child)
-          content.push(...spanContent)
+          const spanStyles = parseStyleAttribute(child.getAttribute('style') || '')
+          const spanMarks = getMarksFromStyles(spanStyles)
+          const spanText = child.textContent || ''
+          if (spanText.trim()) {
+            if (spanMarks.length > 0) {
+              content.push({
+                type: 'text',
+                text: spanText,
+                marks: spanMarks,
+              })
+            } else {
+              const spanContent = parseInlineElements(child)
+              content.push(...spanContent)
+            }
+          }
           break
 
         default:
