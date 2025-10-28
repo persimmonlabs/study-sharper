@@ -40,6 +40,10 @@ export const Color: any = Mark.create({
     return ['span', { style: `color: ${attrs.color}` }, 0]
   },
 
+  toDOM(mark: any) {
+    return ['span', { style: `color: ${mark.attrs.color}` }, 0]
+  },
+
   addCommands() {
     return {
       setColor: (color: string) => ({ commands }: any) => {

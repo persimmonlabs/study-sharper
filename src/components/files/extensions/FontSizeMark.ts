@@ -36,6 +36,10 @@ export const FontSizeMark: any = Mark.create({
     ]
   },
 
+  toDOM(mark: any) {
+    return ['span', { style: `font-size: ${mark.attrs.fontSize}` }, 0]
+  },
+
   addCommands() {
     return {
       setFontSize: (fontSize: string) => ({ commands }: any) => {

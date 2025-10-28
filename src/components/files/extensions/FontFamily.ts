@@ -36,6 +36,10 @@ export const FontFamily: any = Mark.create({
     ]
   },
 
+  toDOM(mark: any) {
+    return ['span', { style: `font-family: ${mark.attrs.fontFamily}` }, 0]
+  },
+
   addCommands() {
     return {
       setFontFamily: (fontFamily: string) => ({ commands }: any) => {
