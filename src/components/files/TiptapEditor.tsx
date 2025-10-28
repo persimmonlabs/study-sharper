@@ -23,6 +23,7 @@ import { TextShadowMark } from './extensions/TextShadowMark'
 import { FontStyleMark } from './extensions/FontStyleMark'
 import { MarginPaddingExtension } from './extensions/MarginPaddingExtension'
 import { PasteHandler } from './extensions/PasteHandler'
+import { TableStyleExtension } from './extensions/TableStyleExtension'
 import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,

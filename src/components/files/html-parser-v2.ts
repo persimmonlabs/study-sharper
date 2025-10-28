@@ -238,6 +238,7 @@ function isBlockElement(tagName: string): boolean {
     'div',
     'section',
     'article',
+    'table',
   ].includes(tagName)
 }
 
@@ -338,12 +339,32 @@ function parseElement(element: Element): any | null {
     case 'blockquote':
       return {
         type: 'blockquote',
-        content: [
-          {
-            type: 'paragraph',
-            content: parseInlineElements(element),
-          },
-        ],
+        content: parseInlineElements(element),
+      }
+
+    case 'table':
+      const rows: any[] = []
+      const tableRows = element.querySelectorAll('tr')
+      tableRows.forEach((row) => {
+        const cells: any[] = []
+        const tableCells = row.querySelectorAll('td, th')
+        tableCells.forEach((cell) => {
+          const isHeader = cell.tagName.toLowerCase() === 'th'
+          const cellAttrs = parseBlockAttributes(cell)
+          cells.push({
+            type: isHeader ? 'tableHeader' : 'tableCell',
+            ...(Object.keys(cellAttrs).length > 0 ? { attrs: cellAttrs } : {}),
+            content: parseInlineElements(cell),
+          })
+        })
+        rows.push({
+          type: 'tableRow',
+          content: cells,
+        })
+      })
+      return {
+        type: 'table',
+        content: rows,
       }
 
     case 'pre':
