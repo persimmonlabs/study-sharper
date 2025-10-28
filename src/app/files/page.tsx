@@ -54,7 +54,15 @@ export default function FilesPage() {
     []
   );
 
-  const filesWithoutFolder = useMemo(() => files.filter((file) => !file.folder_id), [files]);
+  const filesWithoutFolder = useMemo(
+    () => files.filter((file) => !file.folder_id && file.processing_status !== 'processing'),
+    [files]
+  );
+
+  const processingFiles = useMemo(
+    () => files.filter((file) => file.processing_status === 'processing'),
+    [files]
+  );
 
   useEffect(() => {
     const loadFolders = async () => {
@@ -103,19 +111,22 @@ export default function FilesPage() {
       setFiles(data);
       setSelectedFileError(null);
       setSelectedFileId((previous) => {
-        if (nextSelectedId && data.some((file) => file.id === nextSelectedId)) {
+        // Filter to only completed files for selection
+        const completedFiles = data.filter((file) => file.processing_status !== 'processing');
+        
+        if (nextSelectedId && completedFiles.some((file) => file.id === nextSelectedId)) {
           return nextSelectedId;
         }
 
-        if (!data.length) {
+        if (!completedFiles.length) {
           return null;
         }
 
-        if (previous && data.some((file) => file.id === previous)) {
+        if (previous && completedFiles.some((file) => file.id === previous)) {
           return previous;
         }
 
-        return data[0].id;
+        return completedFiles[0].id;
       });
     } catch (error) {
       console.error('[FilesPage] Failed to load files:', error);
@@ -128,6 +139,19 @@ export default function FilesPage() {
   useEffect(() => {
     loadFiles();
   }, [loadFiles]);
+
+  // Auto-refresh when there are processing files
+  useEffect(() => {
+    if (processingFiles.length === 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadFiles();
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [processingFiles.length, loadFiles]);
 
   const handleFileCreated = useCallback(
     (note: FileItem) => {
@@ -613,10 +637,32 @@ export default function FilesPage() {
                       );
                     })}
 
+                  {/* Processing files */}
+                  {processingFiles.length > 0 && (
+                    <div>
+                      <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
+                        Processing
+                      </div>
+                      {processingFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="w-full text-left px-3 py-3 rounded-lg transition border border-transparent overflow-hidden bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-60"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                            <span className="block text-sm font-semibold truncate">
+                              {file.title || 'Untitled note'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Unfiled files */}
                   {filesWithoutFolder.length > 0 && (
                     <div>
-                      {folders.length > 0 && (
+                      {(folders.length > 0 || processingFiles.length > 0) && (
                         <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
                           Files
                         </div>

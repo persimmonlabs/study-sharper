@@ -11,8 +11,8 @@ export interface FileItem {
   updated_at: string;
   summary?: string;
   tags?: string[];
-  processing_status?: 'completed';
-  extraction_method?: 'manual';
+  processing_status?: 'processing' | 'completed' | 'failed';
+  extraction_method?: 'manual' | 'langchain';
 }
 
 export interface FileFolder {
