@@ -13,7 +13,7 @@ import HardBreak from '@tiptap/extension-hard-break'
 import { useEffect, useCallback } from 'react'
 import { markdownToJSON, jsonToMarkdown } from '@/lib/markdown-converter'
 import { FontSize } from './extensions/FontSize'
-import { isHTML, htmlToJSON } from './html-parser'
+import { isHTML, htmlToJSON } from './html-parser-v2'
 import {
   Bold,
   Italic,

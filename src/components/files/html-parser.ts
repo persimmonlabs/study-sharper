@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * Enhanced HTML to Tiptap JSON parser with full formatting support
  * Preserves: font sizes, colors, fonts, alignment, underlines, highlights, line breaks
@@ -90,25 +92,41 @@ export function htmlToJSON(html: string) {
     }
   }
 
+  // Check if DOMParser is available (client-side only)
+  if (typeof DOMParser === 'undefined') {
+    console.error('[htmlParser] DOMParser not available - running on server?')
+    return {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: html }],
+        },
+      ],
+    }
+  }
+
   // Create a temporary DOM parser
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
 
   const content: any[] = []
 
-  // Process all child nodes
-  doc.body.childNodes.forEach((node) => {
-    const jsonNode = parseNode(node)
-    if (jsonNode) {
-      content.push(jsonNode)
-    }
-  })
+  // Process all child nodes from body
+  if (doc.body) {
+    doc.body.childNodes.forEach((node) => {
+      const jsonNode = parseNode(node)
+      if (jsonNode) {
+        content.push(jsonNode)
+      }
+    })
+  }
 
   const result = {
     type: 'doc',
     content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
   }
-  console.log('[htmlParser] Result:', result)
+  console.log('[htmlParser] Result:', JSON.stringify(result).substring(0, 200))
   return result
 }
 
