@@ -188,6 +188,7 @@ export default function FilesPage() {
             ? {
                 ...file,
                 title: updatedFile.title,
+                content: updatedFile.content,
                 updated_at: updatedFile.updated_at,
               }
             : file
