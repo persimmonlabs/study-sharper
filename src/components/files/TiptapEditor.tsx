@@ -26,11 +26,15 @@ import './tiptap-editor.css'
 function isHTML(content: string): boolean {
   if (!content) return false
   // Check if string contains HTML tags
-  return /<[a-z][\s\S]*>/i.test(content)
+  const result = /<[a-z][\s\S]*>/i.test(content)
+  console.log('[TiptapEditor] isHTML check:', result, 'content preview:', content.substring(0, 100))
+  return result
 }
 
 // Helper function to convert HTML to Tiptap JSON format
 function htmlToJSON(html: string) {
+  console.log('[htmlToJSON] Converting HTML:', html.substring(0, 150))
+  
   if (!html || !html.trim()) {
     return {
       type: 'doc',
@@ -57,10 +61,12 @@ function htmlToJSON(html: string) {
     }
   })
 
-  return {
+  const result = {
     type: 'doc',
     content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
   }
+  console.log('[htmlToJSON] Result:', result)
+  return result
 }
 
 // Parse a DOM node and convert to Tiptap JSON
@@ -261,6 +267,8 @@ interface TiptapEditorProps {
 }
 
 export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEditorProps) {
+  console.log('[TiptapEditor] Received markdown:', markdown.substring(0, 200))
+  
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -273,7 +281,11 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
         autolink: true,
       }),
     ],
-    content: isHTML(markdown) ? htmlToJSON(markdown) : markdownToJSON(markdown),
+    content: (() => {
+      const isHtml = isHTML(markdown)
+      console.log('[TiptapEditor] Converting with:', isHtml ? 'htmlToJSON' : 'markdownToJSON')
+      return isHtml ? htmlToJSON(markdown) : markdownToJSON(markdown)
+    })(),
     editable: !disabled,
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
@@ -284,7 +296,10 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
 
   useEffect(() => {
     if (editor && markdown !== jsonToMarkdown(editor.getJSON())) {
-      const content = isHTML(markdown) ? htmlToJSON(markdown) : markdownToJSON(markdown)
+      const isHtml = isHTML(markdown)
+      console.log('[TiptapEditor] useEffect: Converting with:', isHtml ? 'htmlToJSON' : 'markdownToJSON')
+      const content = isHtml ? htmlToJSON(markdown) : markdownToJSON(markdown)
+      console.log('[TiptapEditor] Setting content:', content)
       editor.commands.setContent(content)
     }
   }, [markdown, editor])
