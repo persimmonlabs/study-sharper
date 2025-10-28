@@ -332,13 +332,22 @@ export default function FilesPage() {
               Browse your uploaded files from the sidebar and create new study notes anytime.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateNote(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition self-start md:self-center"
-          >
-            <Plus className="w-4 h-4" />
-            Create Note
-          </button>
+          <div className="flex items-center gap-3 self-start md:self-center">
+            <button
+              onClick={() => setShowUploadDialog(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
+            >
+              <Upload className="w-4 h-4" />
+              Upload File
+            </button>
+            <button
+              onClick={() => setShowCreateNote(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Create Note
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-6 min-h-[500px]">
