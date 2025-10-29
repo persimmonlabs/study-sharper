@@ -2,8 +2,7 @@
 
 import { FileItem, FileFolder, UserQuota } from '@/types/files';
 import { supabase } from '@/lib/supabase';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://study-sharper-backend-production.up.railway.app';
+import { API_BASE_URL } from '@/lib/config';
 
 // Retry helper for handling cold starts and transient errors
 async function fetchWithRetry(

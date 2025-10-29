@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { FileItem } from '@/types/files'
 import { Send, X, Loader2, MessageCircle, FileText, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { API_BASE_URL } from '@/lib/config'
 
 interface ChatMessage {
   id: string
@@ -87,7 +88,7 @@ export function FileChatInterface({
         throw new Error('Not authenticated')
       }
 
-      const response = await fetch('/api/chat/with-files', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/with-files`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,8 +103,14 @@ export function FileChatInterface({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to get response')
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorMessage
+        } catch (e) {
+          // Response wasn't JSON, use status text
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()

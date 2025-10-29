@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Upload, X, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useProcessing } from "@/context/ProcessingContext";
+import { API_BASE_URL } from "@/lib/config";
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -21,8 +22,6 @@ interface UploadProgress {
   error?: string;
   chunkCount?: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://study-sharper-backend-production.up.railway.app";
 
 async function getAuthToken(): Promise<string> {
   const {
