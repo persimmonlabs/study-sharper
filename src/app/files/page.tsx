@@ -10,7 +10,7 @@ import { FileContextMenu } from '@/components/files/FileContextMenu';
 import { FolderContextMenu } from '@/components/files/FolderContextMenu';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
-import { FileViewer } from '@/components/files/FileViewer';
+import { FileViewer as FileViewerWithChat } from '@/components/files/FileViewerWithChat';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fetchFile, fetchFiles, fetchFolders, deleteFile } from '@/lib/api/filesApi';
 
@@ -695,7 +695,7 @@ export default function FilesPage() {
                   onCancel={handleCancelEdit}
                 />
               ) : (
-                <FileViewer
+                <FileViewerWithChat
                   file={selectedFile}
                   onEditClick={handleEditClick}
                   onDeleteClick={() => requestFileDelete(selectedFile)}
