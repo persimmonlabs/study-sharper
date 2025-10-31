@@ -10,7 +10,8 @@ import { FileContextMenu } from '@/components/files/FileContextMenu';
 import { FolderContextMenu } from '@/components/files/FolderContextMenu';
 import { FileErrorBoundary } from '@/components/files/FileErrorBoundary';
 import { FileEditor } from '@/components/files/FileEditor';
-import { FileViewer as FileViewerWithChat } from '@/components/files/FileViewerWithChat';
+import { FileViewer } from '@/components/files/FileViewer';
+import { FileChatInterface } from '@/components/chat/FileChatInterface';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fetchFile, fetchFiles, fetchFolders, deleteFile } from '@/lib/api/filesApi';
 
@@ -381,336 +382,339 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex h-full flex-col gap-4 overflow-hidden">
+        {/* Condensed Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Files</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Browse your uploaded files from the sidebar and create new study notes anytime.
-            </p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Files</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Manage your uploads, edit content, and chat with your notes in one view.</p>
           </div>
-          <div className="flex items-center gap-3 self-start md:self-center">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowUploadDialog(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="h-4 w-4" />
               Upload File
             </button>
             <button
               onClick={() => setShowCreateNote(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="h-4 w-4" />
               Create Note
             </button>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-6 min-h-[500px]">
-          {/* File Navigation */}
-          <aside className="md:w-56 lg:w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl h-full flex flex-col shadow-sm">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File Explorer</h2>
-              <div className="relative" ref={newMenuRef}>
-                <button
-                  onClick={() => setIsNewMenuOpen(!isNewMenuOpen)}
-                  className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  New
-                </button>
-                {isNewMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
-                    <button
-                      onClick={() => {
-                        setShowCreateNote(true);
-                        setIsNewMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 first:rounded-t-lg"
-                    >
-                      <FilePlus className="w-4 h-4" />
-                      New File
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowCreateFolder(true);
-                        setIsNewMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                    >
-                      <FolderPlus className="w-4 h-4" />
-                      New Folder
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowUploadDialog(true);
-                        setIsNewMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 last:rounded-b-lg"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload File
-                    </button>
+        <div className="flex-1 overflow-hidden">
+          <div className="grid h-full gap-4 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+            {/* File Explorer Panel */}
+            <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File Explorer</h2>
+                <div className="relative" ref={newMenuRef}>
+                  <button
+                    onClick={() => setIsNewMenuOpen(!isNewMenuOpen)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-600"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New
+                  </button>
+                  {isNewMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 z-10">
+                      <button
+                        onClick={() => {
+                          setShowCreateNote(true);
+                          setIsNewMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 transition first:rounded-t-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        <FilePlus className="h-4 w-4" />
+                        New File
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCreateFolder(true);
+                          setIsNewMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        <FolderPlus className="h-4 w-4" />
+                        New Folder
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowUploadDialog(true);
+                          setIsNewMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 transition last:rounded-b-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Upload File
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {loadingFiles ? (
+                  <div className="space-y-3 p-4">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+                    ))}
+                  </div>
+                ) : fileError ? (
+                  <div className="p-4 text-sm text-red-500">
+                    {fileError}
+                  </div>
+                ) : folders.length === 0 && files.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No files yet. Create your first note or upload a file to get started.
+                  </div>
+                ) : (
+                  <nav className="space-y-1 p-2">
+                    {folders
+                      .filter((f) => !f.parent_folder_id)
+                      .map((folder) => {
+                        const isExpanded = expandedFolders.includes(folder.id);
+                        const subfolders = folders.filter((f) => f.parent_folder_id === folder.id);
+                        const folderFiles = files.filter((f) => f.folder_id === folder.id);
+
+                        const toggleFolder = () => {
+                          setExpandedFolders((prev) =>
+                            isExpanded ? prev.filter((id) => id !== folder.id) : [...prev, folder.id]
+                          );
+                        };
+
+                        return (
+                          <div key={folder.id} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={toggleFolder}
+                              onContextMenu={(event) => handleFolderContextMenu(event, folder)}
+                              className="flex w-full items-center gap-2 overflow-hidden rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                              )}
+                              {isExpanded ? (
+                                <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                              ) : (
+                                <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                              )}
+                              <span className="truncate">{folder.name}</span>
+                            </button>
+
+                            {isExpanded && (
+                              <div className="space-y-1">
+                                {subfolders.map((subfolder) => {
+                                  const isSubExpanded = expandedFolders.includes(subfolder.id);
+                                  const subfolderFiles = files.filter((f) => f.folder_id === subfolder.id);
+
+                                  const toggleSubfolder = () => {
+                                    setExpandedFolders((prev) =>
+                                      isSubExpanded ? prev.filter((id) => id !== subfolder.id) : [...prev, subfolder.id]
+                                    );
+                                  };
+
+                                  return (
+                                    <div key={subfolder.id} className="space-y-1">
+                                      <button
+                                        type="button"
+                                        onClick={toggleSubfolder}
+                                        onContextMenu={(event) => handleFolderContextMenu(event, subfolder)}
+                                        className="flex w-full items-center gap-2 overflow-hidden rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+                                        style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
+                                      >
+                                        {isSubExpanded ? (
+                                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                                        )}
+                                        {isSubExpanded ? (
+                                          <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[subfolder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                                        ) : (
+                                          <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[subfolder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
+                                        )}
+                                        <span className="truncate">{subfolder.name}</span>
+                                      </button>
+
+                                      {isSubExpanded && subfolderFiles.length > 0 && (
+                                        <div className="space-y-1">
+                                          {subfolderFiles.map((file) => {
+                                            const isActive = file.id === selectedFileId;
+                                            return (
+                                              <button
+                                                key={file.id}
+                                                onClick={() => {
+                                                  setIsEditMode(false);
+                                                  setSavingMessage(null);
+                                                  setSelectedFile(null);
+                                                  setSelectedFileError(null);
+                                                  setSelectedFileId(file.id);
+                                                  closeContextMenu();
+                                                }}
+                                                onContextMenu={(event) => handleFileContextMenu(event, file)}
+                                                className={`overflow-hidden rounded-lg border border-transparent px-3 py-2 text-left text-sm transition ${
+                                                  isActive
+                                                    ? 'bg-blue-50 text-blue-600 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200'
+                                                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+                                                }`}
+                                                style={{ marginLeft: '48px', width: 'calc(100% - 48px)' }}
+                                              >
+                                                <span className="block truncate">
+                                                  {file.title || 'Untitled note'}
+                                                </span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                {folderFiles.length > 0 && (
+                                  <div className="space-y-1">
+                                    {folderFiles.map((file) => {
+                                      const isActive = file.id === selectedFileId;
+                                      return (
+                                        <button
+                                          key={file.id}
+                                          onClick={() => {
+                                            setIsEditMode(false);
+                                            setSavingMessage(null);
+                                            setSelectedFile(null);
+                                            setSelectedFileError(null);
+                                            setSelectedFileId(file.id);
+                                            closeContextMenu();
+                                          }}
+                                          onContextMenu={(event) => handleFileContextMenu(event, file)}
+                                          className={`overflow-hidden rounded-lg border border-transparent px-3 py-2 text-left text-sm transition ${
+                                            isActive
+                                              ? 'bg-blue-50 text-blue-600 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200'
+                                              : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+                                          }`}
+                                          style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
+                                        >
+                                          <span className="block truncate">
+                                            {file.title || 'Untitled note'}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                    {filesWithoutFolder.length > 0 && (
+                      <div>
+                        {folders.length > 0 && (
+                          <div className="mt-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Files
+                          </div>
+                        )}
+                        {filesWithoutFolder.map((file) => {
+                          const isActive = file.id === selectedFileId;
+                          return (
+                            <button
+                              key={file.id}
+                              onClick={() => {
+                                setIsEditMode(false);
+                                setSavingMessage(null);
+                                setSelectedFile(null);
+                                setSelectedFileError(null);
+                                setSelectedFileId(file.id);
+                                closeContextMenu();
+                              }}
+                              onContextMenu={(event) => handleFileContextMenu(event, file)}
+                              className={`w-full overflow-hidden rounded-lg border border-transparent px-3 py-3 text-left text-sm transition ${
+                                isActive
+                                  ? 'bg-blue-50 text-blue-600 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200'
+                                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+                              }`}
+                            >
+                              <span className="block truncate">
+                                {file.title || 'Untitled note'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </nav>
+                )}
+              </div>
+            </aside>
+
+            {/* File Viewer / Editor Panel */}
+            <section className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              {savingMessage && (
+                <div className="border-b border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+                  {savingMessage}
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto p-4">
+                {loadingFiles && files.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
+                    Loading files...
+                  </div>
+                ) : fileError ? (
+                  <div className="flex h-full items-center justify-center text-red-500">
+                    {fileError}
+                  </div>
+                ) : selectedFileId && loadingSelectedFile ? (
+                  <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
+                    Loading file content...
+                  </div>
+                ) : selectedFileError ? (
+                  <div className="flex h-full items-center justify-center text-red-500">
+                    {selectedFileError}
+                  </div>
+                ) : selectedFile ? (
+                  <div className="flex min-h-full flex-col">
+                    {isEditMode ? (
+                      <FileEditor
+                        file={selectedFile}
+                        onSaved={handleFileSaved}
+                        onCancel={handleCancelEdit}
+                      />
+                    ) : (
+                      <FileViewer
+                        file={selectedFile}
+                        onEditClick={handleEditClick}
+                        onDeleteClick={() => requestFileDelete(selectedFile)}
+                        isDeleting={deletingFileId === selectedFile.id}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
+                    Select a file from the explorer to view its content.
                   </div>
                 )}
               </div>
-            </div>
+            </section>
 
-            <div className="flex-1 overflow-y-auto">
-              {loadingFiles ? (
-                <div className="p-4 space-y-3">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="h-12 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : fileError ? (
-                <div className="p-4 text-sm text-red-500">
-                  {fileError}
-                </div>
-              ) : folders.length === 0 && files.length === 0 ? (
-                <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No files yet. Create your first note or upload a file to get started.
-                </div>
-              ) : (
-                <nav className="p-2 space-y-1">
-                  {/* Root folders only */}
-                  {folders
-                    .filter((f) => !f.parent_folder_id)
-                    .map((folder) => {
-                      const isExpanded = expandedFolders.includes(folder.id);
-                      const subfolders = folders.filter((f) => f.parent_folder_id === folder.id);
-                      const folderFiles = files.filter((f) => f.folder_id === folder.id);
-
-                      const toggleFolder = () => {
-                        setExpandedFolders((prev) =>
-                          isExpanded ? prev.filter((id) => id !== folder.id) : [...prev, folder.id]
-                        );
-                      };
-
-                      return (
-                        <div key={folder.id} className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={toggleFolder}
-                            onContextMenu={(event) => handleFolderContextMenu(event, folder)}
-                            className="w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                            )}
-                            {isExpanded ? (
-                              <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
-                            ) : (
-                              <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[folder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
-                            )}
-                            <span className="text-sm font-semibold truncate">{folder.name}</span>
-                          </button>
-
-                          {isExpanded && (
-                            <div className="space-y-1">
-                              {/* Subfolders */}
-                              {subfolders.map((subfolder) => {
-                                const isSubExpanded = expandedFolders.includes(subfolder.id);
-                                const subfolderFiles = files.filter((f) => f.folder_id === subfolder.id);
-
-                                const toggleSubfolder = () => {
-                                  setExpandedFolders((prev) =>
-                                    isSubExpanded ? prev.filter((id) => id !== subfolder.id) : [...prev, subfolder.id]
-                                  );
-                                };
-
-                                return (
-                                  <div key={subfolder.id} className="space-y-1">
-                                    <button
-                                      type="button"
-                                      onClick={toggleSubfolder}
-                                      onContextMenu={(event) => handleFolderContextMenu(event, subfolder)}
-                                      className="text-left px-3 py-2 rounded-lg transition flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden"
-                                      style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
-                                    >
-                                      {isSubExpanded ? (
-                                        <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                                      )}
-                                      {isSubExpanded ? (
-                                        <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[subfolder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
-                                      ) : (
-                                        <Folder className="h-4 w-4 flex-shrink-0" style={{ color: folderColorClasses[subfolder.color as keyof typeof folderColorClasses] || '#3b82f6' }} />
-                                      )}
-                                      <span className="text-sm font-semibold truncate">{subfolder.name}</span>
-                                    </button>
-
-                                    {isSubExpanded && subfolderFiles.length > 0 && (
-                                      <div className="space-y-1">
-                                        {subfolderFiles.map((file) => {
-                                          const isActive = file.id === selectedFileId;
-                                          return (
-                                            <button
-                                              key={file.id}
-                                              onClick={() => {
-                                                setIsEditMode(false);
-                                                setSavingMessage(null);
-                                                setSelectedFile(null);
-                                                setSelectedFileError(null);
-                                                setSelectedFileId(file.id);
-                                                closeContextMenu();
-                                              }}
-                                              onContextMenu={(event) => handleFileContextMenu(event, file)}
-                                              className={`text-left px-3 py-2 rounded-lg transition border border-transparent overflow-hidden ${
-                                                isActive
-                                                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
-                                                  : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                                              }`}
-                                              style={{ marginLeft: '48px', width: 'calc(100% - 48px)' }}
-                                            >
-                                              <span className="block text-sm font-semibold truncate">
-                                                {file.title || 'Untitled note'}
-                                              </span>
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-
-                              {/* Files in root folder */}
-                              {folderFiles.length > 0 && (
-                                <div className="space-y-1">
-                                  {folderFiles.map((file) => {
-                                    const isActive = file.id === selectedFileId;
-                                    return (
-                                      <button
-                                        key={file.id}
-                                        onClick={() => {
-                                          setIsEditMode(false);
-                                          setSavingMessage(null);
-                                          setSelectedFile(null);
-                                          setSelectedFileError(null);
-                                          setSelectedFileId(file.id);
-                                          closeContextMenu();
-                                        }}
-                                        onContextMenu={(event) => handleFileContextMenu(event, file)}
-                                        className={`text-left px-3 py-2 rounded-lg transition border border-transparent overflow-hidden ${
-                                          isActive
-                                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
-                                            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                                        }`}
-                                        style={{ marginLeft: '24px', width: 'calc(100% - 24px)' }}
-                                      >
-                                        <span className="block text-sm font-semibold truncate">
-                                          {file.title || 'Untitled note'}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                  {/* Unfiled files */}
-                  {filesWithoutFolder.length > 0 && (
-                    <div>
-                      {folders.length > 0 && (
-                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mt-2">
-                          Files
-                        </div>
-                      )}
-                      {filesWithoutFolder.map((file) => {
-                        const isActive = file.id === selectedFileId;
-                        return (
-                          <button
-                            key={file.id}
-                            onClick={() => {
-                              setIsEditMode(false);
-                              setSavingMessage(null);
-                              setSelectedFile(null);
-                              setSelectedFileError(null);
-                              setSelectedFileId(file.id);
-                              closeContextMenu();
-                            }}
-                            onContextMenu={(event) => handleFileContextMenu(event, file)}
-                            className={`w-full text-left px-3 py-3 rounded-lg transition border border-transparent overflow-hidden ${
-                              isActive
-                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-200 border-blue-100 dark:border-blue-400/40'
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                            }`}
-                          >
-                            <span className="block text-sm font-semibold truncate">
-                              {file.title || 'Untitled note'}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </nav>
-              )}
-            </div>
-          </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6 flex flex-col">
-          {savingMessage && (
-            <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-sm">
-              {savingMessage}
-            </div>
-          )}
-
-          {loadingFiles && files.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              Loading files...
-            </div>
-          ) : fileError ? (
-            <div className="flex-1 flex items-center justify-center text-red-500">
-              {fileError}
-            </div>
-          ) : selectedFileId && loadingSelectedFile ? (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              Loading file content...
-            </div>
-          ) : selectedFileError ? (
-            <div className="flex-1 flex items-center justify-center text-red-500">
-              {selectedFileError}
-            </div>
-          ) : selectedFile ? (
-            <div className="flex-1">
-              {isEditMode ? (
-                <FileEditor
-                  file={selectedFile}
-                  onSaved={handleFileSaved}
-                  onCancel={handleCancelEdit}
-                />
-              ) : (
-                <FileViewerWithChat
-                  file={selectedFile}
-                  onEditClick={handleEditClick}
-                  onDeleteClick={() => requestFileDelete(selectedFile)}
-                  isDeleting={deletingFileId === selectedFile.id}
-                />
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              Select a file from the sidebar to view it.
-            </div>
-          )}
-        </main>
+            {/* AI Chat Panel */}
+            <aside className="hidden h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:flex">
+              <FileChatInterface
+                selectedFile={selectedFile ?? undefined}
+                selectedFileIds={selectedFileId ? [selectedFileId] : []}
+                variant="inline"
+              />
+            </aside>
+          </div>
+        </div>
       </div>
-    </div>
 
       {/* Create Note Dialog */}
       <CreateNoteDialog
