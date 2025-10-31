@@ -16,7 +16,7 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
   const contentPreview = file.content || ''
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden gap-4">
       {/* Header with Title and Edit Button */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
@@ -50,7 +50,7 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
       </div>
 
       {/* Content Display */}
-      <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
+      <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         {contentPreview ? (
           <TiptapEditor
             markdown={contentPreview}

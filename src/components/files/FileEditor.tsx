@@ -122,9 +122,9 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
 
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header with Title and Action Buttons */}
-      <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-800">
         <div className="flex-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
             Title
@@ -162,7 +162,7 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
 
       {/* Status Messages */}
       {(error || saveStatus !== 'idle') && (
-        <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+        <div className="mt-4 flex flex-shrink-0 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center gap-2 text-sm">
             {saveStatus === 'saving' && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
             {saveStatus === 'saved' && !hasChanges && <span className="text-green-600 dark:text-green-400">✓ Saved</span>}
@@ -176,7 +176,7 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
       )}
 
       {/* Editor */}
-      <div className="flex-1 overflow-hidden">
+      <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <TiptapEditor
           markdown={content}
           onChange={setContent}
