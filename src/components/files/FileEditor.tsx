@@ -122,10 +122,10 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
 
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Header with Title and Action Buttons */}
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      {/* Header with Title and Action Buttons - Fixed */}
       <div className="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-800">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
             Title
           </label>
@@ -134,25 +134,22 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
             onChange={(event) => setTitle(event.target.value)}
             onKeyDown={handleTitleKeyDown}
             placeholder="Untitled"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 truncate"
           />
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <button
-            type="button"
             onClick={handleCancel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            title="Cancel editing"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            disabled={saveStatus === 'saving'}
           >
             <X className="w-4 h-4" />
             Cancel
           </button>
           <button
-            type="button"
             onClick={handleSave}
-            disabled={!hasChanges || saveStatus === 'saving'}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saveStatus === 'saving'}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <Check className="w-4 h-4" />
             {saveStatus === 'saving' ? 'Saving...' : 'Save'}
@@ -160,9 +157,9 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
         </div>
       </div>
 
-      {/* Status Messages */}
+      {/* Status Messages - Fixed */}
       {(error || saveStatus !== 'idle') && (
-        <div className="mt-4 flex flex-shrink-0 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-shrink-0 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900 mt-2">
           <div className="flex items-center gap-2 text-sm">
             {saveStatus === 'saving' && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
             {saveStatus === 'saved' && !hasChanges && <span className="text-green-600 dark:text-green-400">✓ Saved</span>}
@@ -171,12 +168,12 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
               <span className="text-orange-600 dark:text-orange-400">● Unsaved changes</span>
             )}
           </div>
-          {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
+          {error && <span className="text-sm text-red-600 dark:text-red-400 truncate">{error}</span>}
         </div>
       )}
 
-      {/* Editor */}
-      <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+      {/* Editor - Scrollable */}
+      <div className="flex-1 min-h-0 w-full overflow-hidden mt-2">
         <TiptapEditor
           markdown={content}
           onChange={setContent}

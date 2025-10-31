@@ -16,21 +16,21 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
   const contentPreview = file.content || ''
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden gap-4">
-      {/* Header with Title and Edit Button */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      {/* Header with Title and Edit Button - Fixed */}
+      <div className="flex flex-shrink-0 items-start justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 truncate">
             {file.title || 'Untitled'}
           </h2>
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Clock className="w-4 h-4" />
-            <span>
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">
               Last updated {file.updated_at ? formatDistanceToNow(new Date(file.updated_at), { addSuffix: true }) : 'Unknown'}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <button
             onClick={() => onDeleteClick?.()}
             disabled={isDeleting}
@@ -49,8 +49,8 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
         </div>
       </div>
 
-      {/* Content Display */}
-      <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      {/* Content Display - Scrollable */}
+      <div className="flex-1 min-h-0 w-full overflow-hidden">
         {contentPreview ? (
           <TiptapEditor
             markdown={contentPreview}
@@ -63,7 +63,6 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
           </div>
         )}
       </div>
-
     </div>
   )
 }
