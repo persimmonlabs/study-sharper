@@ -382,9 +382,9 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
+      <div className="flex h-full w-full flex-col overflow-hidden">
         {/* Condensed Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 m-4 mb-0">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Files</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Manage your uploads, edit content, and chat with your notes in one view.</p>
@@ -407,8 +407,8 @@ export default function FilesPage() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="grid h-full min-h-0 gap-4 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+        <div className="flex-1 min-h-0 overflow-hidden p-4 pt-4">
+          <div className="grid h-full min-h-0 gap-4 grid-cols-1 lg:grid-cols-[260px_1fr_360px]">
             {/* File Explorer Panel */}
             <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
