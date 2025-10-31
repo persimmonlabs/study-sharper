@@ -124,9 +124,9 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       {/* Header with Title and Action Buttons - Fixed */}
-      <div className="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-800">
+      <div className="flex flex-shrink-0 items-start justify-between gap-4 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex-1 min-w-0">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
             Title
           </label>
           <input
@@ -134,24 +134,24 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
             onChange={(event) => setTitle(event.target.value)}
             onKeyDown={handleTitleKeyDown}
             placeholder="Untitled"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-3 text-3xl font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 truncate"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-lg font-bold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 truncate"
           />
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           <button
             onClick={handleCancel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             disabled={saveStatus === 'saving'}
           >
-            <X className="w-4 h-4" />
+            <X className="w-3 h-3" />
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saveStatus === 'saving'}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3 h-3" />
             {saveStatus === 'saving' ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -159,26 +159,24 @@ export function FileEditor({ file, onSaved, onError, onCancel }: FileEditorProps
 
       {/* Status Messages - Fixed */}
       {(error || saveStatus !== 'idle') && (
-        <div className="flex flex-shrink-0 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900 mt-2">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-shrink-0 items-center justify-between rounded border border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-gray-800 dark:bg-gray-900 mx-4 mt-2">
+          <div className="flex items-center gap-2 text-xs">
             {saveStatus === 'saving' && <span className="text-blue-600 dark:text-blue-400">Saving...</span>}
             {saveStatus === 'saved' && !hasChanges && <span className="text-green-600 dark:text-green-400">✓ Saved</span>}
-            {saveStatus === 'error' && <span className="text-red-600 dark:text-red-400">Error saving changes</span>}
+            {saveStatus === 'error' && <span className="text-red-600 dark:text-red-400">Error saving</span>}
             {hasChanges && saveStatus !== 'saving' && (
-              <span className="text-orange-600 dark:text-orange-400">● Unsaved changes</span>
+              <span className="text-orange-600 dark:text-orange-400">● Unsaved</span>
             )}
           </div>
-          {error && <span className="text-sm text-red-600 dark:text-red-400 truncate">{error}</span>}
+          {error && <span className="text-xs text-red-600 dark:text-red-400 truncate">{error}</span>}
         </div>
       )}
 
       {/* Editor - Scrollable */}
-      <div className="flex-1 min-h-0 w-full overflow-hidden mt-2">
-        <TiptapEditor
-          markdown={content}
-          onChange={setContent}
-        />
-      </div>
+      <TiptapEditor
+        markdown={content}
+        onChange={setContent}
+      />
     </div>
   )
 }

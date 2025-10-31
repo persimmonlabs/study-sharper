@@ -18,15 +18,15 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       {/* Header with Title and Edit Button - Fixed */}
-      <div className="flex flex-shrink-0 items-start justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex flex-shrink-0 items-start justify-between gap-4 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex-1 min-w-0">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 truncate">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 truncate">
             {file.title || 'Untitled'}
           </h2>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Clock className="w-4 h-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <Clock className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">
-              Last updated {file.updated_at ? formatDistanceToNow(new Date(file.updated_at), { addSuffix: true }) : 'Unknown'}
+              {file.updated_at ? formatDistanceToNow(new Date(file.updated_at), { addSuffix: true }) : 'Unknown'}
             </span>
           </div>
         </div>
@@ -34,35 +34,33 @@ export function FileViewer({ file, onEditClick, onDeleteClick, isDeleting = fals
           <button
             onClick={() => onDeleteClick?.()}
             disabled={isDeleting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3 h-3" />
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
           <button
             onClick={onEditClick}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3 h-3" />
             Edit
           </button>
         </div>
       </div>
 
       {/* Content Display - Scrollable */}
-      <div className="flex-1 min-h-0 w-full overflow-hidden">
-        {contentPreview ? (
-          <TiptapEditor
-            markdown={contentPreview}
-            onChange={() => {}}
-            disabled={true}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-600">
-            No content yet. Click Edit to add content.
-          </div>
-        )}
-      </div>
+      {contentPreview ? (
+        <TiptapEditor
+          markdown={contentPreview}
+          onChange={() => {}}
+          disabled={true}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-600">
+          No content yet. Click Edit to add content.
+        </div>
+      )}
     </div>
   )
 }
