@@ -709,7 +709,6 @@ export default function FilesPage() {
               <FileChatInterface
                 selectedFile={selectedFile ?? undefined}
                 selectedFileIds={selectedFileId ? [selectedFileId] : []}
-                variant="inline"
               />
             </aside>
           </div>
