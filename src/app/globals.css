@@ -5,6 +5,13 @@
 @layer base {
   html {
     font-family: Inter, system-ui, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  body {
+    height: 100vh;
+    overflow: hidden;
   }
 }
 

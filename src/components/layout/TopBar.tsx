@@ -120,7 +120,7 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+    <header className="flex-shrink-0 z-30 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
       <div className="flex items-center justify-between h-16 pl-16 pr-6">
         {/* Page Title */}
         <div className="flex items-center space-x-4">

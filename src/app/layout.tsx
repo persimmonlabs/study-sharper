@@ -22,22 +22,22 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="h-screen overflow-hidden">
+      <body className={`${inter.className} h-screen overflow-hidden bg-gray-50 dark:bg-gray-950`}>
         <AuthProvider>
           <ThemeProvider>
             <ProcessingProvider>
-              <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+              <div className="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
               {/* Sidebar Navigation */}
               <Sidebar />
               
               {/* Main Content Area */}
-              <div className="flex flex-col flex-1 min-h-screen">
+              <div className="flex flex-col flex-1 h-full min-h-0 overflow-hidden">
                 {/* Top Bar */}
                 <TopBar />
                 
                 {/* Page Content */}
-                <main className="flex-1 min-h-0 p-6 overflow-hidden">
+                <main className="flex-1 min-h-0 overflow-hidden">
                   <ErrorBoundary>
                     {children}
                   </ErrorBoundary>

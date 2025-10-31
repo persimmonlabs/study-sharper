@@ -382,9 +382,9 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
         {/* Page Header - Fixed */}
-        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Files</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Manage your uploads, edit content, and chat with your notes in one view.</p>
@@ -408,7 +408,7 @@ export default function FilesPage() {
         </div>
 
         {/* 3-Column Layout - Main Content */}
-        <div className="flex flex-1 min-h-0 min-w-0 gap-4 overflow-hidden px-4 pb-4">
+        <div className="flex flex-1 min-h-0 min-w-0 gap-4 overflow-hidden p-4">
           {/* Left: File Explorer - Fixed Width, Independent Scroll */}
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900" style={{ width: '260px', flexShrink: 0 }}>
             {/* File Explorer Header - Fixed */}
