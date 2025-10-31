@@ -382,14 +382,14 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="flex h-full w-full flex-col overflow-hidden">
-        {/* Condensed Header */}
-        <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 m-4 mb-0">
+      <div className="flex h-screen w-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* Page Header - Fixed */}
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Files</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Manage your uploads, edit content, and chat with your notes in one view.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button
               onClick={() => setShowUploadDialog(true)}
               className="inline-flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
@@ -407,11 +407,12 @@ export default function FilesPage() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden p-4 pt-4">
-          <div className="grid h-full min-h-0 gap-4 grid-cols-1 lg:grid-cols-[260px_1fr_360px]">
-            {/* File Explorer Panel */}
-            <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+        {/* 3-Column Layout - Main Content */}
+        <div className="flex flex-1 min-h-0 min-w-0 gap-4 overflow-hidden px-4 pb-4">
+          {/* Left: File Explorer - Fixed Width, Independent Scroll */}
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900" style={{ width: '260px', flexShrink: 0 }}>
+            {/* File Explorer Header - Fixed */}
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File Explorer</h2>
                 <div className="relative" ref={newMenuRef}>
                   <button
@@ -456,9 +457,10 @@ export default function FilesPage() {
                     </div>
                   )}
                 </div>
-              </div>
+            </div>
 
-              <div className="flex-1 overflow-y-auto">
+            {/* File Explorer Content - Scrollable */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
                 {loadingFiles ? (
                   <div className="space-y-3 p-4">
                     {Array.from({ length: 5 }).map((_, index) => (
@@ -652,17 +654,20 @@ export default function FilesPage() {
                     )}
                   </nav>
                 )}
-              </div>
-            </aside>
+            </div>
+          </div>
 
-            {/* File Viewer / Editor Panel */}
-            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              {savingMessage && (
-                <div className="border-b border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
-                  {savingMessage}
-                </div>
-              )}
-              <div className="flex-1 min-h-0 overflow-hidden">
+          {/* Center: File Viewer / Editor - Flex Grow, Independent Scroll */}
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            {/* Saving Message - Fixed */}
+            {savingMessage && (
+              <div className="flex-shrink-0 border-b border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+                {savingMessage}
+              </div>
+            )}
+
+            {/* File Content - Scrollable */}
+            <div className="flex-1 min-h-0 overflow-hidden">
                 {loadingFiles && files.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
                     Loading files...
@@ -701,17 +706,16 @@ export default function FilesPage() {
                     Select a file from the explorer to view its content.
                   </div>
                 )}
-              </div>
-            </section>
+            </div>
+          </section>
 
-            {/* AI Chat Panel */}
-            <aside className="hidden h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:flex">
-              <FileChatInterface
-                selectedFile={selectedFile ?? undefined}
-                selectedFileIds={selectedFileId ? [selectedFileId] : []}
-              />
-            </aside>
-          </div>
+          {/* Right: AI Chat Panel - Fixed Width, Independent Scroll */}
+          <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:flex" style={{ width: '360px', flexShrink: 0 }}>
+            <FileChatInterface
+              selectedFile={selectedFile ?? undefined}
+              selectedFileIds={selectedFileId ? [selectedFileId] : []}
+            />
+          </aside>
         </div>
       </div>
 
