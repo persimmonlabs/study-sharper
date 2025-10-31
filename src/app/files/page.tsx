@@ -382,7 +382,7 @@ export default function FilesPage() {
 
   return (
     <FileErrorBoundary>
-      <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
         {/* Condensed Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div>
@@ -407,8 +407,8 @@ export default function FilesPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <div className="grid h-full gap-4 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="grid h-full min-h-0 gap-4 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
             {/* File Explorer Panel */}
             <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">

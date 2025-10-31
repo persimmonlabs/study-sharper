@@ -125,13 +125,13 @@ export function TiptapEditor({ markdown, onChange, disabled = false }: TiptapEdi
   }, [markdown, editor])
 
   if (!editor) {
-    return <div className="flex items-center justify-center h-full text-gray-500">Loading editor...</div>
+    return <div className="flex h-full min-h-0 items-center justify-center text-gray-500">Loading editor...</div>
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <Toolbar editor={editor} />
-      <EditorContent editor={editor} className="flex-1 overflow-y-auto" />
+      <EditorContent editor={editor} className="flex-1 min-h-0 overflow-y-auto" />
     </div>
   )
 }
